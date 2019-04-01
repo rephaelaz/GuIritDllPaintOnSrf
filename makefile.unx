@@ -1,0 +1,26 @@
+
+#
+# Makefile for the GuIrit $(GUIRIT_SHARED_LIB) example.
+#
+
+include ../makeflag.unx
+
+SRCS = GuIritDllExample.cpp
+
+OBJS = $(SRCS:.cpp=.o$(IRIT_OBJ_PF))
+
+libGuIritDllExample$(IRIT_EXE_PF).$(GUIRIT_SHARED_LIB): $(OBJS) 
+	$(GUIRIT_LINK_SHARED_LIB) \
+		-o libGuIritDllExample$(IRIT_EXE_PF).$(GUIRIT_SHARED_LIB) \
+		$(OBJS) $(GUIRIT_EXT_DLL_LIB) $(IRIT_ALL_LIBS)
+	$(GUIRIT_LINK_SHARED_LIB_POST_PROCESS) \
+		libGuIritDllExample$(IRIT_EXE_PF).$(GUIRIT_SHARED_LIB)
+
+install:	libGuIritDllExample$(IRIT_EXE_PF).$(GUIRIT_SHARED_LIB)
+	mv -f libGuIritDllExample$(IRIT_EXE_PF).$(GUIRIT_SHARED_LIB) \
+							$(GUIRIT_DLL_INSTALL)
+
+depend:
+	makedepend $(GUIRIT_INCLUDE_DIRS) -fmakefile.unx $(SRCS)
+
+# DO NOT DELETE THIS LINE -- make depend depends on it.

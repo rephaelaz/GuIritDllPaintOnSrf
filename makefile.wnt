@@ -1,0 +1,18 @@
+#
+# This make file is for a simple example of a Dll modeling extension of GuIrit
+#
+#				Gershon Elber, Oct 2007
+#
+
+# Includes generic definitions.
+include ..\makeflag.wnt
+
+OBJS =	GuIritDllExample.$(IRIT_OBJ_PF)
+
+GuIritDllExample$(IRIT_EXE_PF).dll: $(OBJS)
+	$(IRITCONLINK) -dll -def:GuiritDllExample.def -out:GuIritDllExample$(IRIT_EXE_PF).dll $(OBJS) $(IRIT_LIBS) $(IRIT_MORE_LIBS) $(GUIRIT_EXT_DLL_LIB) $(W32CONMTLIBS)
+
+install: GuIritDllExample$(IRIT_EXE_PF).dll
+	copy GuIritDllExample$(IRIT_EXE_PF).dll $(IRIT_BIN_DIR)
+
+# Dependencies starts here - do not touch, generated automatically.
