@@ -194,21 +194,21 @@ IRT_DSP_STATIC_DATA const int
 * KEYWORDS:                                                                  M
 *   _IrtMdlrDllRegister                                                      M
 *****************************************************************************/
-extern "C" bool _IrtMdlrDllRegister(void)
-{
-    GuIritMdlrDllRegister(ExampleFunctionTable,
-			  EXAMPLE_FUNC_TABLE_SIZE,
-			  "Example",
-			  IconMenuExample);
-
-    /*   You can also have the call back function activated on load.       */
-    /*   In this case, the function will be called every time animation is */
-    /* executed, on every frame.  Make sure AnimCallBackPrintTime has a    */
-    /* valid FI.							   */
-    /* GuIritMdlrDllSetAnimationUpdateFunc(NULL, AnimCallBackPrintTime, true); */
-
-    return true;
-}
+//extern "C" bool _IrtMdlrDllRegister(void)
+//{
+//    GuIritMdlrDllRegister(ExampleFunctionTable,
+//			  EXAMPLE_FUNC_TABLE_SIZE,
+//			  "Example",
+//			  IconMenuExample);
+//
+//    /*   You can also have the call back function activated on load.       */
+//    /*   In this case, the function will be called every time animation is */
+//    /* executed, on every frame.  Make sure AnimCallBackPrintTime has a    */
+//    /* valid FI.							   */
+//    /* GuIritMdlrDllSetAnimationUpdateFunc(NULL, AnimCallBackPrintTime, true); */
+//
+//    return true;
+//}
 
 /*****************************************************************************
 * DESCRIPTION:                                                               *
