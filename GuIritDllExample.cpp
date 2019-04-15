@@ -25,8 +25,9 @@ static void IrtMdlrTexturePainter(IrtMdlrFuncInfoClass* FI);
 static int IrtMdlrTexturePainterMouseCallBack(IrtMdlrMouseEventStruct* MouseEvent);
 
 
-IRT_DSP_STATIC_DATA IrtRType IrtMdlrBeepPitch = 1000.0;
-IRT_DSP_STATIC_DATA IrtRType IrtMdlrBeepDuration = 100.0;
+IRT_DSP_STATIC_DATA IrtRType R = 255;
+IRT_DSP_STATIC_DATA IrtRType G = 255;
+IRT_DSP_STATIC_DATA IrtRType B = 255;
 IRT_DSP_STATIC_DATA IrtMdlrFuncInfoClass* GlobalFI = NULL;
 
 IRT_DSP_STATIC_DATA IrtMdlrFuncTableStruct TexturePainterFunctionTable[] =
@@ -35,9 +36,9 @@ IRT_DSP_STATIC_DATA IrtMdlrFuncTableStruct TexturePainterFunctionTable[] =
 		0,
 			IconExample,
 			"IRT_MDLR_EXAMPLE_BEEP",
-			"Test",
-			"Test test test",
-			"This is a test with a long text.",
+			"Painter",
+			"Texture Painter",
+			"This is a texture painter",
 			IrtMdlrTexturePainter,
 			NULL,
 			IRT_MDLR_PARAM_POINT_SIZE_CONTROL | IRT_MDLR_PARAM_VIEW_CHANGES_UDPATE | IRT_MDLR_PARAM_INTERMEDIATE_UPDATE_DFLT_ON,
@@ -45,25 +46,25 @@ IRT_DSP_STATIC_DATA IrtMdlrFuncTableStruct TexturePainterFunctionTable[] =
 			3,
 			IRT_MDLR_PARAM_EXACT,
 		{
-			IRT_MDLR_STRING_EXPR,
 				IRT_MDLR_NUMERIC_EXPR,
-				IRT_MDLR_NUMERIC_EXPR
+				IRT_MDLR_NUMERIC_EXPR,
+				IRT_MDLR_NUMERIC_EXPR,
 		},
 		{
-			"BEEP",
-				&IrtMdlrBeepPitch,
-				&IrtMdlrBeepDuration
+				&R,
+				&G,
+				&B
 			},
 			{
-				"Test 1",
-					"Test 2",
-					"Test 3"
+				"R",
+				"G",
+				"B"
 			},
 			{
-				"Resulting object's name",
-					"The frequency of the sound (Hz)",
-					"The duration to make the sound, in millisecs."
-				}
+				"Red component",
+				"Green component",
+				"Blue component"
+			}
 	}
 };
 
@@ -77,7 +78,6 @@ extern "C" bool _IrtMdlrDllRegister(void)
 
 static void IrtMdlrTexturePainter(IrtMdlrFuncInfoClass* FI)
 {
-	char Name[IRIT_LINE_LEN_LONG];
 	IPObjectStruct* ResultObject;
 
 	if (FI->InvocationNumber == 0 && GlobalFI == NULL) {
@@ -87,23 +87,23 @@ static void IrtMdlrTexturePainter(IrtMdlrFuncInfoClass* FI)
 			(IrtDspMouseEventType)(IRT_DSP_MOUSE_EVENT_LEFT),
 			(IrtDspKeyModifierType)(IRT_DSP_KEY_MODIFIER_CTRL_DOWN | IRT_DSP_KEY_MODIFIER_SHIFT_DOWN),
 			FI);
-		GuIritMdlrDllSetRealInputDomain(FI, 20.0, 20000.0, 1);
-		GuIritMdlrDllSetRealInputDomain(FI, 1.0, IRIT_INFNTY, 2);
 		GlobalFI = FI;
 	}
 
-	GuIritMdlrDllGetInputParameter(FI, 0, &Name);
-	GuIritMdlrDllGetInputParameter(FI, 1, &IrtMdlrBeepPitch);
-	GuIritMdlrDllGetInputParameter(FI, 2, &IrtMdlrBeepDuration);
+	GuIritMdlrDllGetInputParameter(FI, 0, &R);
+	GuIritMdlrDllGetInputParameter(FI, 1, &G);
+	GuIritMdlrDllGetInputParameter(FI, 2, &B);
 
 	if (FI->CnstrctState == IRT_MDLR_CNSTRCT_STATE_APPLY ||
 		FI->CnstrctState == IRT_MDLR_CNSTRCT_STATE_OK)
 	{
-		ResultObject = IPGenNUMValObject(IrtMdlrBeepPitch);
-		GuIritMdlrDllSetObjectName(FI, ResultObject, Name);
+		ResultObject = IPGenNUMValObject(0);
+		GuIritMdlrDllSetObjectName(FI, ResultObject, "Painter");
 		GuIritMdlrDllInsertModelingFuncObj(FI, ResultObject);
 	}
 }
+
+
 
 static int IrtMdlrTexturePainterMouseCallBack(IrtMdlrMouseEventStruct * MouseEvent)
 {
@@ -113,6 +113,7 @@ static int IrtMdlrTexturePainterMouseCallBack(IrtMdlrMouseEventStruct * MouseEve
 
 	GLuint handle = 0;
 	const IPObjectStruct* PObj = MouseEvent->PObj;
+	handle = AttrIDGetObjectIntAttrib(PObj, IRIT_ATTR_CREATE_ID(_ImageTexID));
 
 	if (MouseEvent->KeyModifiers & IRT_DSP_KEY_MODIFIER_CTRL_DOWN)
 	{
@@ -130,11 +131,8 @@ static int IrtMdlrTexturePainterMouseCallBack(IrtMdlrMouseEventStruct * MouseEve
 			if (!MouseActive)
 				break;
 
-			handle = AttrIDGetObjectIntAttrib(PObj, IRIT_ATTR_CREATE_ID(_ImageTexID));
-
 
 			if (handle > 0 && MouseEvent->UV != NULL) {
-				
 				glBindTexture(GL_TEXTURE_2D, handle);
 
 				GLint width;
@@ -143,17 +141,26 @@ static int IrtMdlrTexturePainterMouseCallBack(IrtMdlrMouseEventStruct * MouseEve
 				glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &height);
 
 				int vv[5][5] = {0};
-				glTexSubImage2D(GL_TEXTURE_2D, 0, MouseEvent->UV[0]*width, MouseEvent->UV[1]*height, 5, 5, GL_RGBA, GL_UNSIGNED_BYTE, vv);
-
+				glTexSubImage2D(GL_TEXTURE_2D, 0, MouseEvent->UV[0]*width, MouseEvent->UV[1]*height, 5, 5, GL_RGB, GL_UNSIGNED_BYTE, vv);
+				
+				//GLvoid* pixels = NULL;
+				//glGetTexImage(GL_TEXTURE_2D, 0, GL_RGB, GL_UNSIGNED_BYTE, pixels);
+				//GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO, "%s\n", pixels);
 			}
+
 			else {
 				GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO, "No assigned texture\n");
 			}
-
 			break;
 		default:
 			break;
 		}
 	}
+	//if (IRT_DSP_KEY_MODIFIER_SHIFT_DOWN) {
+	//GLvoid* pixels = NULL;
+	//glGetTexImage(GL_TEXTURE_2D, 0, GL_RGB, GL_UNSIGNED_BYTE, pixels);
+	//GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO, "%s\n", pixels);
+	//AttrIDGetObjectIntAttrib(PObj, .mb_str(wxConvUTF8));
+	//}
 	return TRUE;
 }
