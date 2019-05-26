@@ -88,7 +88,7 @@ IRT_DSP_STATIC_DATA IrtMdlrFuncInfoClass
 
 IRT_DSP_STATIC_DATA IrtMdlrFuncTableStruct ExampleFunctionTable[] = {  
     { 0, IconExample, "IRT_MDLR_EXAMPLE_BEEP", "Beep", "Make some sound",
-	"Make some sound, controlling the pitch and the duration,\nand return the pitch as a new (numeric) object.\n\nAlso demonstrates mouse events - try Ctrl-left-mouse-click-and-drag\nand Shift-left-mouse-click-and-drag in the graphics window,\nafter an 'Apply' was invoked.\n\nAlso demonstrates some special features - if pitch value equal:\n1001 or 1002 - Generates and sends generic IrtMdlrGenericEventStruct\n\tevent\n1010 - demonstrate a confirmation popup widget use\n1011 - demonstrate an error popup widget use\n1012 - demonstrate a string input popup widget use\n1013 - demonstrate a filename input popup widget use\n1014 - demonstrate a directory popup widget use\n1015 - demonstrate a real value input popup widget use\n1016 - demonstrate a point value input popup widget use\n1017 - demonstrate a color input popup widget use\n1018 - demonstrate a symbol selection popup\n1019 - demonstrate a color map input popup widget\n1020 - demonstrate a system's directories query function call\n1021 - demonstrate the use of a transformation controller over some object\n1100 and 1101 - demonstrate a request to close this panel directly\n\twith cancel (1100) or ok (1101)\n1200, 1201, and 1202 - highlight an objected called \"Object\"\n\twith Highlight1/2/3 respectively.\n\nIf Duration equals 88, \"intermediate update\" and \"view change\" events are\nreported to the status screen, after an 'Apply' was invoked."
+	"Make some sound, controlling the pitch and the duration,\nand return the pitch as a new (numeric) object.\n\nAlso demonstrates mouse events - try Ctrl-left-mouse-click-and-drag\nand Shift-left-mouse-click-and-drag in the graphics window,\nafter an 'Apply' was invoked.\n\nAlso demonstrates some special features - if pitch value equal:\n1001 or 1002 - Generates and sends generic IrtMdlrGenericEventStruct\n\tevent\n1010 - demonstrate a confirmation popup widget use\n1011 - demonstrate an error popup widget use\n1012 - demonstrate a string input popup widget use\n1013 - demonstrate a filename input popup widget use\n1014 - demonstrate a directory popup widget use\n1015 - demonstrate a real value input popup widget use\n1016 - demonstrate a point value input popup widget use\n1017 - demonstrate a color input popup widget use\n1018 - demonstrate a symbol selection popup\n1019 - demonstrate a color map input popup widget\n1020 - demonstrate a system's directories query function call\n1021 - demonstrate the use of a transformation controller over some object\n1030 - demonstrate the application of a texture image to a surface\n1050 - emulates execution of interpreter commands\n1100 and 1101 - demonstrate a request to close this panel directly\n\twith cancel (1100) or ok (1101)\n1200, 1201, and 1202 - highlight an objected called \"Object\"\n\twith Highlight1/2/3 respectively.\n\nIf Duration equals 88, \"intermediate update\" and \"view change\" events are\nreported to the status screen, after an 'Apply' was invoked."
 	"\\'<BR><BR> <LEFT><IMG SRC=\"GuIritSplash.png\" WIDTH=100 HEIGHT=70 ALIGN=middle ></LEFT>\\'",
 	IrtMdlrBeepExample, NULL, IRT_MDLR_PARAM_POINT_SIZE_CONTROL | IRT_MDLR_PARAM_VIEW_CHANGES_UDPATE | IRT_MDLR_PARAM_INTERMEDIATE_UPDATE_DFLT_ON, IRT_MDLR_NUMERIC_EXPR, 3, IRT_MDLR_PARAM_EXACT,
         { IRT_MDLR_STRING_EXPR, IRT_MDLR_NUMERIC_EXPR, IRT_MDLR_NUMERIC_EXPR },
@@ -194,21 +194,21 @@ IRT_DSP_STATIC_DATA const int
 * KEYWORDS:                                                                  M
 *   _IrtMdlrDllRegister                                                      M
 *****************************************************************************/
-//extern "C" bool _IrtMdlrDllRegister(void)
-//{
-//    GuIritMdlrDllRegister(ExampleFunctionTable,
-//			  EXAMPLE_FUNC_TABLE_SIZE,
-//			  "Example",
-//			  IconMenuExample);
-//
-//    /*   You can also have the call back function activated on load.       */
-//    /*   In this case, the function will be called every time animation is */
-//    /* executed, on every frame.  Make sure AnimCallBackPrintTime has a    */
-//    /* valid FI.							   */
-//    /* GuIritMdlrDllSetAnimationUpdateFunc(NULL, AnimCallBackPrintTime, true); */
-//
-//    return true;
-//}
+extern "C" bool _IrtMdlrDllRegister(void)
+{
+    GuIritMdlrDllRegister(ExampleFunctionTable,
+			  EXAMPLE_FUNC_TABLE_SIZE,
+			  "Example",
+			  IconMenuExample);
+
+    /*   You can also have the call back function activated on load.       */
+    /*   In this case, the function will be called every time animation is */
+    /* executed, on every frame.  Make sure AnimCallBackPrintTime has a    */
+    /* valid FI.							   */
+    /* GuIritMdlrDllSetAnimationUpdateFunc(NULL, AnimCallBackPrintTime, true); */
+
+    return true;
+}
 
 /*****************************************************************************
 * DESCRIPTION:                                                               *
@@ -574,8 +574,8 @@ static IrtRType IrtMdlrExampleTesting(IrtMdlrFuncInfoClass *FI,
 	case 1021:
 	    if (PObjSlicePlane == NULL) {
 		PObjSlicePlane = IPGenSrfObject("_SlicePlane_",
-					        CagdPrimPlaneSrf(-2, -2, 2, 2, 0),
-					        NULL);
+					     CagdPrimPlaneSrf(-2, -2, 2, 2, 0),
+					     NULL);
 		IrtDspPanelUpdateInfoStruct
 		    UpdateInfo(IrtMdlrObjectWasTransformUpdate, FI);
 
@@ -595,15 +595,43 @@ static IrtRType IrtMdlrExampleTesting(IrtMdlrFuncInfoClass *FI,
 		    "Sys info: Already transforming a plane.\n");
 	    }
 	    break;
+	case 1030:
+	{
+	    /* Apply an image as a texture. */
+	    int i, j;
+	    CagdVType
+		Center = { 0.0, 0.0, 0.0 };
+	    IRT_DSP_STATIC_DATA IrtImgPixelStruct Image[8][8];
+	    IPObjectStruct
+		*PObj = IPGenSrfObject("Cone",
+				       CagdPrimCone2Srf(Center, 0.5, 0.3, 1.0,
+				                    FALSE, CAGD_PRIM_CAPS_NONE),
+				       NULL);
+
+	    /* Build a checker board texture. */
+	    for (i = 0; i < 8; i++) {
+	        for (j = 0; j < 8; j++) {
+		    Image[i][j].r = Image[i][j].g = Image[i][j].b =
+					           (i + j) % 2 == 0 ? 255 : 0;
+		}
+	    }
+
+	    GuIritMdlrDllSetTextureFromImage(FI, PObj, Image, 8, 8, FALSE);
+
+	    GuIritMdlrDllInsertModelingNewObj(FI, PObj);
+	    break;
+	}
         case 1050:
 	{
 	    /* Exercise the interpreter interface - IO of strings.  Emulate  */
 	    /* an interpreter as a text file, emitting out what is given in. */
 	    IrtMdlrInterpFI = FI;
+
 	    int InterpID = GuIritMdlrDllRegisterInterpFunc(FI,
 							   IrtMdlrInterpInput,
 							   "Text", "Text >",
 							   ".txt");
+
 	    GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_WARNING,
 				"Registered \"text\" interpreter %d for files.txt.\n",
 				InterpID);
