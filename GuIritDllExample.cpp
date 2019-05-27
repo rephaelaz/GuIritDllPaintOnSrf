@@ -30,8 +30,7 @@ IRT_DSP_STATIC_DATA IrtVecType color = {0, 0, 0};
 IRT_DSP_STATIC_DATA IrtRType alpha = 0;
 IRT_DSP_STATIC_DATA IrtRType size = 1;
 
-IRT_DSP_STATIC_DATA const int TEXTURE_SIZE = 64;
-IRT_DSP_STATIC_DATA bool loaded = false;
+IRT_DSP_STATIC_DATA const int TEXTURE_SIZE = 256;
 IRT_DSP_STATIC_DATA IrtImgPixelStruct texture [TEXTURE_SIZE][TEXTURE_SIZE];
 
 IRT_DSP_STATIC_DATA IrtMdlrFuncTableStruct TexturePainterFunctionTable[] =
@@ -153,7 +152,6 @@ static int IrtMdlrTexturePainterMouseCallBack(IrtMdlrMouseEventStruct * MouseEve
 		case IRT_DSP_MOUSE_EVENT_LEFT_UP:
 			GuIritMdlrDllCaptureCursorFocus(FI, MouseEvent, false);
 			clicking = FALSE;
-			//SaveTexture(FI, handle);
 			break;
 		}
 		if (clicking) {
@@ -167,16 +165,12 @@ static int IrtMdlrTexturePainterMouseCallBack(IrtMdlrMouseEventStruct * MouseEve
 						if (i < 0 || i >= TEXTURE_SIZE || j < 0 || j >= TEXTURE_SIZE) {
 							continue;
 						}
-						texture[i][j].r = (IrtBType) color[0];
-						texture[i][j].g = (IrtBType) color[1];
-						texture[i][j].b = (IrtBType) color[2];
-						//texture[i][j].a = alpha;
+						texture[j][i].r = (IrtBType) color[0];
+						texture[j][i].g = (IrtBType) color[1];
+						texture[j][i].b = (IrtBType) color[2];
 					}
 				}
-				if (!loaded) {
-					GuIritMdlrDllSetTextureFromImage(FI, PObj, texture, TEXTURE_SIZE, TEXTURE_SIZE, FALSE);
-					loaded = true;
-				}
+				GuIritMdlrDllSetTextureFromImage(FI, PObj, texture, TEXTURE_SIZE, TEXTURE_SIZE, FALSE);
 			}
 		}
 	}
