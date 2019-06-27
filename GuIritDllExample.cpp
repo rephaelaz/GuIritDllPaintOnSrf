@@ -19,7 +19,16 @@
 #include "Icons/IconExample.xpm"
 
 #include <string>
+#include <vector>
 #include <math.h>
+
+using std::string;
+using std::vector;
+
+typedef struct {
+	float x;
+	float y;
+} Point;
 
 static void IrtMdlrTexturePainter(IrtMdlrFuncInfoClass* FI);
 static void IrtMdlrTexturePainterInitTexture();
@@ -28,14 +37,19 @@ static int IrtMdlrTexturePainterMouseCallBack(IrtMdlrMouseEventStruct* MouseEven
 
 IRT_DSP_STATIC_DATA IrtMdlrFuncInfoClass* GlobalFI = NULL;
 
-IRT_DSP_STATIC_DATA IrtVecType color = {0, 0, 0};
+IRT_DSP_STATIC_DATA IrtVecType color = { 0, 0, 0 };
 IRT_DSP_STATIC_DATA IrtRType alpha = 0;
 IRT_DSP_STATIC_DATA IrtRType size = 1;
 
-#define SHAPE_FILE_RELATIVE_PATH "\\Example\\Shape"
+IRT_DSP_STATIC_DATA const char SHAPE_FILE_RELATIVE_PATH[IRIT_LINE_LEN_XLONG] = "\\Example\\Shape";
 IRT_DSP_STATIC_DATA char shape_name[IRIT_LINE_LEN_XLONG] = "";
+IRT_DSP_STATIC_DATA vector<vector<Point>> shapes;
+IRT_DSP_STATIC_DATA IrtRType _shape_index = 0;
+IRT_DSP_STATIC_DATA int shape_index = 0;
+
+
 IRT_DSP_STATIC_DATA const int TEXTURE_SIZE = 256;
-IRT_DSP_STATIC_DATA IrtImgPixelStruct texture [TEXTURE_SIZE][TEXTURE_SIZE];
+IRT_DSP_STATIC_DATA IrtImgPixelStruct texture[TEXTURE_SIZE][TEXTURE_SIZE];
 
 IRT_DSP_STATIC_DATA IrtMdlrFuncTableStruct TexturePainterFunctionTable[] =
 {
@@ -64,28 +78,32 @@ IRT_DSP_STATIC_DATA IrtMdlrFuncTableStruct TexturePainterFunctionTable[] =
 			&color,
 			&alpha,
 			shape_name,
-			&size,
-
+			&size
 		},
 		{
 			"Color Picker",
 			"Color",
 			"Alpha",
 			"Shape",
-			"Size",
-
+			"Size"
 		},
 		{
 			"Pick the color of the painter.",
 			"RGB values of the painter.",
 			"Alpha channel value of the painter.",
 			"Shape of the painting brush.",
-			"Size of the painting brush.",
+			"Size of the painting brush."
 		}
 	}
 };
 
 IRT_DSP_STATIC_DATA const int FUNC_TABLE_SIZE = sizeof(TexturePainterFunctionTable) / sizeof(IrtMdlrFuncTableStruct);
+
+static int irtrtype_to_i(IrtRType r) {
+	char str[IRIT_LINE_LEN_SHORT];
+	sprintf(str, "%d", r);
+	return atoi(str);
+}
 
 extern "C" bool _IrtMdlrDllRegister(void)
 {
@@ -109,23 +127,23 @@ static void IrtMdlrTexturePainter(IrtMdlrFuncInfoClass* FI)
 		GlobalFI = FI;
 	}
 
-	int shape_index = 0;
 	char* tmp = shape_name;
 	char** ptr = &tmp;
 
 	GuIritMdlrDllGetInputParameter(FI, 1, &color);
 	GuIritMdlrDllGetInputParameter(FI, 2, &alpha);
-	GuIritMdlrDllGetInputParameter(FI, 3, &shape_index, ptr);
+	GuIritMdlrDllGetInputParameter(FI, 3, &_shape_index, ptr);
+	shape_index = irtrtype_to_i(_shape_index);
 	GuIritMdlrDllGetInputParameter(FI, 4, &size);
 
-	if (FI -> IntermediateWidgetMajor == 0) {
-		unsigned char cr = (unsigned char) color[0];
-		unsigned char cg = (unsigned char) color[1];
-		unsigned char cb = (unsigned char) color[2];
+	if (FI->IntermediateWidgetMajor == 0) {
+		unsigned char cr = (unsigned char)color[0];
+		unsigned char cg = (unsigned char)color[1];
+		unsigned char cb = (unsigned char)color[2];
 		if (GuIritMdlrDllGetAsyncInputColor(FI, &cr, &cg, &cb)) {
-			color[0] = (double) cr;
-			color[1] = (double) cg;
-			color[2] = (double) cb;
+			color[0] = (double)cr;
+			color[1] = (double)cg;
+			color[2] = (double)cb;
 			GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO, "Color set to: %.0lf %.0lf %.0lf\n", color[0], color[1], color[2]);
 			GuIritMdlrDllSetInputParameter(FI, 1, &color);
 		}
@@ -141,7 +159,7 @@ static void IrtMdlrTexturePainter(IrtMdlrFuncInfoClass* FI)
 	}*/
 }
 
-static void IrtMdlrTexturePainterInitTexture() 
+static void IrtMdlrTexturePainterInitTexture()
 {
 	for (int i = 0; i < TEXTURE_SIZE; i++) {
 		for (int j = 0; j < TEXTURE_SIZE; j++) {
@@ -154,26 +172,47 @@ static void IrtMdlrTexturePainterInitTexture()
 
 static void IrtMdlrTexturePainterInitShapeHierarchy(IrtMdlrFuncInfoClass* FI)
 {
-	const IrtDspGuIritSystemInfoStruct *sys_file_names = GuIritMdlrDllGetGuIritSystemProps(FI); 
+	const IrtDspGuIritSystemInfoStruct* sys_file_names = GuIritMdlrDllGetGuIritSystemProps(FI);
 	char file_path[IRIT_LINE_LEN_LONG], search_path[IRIT_LINE_LEN_LONG];
-	const char **shape_files = NULL;
-	sprintf(file_path, "%s%s", searchpath(sys_file_names -> AuxiliaryDataName, search_path), SHAPE_FILE_RELATIVE_PATH);
+	const char** shape_files = NULL;
+	sprintf(file_path, "%s%s", searchpath(sys_file_names->AuxiliaryDataName, search_path), SHAPE_FILE_RELATIVE_PATH);
 	shape_files = GuIritMdlrDllGetAllFilesNamesInDirectory(FI, file_path, "*.itd");
 	if (shape_files == NULL || shape_files[0] == NULL) {
-	    GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_ERROR, "Shape files not found. Check directory: \"%s\"\n", file_path);
-	    return;
+		GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_ERROR, "Shape files not found. Check directory: \"%s\"\n", file_path);
+		return;
 	}
-	strcpy(shape_name, ""); 
+	strcpy(shape_name, "");
 	for (int i = 0; shape_files[i] != NULL; ++i) {
-		const char *p = strstr(shape_files[i], SHAPE_FILE_RELATIVE_PATH);
-		const char *q = strchr(p, '.');
+		const char* p = strstr(shape_files[i], SHAPE_FILE_RELATIVE_PATH);
+		const char* q = strchr(p, '.');
 		if (p != NULL) {
 			p += strlen(SHAPE_FILE_RELATIVE_PATH) + 1;
 			char name[IRIT_LINE_LEN_LONG];
-			strcpy(name, ""); 
+			strcpy(name, "");
 			strncpy(name, p, q - p);
 			name[q - p] = '\0';
-			sprintf(shape_name, "%s%s;", shape_name, name); 
+			sprintf(shape_name, "%s%s;", shape_name, name);
+			if (shapes.size() <= i) {
+				GuIritMdlrDllLoadFile(FI, shape_files[i]);
+				IPObjectStruct* PObj = GuIritMdlrDllGetObjByName(FI, name);
+				IPVertexStruct* vertex = PObj->U.Pl->PVertex;
+				IPVertexStruct* first = vertex;
+				vector<Point> points;
+				while (true) {
+					if (vertex == NULL) {
+						break;
+					}
+					if (points.size() > 1 && vertex == first) {
+						break;
+					}
+					Point p = { vertex->Coord[0], vertex->Coord[1] };
+					points.push_back(p);
+					vertex = vertex->Pnext;
+				}
+				shapes.push_back(points);
+				GuIritMdlrDllSetObjectName(FI, PObj, name);
+				GuIritMdlrDllSetObjectVisible(FI, PObj, false);
+			}
 		}
 	}
 	sprintf(shape_name, "%s:0", shape_name);
@@ -181,12 +220,12 @@ static void IrtMdlrTexturePainterInitShapeHierarchy(IrtMdlrFuncInfoClass* FI)
 	GuIritMdlrDllSetInputParameter(FI, 3, &names);
 }
 
-static int IrtMdlrTexturePainterMouseCallBack(IrtMdlrMouseEventStruct * MouseEvent)
+static int IrtMdlrTexturePainterMouseCallBack(IrtMdlrMouseEventStruct* MouseEvent)
 {
-	IrtMdlrFuncInfoClass* FI = (IrtMdlrFuncInfoClass*) MouseEvent->Data;
+	IrtMdlrFuncInfoClass* FI = (IrtMdlrFuncInfoClass*)MouseEvent->Data;
 	IRT_DSP_STATIC_DATA int clicking = FALSE;
 
-	IPObjectStruct* PObj = (IPObjectStruct*) MouseEvent->PObj;
+	IPObjectStruct* PObj = (IPObjectStruct*)MouseEvent->PObj;
 
 	if (MouseEvent->KeyModifiers & IRT_DSP_KEY_MODIFIER_CTRL_DOWN)
 	{
@@ -203,8 +242,8 @@ static int IrtMdlrTexturePainterMouseCallBack(IrtMdlrMouseEventStruct * MouseEve
 		}
 		if (clicking) {
 			if (MouseEvent->UV != NULL) {
-				int x_offset = (float) TEXTURE_SIZE * (fmod(MouseEvent->UV[0], 1));
-				int y_offset = (float) TEXTURE_SIZE * (fmod(MouseEvent->UV[1], 1));
+				int x_offset = (float)TEXTURE_SIZE * (fmod(MouseEvent->UV[0], 1));
+				int y_offset = (float)TEXTURE_SIZE * (fmod(MouseEvent->UV[1], 1));
 				int x_start = x_offset - size / 2;
 				int y_start = y_offset - size / 2;
 				for (int i = x_start; i < x_start + size; i++) {
@@ -212,9 +251,9 @@ static int IrtMdlrTexturePainterMouseCallBack(IrtMdlrMouseEventStruct * MouseEve
 						if (i < 0 || i >= TEXTURE_SIZE || j < 0 || j >= TEXTURE_SIZE) {
 							continue;
 						}
-						texture[j][i].r = (IrtBType) color[0];
-						texture[j][i].g = (IrtBType) color[1];
-						texture[j][i].b = (IrtBType) color[2];
+						texture[j][i].r = (IrtBType)color[0];
+						texture[j][i].g = (IrtBType)color[1];
+						texture[j][i].b = (IrtBType)color[2];
 					}
 				}
 				GuIritMdlrDllSetTextureFromImage(FI, PObj, texture, TEXTURE_SIZE, TEXTURE_SIZE, FALSE);
