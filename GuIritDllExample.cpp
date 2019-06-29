@@ -20,35 +20,43 @@
 
 #include <string>
 #include <vector>
+#include <algorithm>
 #include <math.h>
 
 using std::string;
 using std::vector;
+using std::swap;
 
 typedef struct {
 	float x;
 	float y;
 } Point;
 
+typedef struct {
+	int x;
+	int y;
+} Pixel;
+
 static void IrtMdlrTexturePainter(IrtMdlrFuncInfoClass* FI);
 static void IrtMdlrTexturePainterInitTexture();
 static void IrtMdlrTexturePainterInitShapeHierarchy(IrtMdlrFuncInfoClass* FI);
+static void IrtMdlrTexturePainterCalculateLine(const Pixel& start, const Pixel& end, vector<int>& points, const int min_y);
+static void IrtMdlrTexturePainterRenderShape(IrtMdlrFuncInfoClass* FI, int x, int y);
 static int IrtMdlrTexturePainterMouseCallBack(IrtMdlrMouseEventStruct* MouseEvent);
 
 IRT_DSP_STATIC_DATA IrtMdlrFuncInfoClass* GlobalFI = NULL;
 
 IRT_DSP_STATIC_DATA IrtVecType color = { 0, 0, 0 };
 IRT_DSP_STATIC_DATA IrtRType alpha = 0;
-IRT_DSP_STATIC_DATA IrtRType size = 1;
+IRT_DSP_STATIC_DATA IrtRType size = 64;
 
 IRT_DSP_STATIC_DATA const char SHAPE_FILE_RELATIVE_PATH[IRIT_LINE_LEN_XLONG] = "\\Example\\Shape";
 IRT_DSP_STATIC_DATA char shape_name[IRIT_LINE_LEN_XLONG] = "";
 IRT_DSP_STATIC_DATA vector<vector<Point>> shapes;
-IRT_DSP_STATIC_DATA IrtRType _shape_index = 0;
 IRT_DSP_STATIC_DATA int shape_index = 0;
 
 
-IRT_DSP_STATIC_DATA const int TEXTURE_SIZE = 256;
+IRT_DSP_STATIC_DATA const int TEXTURE_SIZE = 1024;
 IRT_DSP_STATIC_DATA IrtImgPixelStruct texture[TEXTURE_SIZE][TEXTURE_SIZE];
 
 IRT_DSP_STATIC_DATA IrtMdlrFuncTableStruct TexturePainterFunctionTable[] =
@@ -132,8 +140,11 @@ static void IrtMdlrTexturePainter(IrtMdlrFuncInfoClass* FI)
 
 	GuIritMdlrDllGetInputParameter(FI, 1, &color);
 	GuIritMdlrDllGetInputParameter(FI, 2, &alpha);
-	GuIritMdlrDllGetInputParameter(FI, 3, &_shape_index, ptr);
-	shape_index = irtrtype_to_i(_shape_index);
+
+	IrtRType tmp_index;
+	GuIritMdlrDllGetInputParameter(FI, 3, &tmp_index, ptr);
+	shape_index = irtrtype_to_i(tmp_index);
+
 	GuIritMdlrDllGetInputParameter(FI, 4, &size);
 
 	if (FI->IntermediateWidgetMajor == 0) {
@@ -220,6 +231,115 @@ static void IrtMdlrTexturePainterInitShapeHierarchy(IrtMdlrFuncInfoClass* FI)
 	GuIritMdlrDllSetInputParameter(FI, 3, &names);
 }
 
+static void IrtMdlrTexturePainterCalculateLine(const Pixel& start, const Pixel& end, vector<int>& points, const int min_y) {
+	int a1, a2, b1, b2;
+	int is_high;
+	if (abs(end.x - start.x) > abs(end.y - start.y)) {
+		a1 = start.x;
+		b1 = start.y;
+		a2 = end.x;
+		b2 = end.y;
+		is_high = 0;
+	}
+	else {
+		a1 = start.y;
+		b1 = start.x;
+		a2 = end.y;
+		b2 = end.x;
+		is_high = 1;
+	}
+	if (a1 > a2) {
+		swap(a1, a2);
+		swap(b1, b2);
+	}
+	int da = a2 - a1;
+	int db = b2 - b1;
+	int n = 1;
+	if (da < 0) {
+		n *= -1;
+		da *= -1;
+	}
+	if (db < 0) {
+		n *= -1;
+		db *= -1;
+	}
+	int d = 2 * db - da;
+	int b = b1;
+	for (int a = a1; a <= a2; a++) {
+		int x = (is_high) ? b : a;
+		int y = (is_high) ? a : b;
+
+		points[y - min_y] = x;
+
+		if (d > 0) {
+			b += n;
+			d -= 2 * da;
+		}
+		d += 2 * db;
+	}
+}
+
+static void IrtMdlrTexturePainterRenderShape(IrtMdlrFuncInfoClass* FI, int x, int y) {
+	int first, last;
+	int min_y = TEXTURE_SIZE, max_y = 0;
+	int i = 0;
+
+	// Convert shape coordinates to texture coordinates with scale
+	vector<Pixel> points;
+	for (const Point& point : shapes[shape_index]) {
+		Pixel p = { (point.x - 0.5) * size + x, (point.y - 0.5) * size + y };
+		points.push_back(p);
+	}
+
+	// Find starting point and end point for scan conversion
+	for (const Pixel& p : points) {
+		if (p.y < min_y) {
+			first = i;
+			min_y = p.y;
+		}
+		if (p.y > max_y) {
+			last = i;
+			max_y = p.y;
+		}
+		i++;
+	}
+
+	// Calculate coordinates of lines
+	int l = first, r = first;
+	int ll = (l - 1 < 0) ? i - 1 : l - 1;
+	int rr = (r + 1 >= i) ? 0 : r + 1;
+	vector<int> left(max_y - min_y + 1), right(max_y - min_y + 1);
+	while (true) {
+		IrtMdlrTexturePainterCalculateLine(points[l], points[ll], left, min_y);
+		if (ll == last) {
+			break;
+		}
+		l = (l - 1 < 0) ? i - 1 : l - 1;
+		ll = (ll - 1 < 0) ? i - 1 : ll - 1;
+	}
+	while (true) {
+		IrtMdlrTexturePainterCalculateLine(points[r], points[rr], right, min_y);
+		if (rr == last) {
+			break;
+		}
+		r = (r + 1 >= i) ? 0 : r + 1;
+		rr = (rr + 1 >= i) ? 0 : rr + 1;
+	}
+
+	// Scan conversion
+	for (int y = min_y; y <= max_y; y++) {
+		Pixel p1 = { left[y - min_y], y };
+		Pixel p2 = { right[y - min_y], y };
+		for (int x = p1.x; x <= p2.x; x++) {
+			if (x >= 0 && x < TEXTURE_SIZE && y >= 0 && y < TEXTURE_SIZE) {
+				texture[y][x].r = (IrtBType)color[0];
+				texture[y][x].g = (IrtBType)color[1];
+				texture[y][x].b = (IrtBType)color[2];
+			}
+		}
+	}
+}
+
 static int IrtMdlrTexturePainterMouseCallBack(IrtMdlrMouseEventStruct* MouseEvent)
 {
 	IrtMdlrFuncInfoClass* FI = (IrtMdlrFuncInfoClass*)MouseEvent->Data;
@@ -244,18 +364,7 @@ static int IrtMdlrTexturePainterMouseCallBack(IrtMdlrMouseEventStruct* MouseEven
 			if (MouseEvent->UV != NULL) {
 				int x_offset = (float)TEXTURE_SIZE * (fmod(MouseEvent->UV[0], 1));
 				int y_offset = (float)TEXTURE_SIZE * (fmod(MouseEvent->UV[1], 1));
-				int x_start = x_offset - size / 2;
-				int y_start = y_offset - size / 2;
-				for (int i = x_start; i < x_start + size; i++) {
-					for (int j = y_start; j < y_start + size; j++) {
-						if (i < 0 || i >= TEXTURE_SIZE || j < 0 || j >= TEXTURE_SIZE) {
-							continue;
-						}
-						texture[j][i].r = (IrtBType)color[0];
-						texture[j][i].g = (IrtBType)color[1];
-						texture[j][i].b = (IrtBType)color[2];
-					}
-				}
+				IrtMdlrTexturePainterRenderShape(FI, x_offset, y_offset);
 				GuIritMdlrDllSetTextureFromImage(FI, PObj, texture, TEXTURE_SIZE, TEXTURE_SIZE, FALSE);
 			}
 		}
