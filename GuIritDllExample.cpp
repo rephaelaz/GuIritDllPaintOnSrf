@@ -41,7 +41,7 @@ typedef struct {
 
 static void IrtMdlrTexturePainter(IrtMdlrFuncInfoClass* FI);
 static void IrtMdlrTexturePainterResetAlphaBitmap();
-static void IrtMdlrTexturePainterInitTexture();
+static void IrtMdlrTexturePainterInitTexture(int new_size);
 static void IrtMdlrTexturePainterInitShapeHierarchy(IrtMdlrFuncInfoClass* FI);
 static void IrtMdlrTexturePainterCalculateLine(const Pixel& start, const Pixel& end, vector<int>& points, const int min_y);
 static void IrtMdlrTexturePainterRenderShape(IrtMdlrFuncInfoClass* FI, int x, int y);
@@ -62,8 +62,9 @@ IRT_DSP_STATIC_DATA vector<vector<Point>> shapes;
 IRT_DSP_STATIC_DATA int shape_index = 0;
 
 
-IRT_DSP_STATIC_DATA const int TEXTURE_SIZE = 1024;
-IRT_DSP_STATIC_DATA IrtImgPixelStruct texture[TEXTURE_SIZE][TEXTURE_SIZE];
+IRT_DSP_STATIC_DATA IrtRType _texture_size = 1024;
+IRT_DSP_STATIC_DATA int texture_size = -1;
+IRT_DSP_STATIC_DATA IrtImgPixelStruct *texture = NULL;
 IRT_DSP_STATIC_DATA vector<vector<bool>> alpha_bitmap;
 
 IRT_DSP_STATIC_DATA IrtMdlrFuncTableStruct TexturePainterFunctionTable[] =
@@ -79,7 +80,7 @@ IRT_DSP_STATIC_DATA IrtMdlrFuncTableStruct TexturePainterFunctionTable[] =
 			NULL,
 			IRT_MDLR_PARAM_VIEW_CHANGES_UDPATE | IRT_MDLR_PARAM_INTERMEDIATE_UPDATE_ALWAYS,
 			IRT_MDLR_NUMERIC_EXPR,
-			7,
+			8,
 			IRT_MDLR_PARAM_EXACT,
 		{
 			IRT_MDLR_BUTTON_EXPR, // Color picker
@@ -89,6 +90,7 @@ IRT_DSP_STATIC_DATA IrtMdlrFuncTableStruct TexturePainterFunctionTable[] =
 			IRT_MDLR_HIERARCHY_SELECTION_EXPR, // Shape selection menu
 			IRT_MDLR_NUMERIC_EXPR, // Size
 			IRT_MDLR_NUMERIC_EXPR, // Rotation
+			IRT_MDLR_NUMERIC_EXPR, // Texture size
 		},
 		{
 			NULL,
@@ -97,7 +99,8 @@ IRT_DSP_STATIC_DATA IrtMdlrFuncTableStruct TexturePainterFunctionTable[] =
 			alpha_mode_selection,
 			shape_selection,
 			&size,
-			&rotation
+			&rotation,
+			&_texture_size
 		},
 		{
 			"Color Picker",
@@ -106,7 +109,8 @@ IRT_DSP_STATIC_DATA IrtMdlrFuncTableStruct TexturePainterFunctionTable[] =
 			"Alpha Mode",
 			"Shape",
 			"Size",
-			"Rotation"
+			"Rotation",
+			"Texture size"
 		},
 		{
 			"Pick the color of the painter.",
@@ -116,6 +120,7 @@ IRT_DSP_STATIC_DATA IrtMdlrFuncTableStruct TexturePainterFunctionTable[] =
 			"Shape of the painting brush.",
 			"Size of the painting brush.",
 			"Rotation angle of the painting brush.",
+			"Size of the texture applied to the model."
 		}
 	}
 };
@@ -137,8 +142,6 @@ extern "C" bool _IrtMdlrDllRegister(void)
 static void IrtMdlrTexturePainter(IrtMdlrFuncInfoClass* FI)
 {
 	if (FI->InvocationNumber == 0 && GlobalFI == NULL) {
-
-		IrtMdlrTexturePainterInitTexture();
 		IrtMdlrTexturePainterInitShapeHierarchy(FI);
 		GuIritMdlrDllSetInputSelectionStruct modes(alpha_mode_selection);
 		GuIritMdlrDllSetInputParameter(FI, 3, &modes);
@@ -157,16 +160,23 @@ static void IrtMdlrTexturePainter(IrtMdlrFuncInfoClass* FI)
 
 	char* tmp = alpha_mode_selection;
 	char** ptr = &tmp;
-	IrtRType tmp_index;
-	GuIritMdlrDllGetInputParameter(FI, 3, &tmp_index, ptr);
-	stabilized_alpha = irtrtype_to_i(tmp_index);
+	IrtRType tmp_irt;
+	GuIritMdlrDllGetInputParameter(FI, 3, &tmp_irt, ptr);
+	stabilized_alpha = irtrtype_to_i(tmp_irt);
 
 	tmp = shape_selection;
-	GuIritMdlrDllGetInputParameter(FI, 4, &tmp_index, ptr);
-	shape_index = irtrtype_to_i(tmp_index);
+	GuIritMdlrDllGetInputParameter(FI, 4, &tmp_irt, ptr);
+	shape_index = irtrtype_to_i(tmp_irt);
 
 	GuIritMdlrDllGetInputParameter(FI, 5, &size);
 	GuIritMdlrDllGetInputParameter(FI, 6, &rotation);
+
+	GuIritMdlrDllGetInputParameter(FI, 7, &_texture_size);
+	int tmp_size = (int)_texture_size;
+
+	if (texture_size != tmp_size) {
+		IrtMdlrTexturePainterInitTexture(tmp_size);
+	}
 
 	if (FI->IntermediateWidgetMajor == 0) {
 		unsigned char cr = (unsigned char)color[0];
@@ -192,18 +202,23 @@ static void IrtMdlrTexturePainter(IrtMdlrFuncInfoClass* FI)
 }
 
 static void IrtMdlrTexturePainterResetAlphaBitmap() {
-	vector<bool> bitrow(TEXTURE_SIZE, false);
-	vector<vector<bool>> bitmap(TEXTURE_SIZE, bitrow);
+	vector<bool> bitrow(texture_size, false);
+	vector<vector<bool>> bitmap(texture_size, bitrow);
 	alpha_bitmap = bitmap;
 }
 
-static void IrtMdlrTexturePainterInitTexture()
+static void IrtMdlrTexturePainterInitTexture(int new_size)
 {
-	for (int i = 0; i < TEXTURE_SIZE; i++) {
-		for (int j = 0; j < TEXTURE_SIZE; j++) {
-			texture[i][j].r = 255;
-			texture[i][j].g = 255;
-			texture[i][j].b = 255;
+	if (texture != NULL) {
+		delete[] texture;
+	}
+	texture_size = new_size;
+	texture = new IrtImgPixelStruct[texture_size * texture_size];
+	for (int i = 0; i < texture_size; i++) {
+		for (int j = 0; j < texture_size; j++) {
+			texture[i * texture_size + j].r = 255;
+			texture[i * texture_size + j].g = 255;
+			texture[i * texture_size + j].b = 255;
 		}
 	}
 	IrtMdlrTexturePainterResetAlphaBitmap();
@@ -307,7 +322,7 @@ static void IrtMdlrTexturePainterCalculateLine(const Pixel& start, const Pixel& 
 
 static void IrtMdlrTexturePainterRenderShape(IrtMdlrFuncInfoClass* FI, int x, int y) {
 	int first, last;
-	int min_y = TEXTURE_SIZE, max_y = 0;
+	int min_y = texture_size, max_y = 0;
 	int i = 0;
 
 	// Convert shape coordinates to texture coordinates with scale
@@ -318,8 +333,6 @@ static void IrtMdlrTexturePainterRenderShape(IrtMdlrFuncInfoClass* FI, int x, in
 			((point.x - 0.5) * cos(theta) - (point.y - 0.5) * sin(theta)) * size + (double)x,
 			((point.x - 0.5) * sin(theta) + (point.y - 0.5) * cos(theta)) * size + (double)y
 		};
-		/*GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO, "(%lf, %lf)\n", ((point.x - 0.5) * cos(theta) - (point.y - 0.5) * sin(theta)) * size + (double)x, ((point.x - 0.5) * sin(theta) + (point.y - 0.5) * cos(theta)) * size + (double)y);
-		GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO, "(%d, %d)\n", p.x, p.y);*/
 		points.push_back(p);
 	}
 
@@ -363,12 +376,13 @@ static void IrtMdlrTexturePainterRenderShape(IrtMdlrFuncInfoClass* FI, int x, in
 		Pixel p1 = { left[y - min_y], y };
 		Pixel p2 = { right[y - min_y], y };
 		for (int x = p1.x; x <= p2.x; x++) {
-			if (x >= 0 && x < TEXTURE_SIZE && y >= 0 && y < TEXTURE_SIZE) {
+			if (x >= 0 && x < texture_size && y >= 0 && y < texture_size) {
 				double alpha_factor = (255.0 - alpha) / 255.0;
 				if (!stabilized_alpha || !alpha_bitmap[y][x]) {
-					texture[y][x].r += (double)((IrtBType)color[0] - texture[y][x].r) * alpha_factor;
-					texture[y][x].g += (double)((IrtBType)color[1] - texture[y][x].g) * alpha_factor;
-					texture[y][x].b += (double)((IrtBType)color[2] - texture[y][x].b) * alpha_factor;
+					int offset = x + texture_size * y;
+					texture[offset].r += (double)((IrtBType)color[0] - texture[offset].r) * alpha_factor;
+					texture[offset].g += (double)((IrtBType)color[1] - texture[offset].g) * alpha_factor;
+					texture[offset].b += (double)((IrtBType)color[2] - texture[offset].b) * alpha_factor;
 					alpha_bitmap[y][x] = true;
 				}
 			}
@@ -399,10 +413,10 @@ static int IrtMdlrTexturePainterMouseCallBack(IrtMdlrMouseEventStruct* MouseEven
 		}
 		if (clicking) {
 			if (MouseEvent->UV != NULL) {
-				int x_offset = (float)TEXTURE_SIZE * (fmod(MouseEvent->UV[0], 1));
-				int y_offset = (float)TEXTURE_SIZE * (fmod(MouseEvent->UV[1], 1));
+				int x_offset = (float)texture_size * (fmod(MouseEvent->UV[0], 1));
+				int y_offset = (float)texture_size * (fmod(MouseEvent->UV[1], 1));
 				IrtMdlrTexturePainterRenderShape(FI, x_offset, y_offset);
-				GuIritMdlrDllSetTextureFromImage(FI, PObj, texture, TEXTURE_SIZE, TEXTURE_SIZE, FALSE);
+				GuIritMdlrDllSetTextureFromImage(FI, PObj, texture, texture_size, texture_size, FALSE);
 			}
 		}
 	}
