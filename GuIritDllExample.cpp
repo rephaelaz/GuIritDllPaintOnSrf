@@ -48,16 +48,20 @@ IRT_DSP_STATIC_DATA IrtMdlrFuncInfoClass* GlobalFI = NULL;
 
 IRT_DSP_STATIC_DATA IrtVecType color = { 0, 0, 0 };
 IRT_DSP_STATIC_DATA IrtRType alpha = 0;
+IRT_DSP_STATIC_DATA char alpha_mode_selection[IRIT_LINE_LEN_LONG] = "Regular;Stabilized;:0";
+IRT_DSP_STATIC_DATA int alpha_mode = 0;
 IRT_DSP_STATIC_DATA IrtRType size = 64;
 
-IRT_DSP_STATIC_DATA const char SHAPE_FILE_RELATIVE_PATH[IRIT_LINE_LEN_XLONG] = "\\Example\\Shape";
-IRT_DSP_STATIC_DATA char shape_name[IRIT_LINE_LEN_XLONG] = "";
+IRT_DSP_STATIC_DATA const char SHAPE_FILE_RELATIVE_PATH[IRIT_LINE_LEN_LONG] = "\\Example\\Shape";
+IRT_DSP_STATIC_DATA char shape_selection[IRIT_LINE_LEN_LONG] = "";
 IRT_DSP_STATIC_DATA vector<vector<Point>> shapes;
 IRT_DSP_STATIC_DATA int shape_index = 0;
 
 
 IRT_DSP_STATIC_DATA const int TEXTURE_SIZE = 1024;
 IRT_DSP_STATIC_DATA IrtImgPixelStruct texture[TEXTURE_SIZE][TEXTURE_SIZE];
+IRT_DSP_STATIC_DATA IrtImgPixelStruct alpha_buffer[TEXTURE_SIZE][TEXTURE_SIZE];
+IRT_DSP_STATIC_DATA vector<vector<bool>> alpha_bitmap;
 
 IRT_DSP_STATIC_DATA IrtMdlrFuncTableStruct TexturePainterFunctionTable[] =
 {
@@ -72,26 +76,29 @@ IRT_DSP_STATIC_DATA IrtMdlrFuncTableStruct TexturePainterFunctionTable[] =
 			NULL,
 			IRT_MDLR_PARAM_VIEW_CHANGES_UDPATE | IRT_MDLR_PARAM_INTERMEDIATE_UPDATE_ALWAYS,
 			IRT_MDLR_NUMERIC_EXPR,
-			5,
+			6,
 			IRT_MDLR_PARAM_EXACT,
 		{
 			IRT_MDLR_BUTTON_EXPR, // Color picker
 			IRT_MDLR_VECTOR_EXPR, // RGB Values
 			IRT_MDLR_NUMERIC_EXPR, // Alpha Value
-			IRT_MDLR_HIERARCHY_SELECTION_EXPR,
+			IRT_MDLR_HIERARCHY_SELECTION_EXPR, // Alpha mode selection menu
+			IRT_MDLR_HIERARCHY_SELECTION_EXPR, // Shape selection menu
 			IRT_MDLR_NUMERIC_EXPR, // Size
 		},
 		{
 			NULL,
 			&color,
 			&alpha,
-			shape_name,
+			alpha_mode_selection,
+			shape_selection,
 			&size
 		},
 		{
 			"Color Picker",
 			"Color",
 			"Alpha",
+			"Alpha Mode",
 			"Shape",
 			"Size"
 		},
@@ -99,6 +106,7 @@ IRT_DSP_STATIC_DATA IrtMdlrFuncTableStruct TexturePainterFunctionTable[] =
 			"Pick the color of the painter.",
 			"RGB values of the painter.",
 			"Alpha channel value of the painter.",
+			"Defines the way alpha channel is applied.",
 			"Shape of the painting brush.",
 			"Size of the painting brush."
 		}
@@ -125,6 +133,8 @@ static void IrtMdlrTexturePainter(IrtMdlrFuncInfoClass* FI)
 
 		IrtMdlrTexturePainterInitTexture();
 		IrtMdlrTexturePainterInitShapeHierarchy(FI);
+		GuIritMdlrDllSetInputSelectionStruct modes(alpha_mode_selection);
+		GuIritMdlrDllSetInputParameter(FI, 3, &modes);
 
 		GuIritMdlrDllPushMouseEventFunc(
 			FI,
@@ -135,17 +145,20 @@ static void IrtMdlrTexturePainter(IrtMdlrFuncInfoClass* FI)
 		GlobalFI = FI;
 	}
 
-	char* tmp = shape_name;
-	char** ptr = &tmp;
-
 	GuIritMdlrDllGetInputParameter(FI, 1, &color);
 	GuIritMdlrDllGetInputParameter(FI, 2, &alpha);
 
+	char* tmp = alpha_mode_selection;
+	char** ptr = &tmp;
 	IrtRType tmp_index;
 	GuIritMdlrDllGetInputParameter(FI, 3, &tmp_index, ptr);
+	alpha_mode = irtrtype_to_i(tmp_index);
+
+	tmp = shape_selection;
+	GuIritMdlrDllGetInputParameter(FI, 4, &tmp_index, ptr);
 	shape_index = irtrtype_to_i(tmp_index);
 
-	GuIritMdlrDllGetInputParameter(FI, 4, &size);
+	GuIritMdlrDllGetInputParameter(FI, 5, &size);
 
 	if (FI->IntermediateWidgetMajor == 0) {
 		unsigned char cr = (unsigned char)color[0];
@@ -177,8 +190,16 @@ static void IrtMdlrTexturePainterInitTexture()
 			texture[i][j].r = 255;
 			texture[i][j].g = 255;
 			texture[i][j].b = 255;
+
+			alpha_buffer[i][j].r = 255;
+			alpha_buffer[i][j].g = 255;
+			alpha_buffer[i][j].b = 255;
 		}
 	}
+
+	vector<bool> bitrow(TEXTURE_SIZE, false);
+	vector<vector<bool>> bitmap(TEXTURE_SIZE, bitrow);
+	alpha_bitmap = bitmap;
 }
 
 static void IrtMdlrTexturePainterInitShapeHierarchy(IrtMdlrFuncInfoClass* FI)
@@ -192,7 +213,7 @@ static void IrtMdlrTexturePainterInitShapeHierarchy(IrtMdlrFuncInfoClass* FI)
 		GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_ERROR, "Shape files not found. Check directory: \"%s\"\n", file_path);
 		return;
 	}
-	strcpy(shape_name, "");
+	strcpy(shape_selection, "");
 	for (int i = 0; shape_files[i] != NULL; ++i) {
 		const char* p = strstr(shape_files[i], SHAPE_FILE_RELATIVE_PATH);
 		const char* q = strchr(p, '.');
@@ -202,7 +223,7 @@ static void IrtMdlrTexturePainterInitShapeHierarchy(IrtMdlrFuncInfoClass* FI)
 			strcpy(name, "");
 			strncpy(name, p, q - p);
 			name[q - p] = '\0';
-			sprintf(shape_name, "%s%s;", shape_name, name);
+			sprintf(shape_selection, "%s%s;", shape_selection, name);
 			if (shapes.size() <= i) {
 				GuIritMdlrDllLoadFile(FI, shape_files[i]);
 				IPObjectStruct* PObj = GuIritMdlrDllGetObjByName(FI, name);
@@ -226,9 +247,9 @@ static void IrtMdlrTexturePainterInitShapeHierarchy(IrtMdlrFuncInfoClass* FI)
 			}
 		}
 	}
-	sprintf(shape_name, "%s:0", shape_name);
-	GuIritMdlrDllSetInputSelectionStruct names(shape_name, IRIT_MAX_INT, file_path);
-	GuIritMdlrDllSetInputParameter(FI, 3, &names);
+	sprintf(shape_selection, "%s:0", shape_selection);
+	GuIritMdlrDllSetInputSelectionStruct names(shape_selection, IRIT_MAX_INT, file_path);
+	GuIritMdlrDllSetInputParameter(FI, 4, &names);
 }
 
 static void IrtMdlrTexturePainterCalculateLine(const Pixel& start, const Pixel& end, vector<int>& points, const int min_y) {
@@ -268,9 +289,7 @@ static void IrtMdlrTexturePainterCalculateLine(const Pixel& start, const Pixel& 
 	for (int a = a1; a <= a2; a++) {
 		int x = (is_high) ? b : a;
 		int y = (is_high) ? a : b;
-
 		points[y - min_y] = x;
-
 		if (d > 0) {
 			b += n;
 			d -= 2 * da;
@@ -332,9 +351,10 @@ static void IrtMdlrTexturePainterRenderShape(IrtMdlrFuncInfoClass* FI, int x, in
 		Pixel p2 = { right[y - min_y], y };
 		for (int x = p1.x; x <= p2.x; x++) {
 			if (x >= 0 && x < TEXTURE_SIZE && y >= 0 && y < TEXTURE_SIZE) {
-				texture[y][x].r = (IrtBType)color[0];
-				texture[y][x].g = (IrtBType)color[1];
-				texture[y][x].b = (IrtBType)color[2];
+				double alpha_factor = (255.0 - alpha) / 255.0;
+				texture[y][x].r += (double)((IrtBType)color[0] - texture[y][x].r) * alpha_factor;
+				texture[y][x].g += (double)((IrtBType)color[1] - texture[y][x].g) * alpha_factor;
+				texture[y][x].b += (double)((IrtBType)color[2] - texture[y][x].b) * alpha_factor;
 			}
 		}
 	}
