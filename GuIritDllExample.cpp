@@ -27,9 +27,11 @@ using std::string;
 using std::vector;
 using std::swap;
 
+IRT_DSP_STATIC_DATA const double PI = 3.1415926535;
+
 typedef struct {
-	float x;
-	float y;
+	double x;
+	double y;
 } Point;
 
 typedef struct {
@@ -52,6 +54,7 @@ IRT_DSP_STATIC_DATA IrtRType alpha = 128;
 IRT_DSP_STATIC_DATA char alpha_mode_selection[IRIT_LINE_LEN_LONG] = "Regular;Stabilized;:0";
 IRT_DSP_STATIC_DATA int stabilized_alpha = 0;
 IRT_DSP_STATIC_DATA IrtRType size = 64;
+IRT_DSP_STATIC_DATA IrtRType rotation = 0;
 
 IRT_DSP_STATIC_DATA const char SHAPE_FILE_RELATIVE_PATH[IRIT_LINE_LEN_LONG] = "\\Example\\Shape";
 IRT_DSP_STATIC_DATA char shape_selection[IRIT_LINE_LEN_LONG] = "";
@@ -76,7 +79,7 @@ IRT_DSP_STATIC_DATA IrtMdlrFuncTableStruct TexturePainterFunctionTable[] =
 			NULL,
 			IRT_MDLR_PARAM_VIEW_CHANGES_UDPATE | IRT_MDLR_PARAM_INTERMEDIATE_UPDATE_ALWAYS,
 			IRT_MDLR_NUMERIC_EXPR,
-			6,
+			7,
 			IRT_MDLR_PARAM_EXACT,
 		{
 			IRT_MDLR_BUTTON_EXPR, // Color picker
@@ -85,6 +88,7 @@ IRT_DSP_STATIC_DATA IrtMdlrFuncTableStruct TexturePainterFunctionTable[] =
 			IRT_MDLR_HIERARCHY_SELECTION_EXPR, // Alpha mode selection menu
 			IRT_MDLR_HIERARCHY_SELECTION_EXPR, // Shape selection menu
 			IRT_MDLR_NUMERIC_EXPR, // Size
+			IRT_MDLR_NUMERIC_EXPR, // Rotation
 		},
 		{
 			NULL,
@@ -92,7 +96,8 @@ IRT_DSP_STATIC_DATA IrtMdlrFuncTableStruct TexturePainterFunctionTable[] =
 			&alpha,
 			alpha_mode_selection,
 			shape_selection,
-			&size
+			&size,
+			&rotation
 		},
 		{
 			"Color Picker",
@@ -100,7 +105,8 @@ IRT_DSP_STATIC_DATA IrtMdlrFuncTableStruct TexturePainterFunctionTable[] =
 			"Alpha",
 			"Alpha Mode",
 			"Shape",
-			"Size"
+			"Size",
+			"Rotation"
 		},
 		{
 			"Pick the color of the painter.",
@@ -108,7 +114,8 @@ IRT_DSP_STATIC_DATA IrtMdlrFuncTableStruct TexturePainterFunctionTable[] =
 			"Alpha channel value of the painter.",
 			"Defines the way alpha channel is applied.",
 			"Shape of the painting brush.",
-			"Size of the painting brush."
+			"Size of the painting brush.",
+			"Rotation angle of the painting brush.",
 		}
 	}
 };
@@ -159,6 +166,7 @@ static void IrtMdlrTexturePainter(IrtMdlrFuncInfoClass* FI)
 	shape_index = irtrtype_to_i(tmp_index);
 
 	GuIritMdlrDllGetInputParameter(FI, 5, &size);
+	GuIritMdlrDllGetInputParameter(FI, 6, &rotation);
 
 	if (FI->IntermediateWidgetMajor == 0) {
 		unsigned char cr = (unsigned char)color[0];
@@ -305,7 +313,13 @@ static void IrtMdlrTexturePainterRenderShape(IrtMdlrFuncInfoClass* FI, int x, in
 	// Convert shape coordinates to texture coordinates with scale
 	vector<Pixel> points;
 	for (const Point& point : shapes[shape_index]) {
-		Pixel p = { (point.x - 0.5) * size + x, (point.y - 0.5) * size + y };
+		double theta = (rotation + 90.0) * PI / 180.0;
+		Pixel p = {
+			((point.x - 0.5) * cos(theta) - (point.y - 0.5) * sin(theta)) * size + (double)x,
+			((point.x - 0.5) * sin(theta) + (point.y - 0.5) * cos(theta)) * size + (double)y
+		};
+		/*GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO, "(%lf, %lf)\n", ((point.x - 0.5) * cos(theta) - (point.y - 0.5) * sin(theta)) * size + (double)x, ((point.x - 0.5) * sin(theta) + (point.y - 0.5) * cos(theta)) * size + (double)y);
+		GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO, "(%d, %d)\n", p.x, p.y);*/
 		points.push_back(p);
 	}
 
