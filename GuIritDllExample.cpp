@@ -38,6 +38,7 @@ typedef struct {
 } Pixel;
 
 static void IrtMdlrTexturePainter(IrtMdlrFuncInfoClass* FI);
+static void IrtMdlrTexturePainterResetAlphaBitmap();
 static void IrtMdlrTexturePainterInitTexture();
 static void IrtMdlrTexturePainterInitShapeHierarchy(IrtMdlrFuncInfoClass* FI);
 static void IrtMdlrTexturePainterCalculateLine(const Pixel& start, const Pixel& end, vector<int>& points, const int min_y);
@@ -47,9 +48,9 @@ static int IrtMdlrTexturePainterMouseCallBack(IrtMdlrMouseEventStruct* MouseEven
 IRT_DSP_STATIC_DATA IrtMdlrFuncInfoClass* GlobalFI = NULL;
 
 IRT_DSP_STATIC_DATA IrtVecType color = { 0, 0, 0 };
-IRT_DSP_STATIC_DATA IrtRType alpha = 0;
+IRT_DSP_STATIC_DATA IrtRType alpha = 128;
 IRT_DSP_STATIC_DATA char alpha_mode_selection[IRIT_LINE_LEN_LONG] = "Regular;Stabilized;:0";
-IRT_DSP_STATIC_DATA int alpha_mode = 0;
+IRT_DSP_STATIC_DATA int stabilized_alpha = 0;
 IRT_DSP_STATIC_DATA IrtRType size = 64;
 
 IRT_DSP_STATIC_DATA const char SHAPE_FILE_RELATIVE_PATH[IRIT_LINE_LEN_LONG] = "\\Example\\Shape";
@@ -60,7 +61,6 @@ IRT_DSP_STATIC_DATA int shape_index = 0;
 
 IRT_DSP_STATIC_DATA const int TEXTURE_SIZE = 1024;
 IRT_DSP_STATIC_DATA IrtImgPixelStruct texture[TEXTURE_SIZE][TEXTURE_SIZE];
-IRT_DSP_STATIC_DATA IrtImgPixelStruct alpha_buffer[TEXTURE_SIZE][TEXTURE_SIZE];
 IRT_DSP_STATIC_DATA vector<vector<bool>> alpha_bitmap;
 
 IRT_DSP_STATIC_DATA IrtMdlrFuncTableStruct TexturePainterFunctionTable[] =
@@ -152,7 +152,7 @@ static void IrtMdlrTexturePainter(IrtMdlrFuncInfoClass* FI)
 	char** ptr = &tmp;
 	IrtRType tmp_index;
 	GuIritMdlrDllGetInputParameter(FI, 3, &tmp_index, ptr);
-	alpha_mode = irtrtype_to_i(tmp_index);
+	stabilized_alpha = irtrtype_to_i(tmp_index);
 
 	tmp = shape_selection;
 	GuIritMdlrDllGetInputParameter(FI, 4, &tmp_index, ptr);
@@ -183,6 +183,12 @@ static void IrtMdlrTexturePainter(IrtMdlrFuncInfoClass* FI)
 	}*/
 }
 
+static void IrtMdlrTexturePainterResetAlphaBitmap() {
+	vector<bool> bitrow(TEXTURE_SIZE, false);
+	vector<vector<bool>> bitmap(TEXTURE_SIZE, bitrow);
+	alpha_bitmap = bitmap;
+}
+
 static void IrtMdlrTexturePainterInitTexture()
 {
 	for (int i = 0; i < TEXTURE_SIZE; i++) {
@@ -190,16 +196,9 @@ static void IrtMdlrTexturePainterInitTexture()
 			texture[i][j].r = 255;
 			texture[i][j].g = 255;
 			texture[i][j].b = 255;
-
-			alpha_buffer[i][j].r = 255;
-			alpha_buffer[i][j].g = 255;
-			alpha_buffer[i][j].b = 255;
 		}
 	}
-
-	vector<bool> bitrow(TEXTURE_SIZE, false);
-	vector<vector<bool>> bitmap(TEXTURE_SIZE, bitrow);
-	alpha_bitmap = bitmap;
+	IrtMdlrTexturePainterResetAlphaBitmap();
 }
 
 static void IrtMdlrTexturePainterInitShapeHierarchy(IrtMdlrFuncInfoClass* FI)
@@ -352,9 +351,12 @@ static void IrtMdlrTexturePainterRenderShape(IrtMdlrFuncInfoClass* FI, int x, in
 		for (int x = p1.x; x <= p2.x; x++) {
 			if (x >= 0 && x < TEXTURE_SIZE && y >= 0 && y < TEXTURE_SIZE) {
 				double alpha_factor = (255.0 - alpha) / 255.0;
-				texture[y][x].r += (double)((IrtBType)color[0] - texture[y][x].r) * alpha_factor;
-				texture[y][x].g += (double)((IrtBType)color[1] - texture[y][x].g) * alpha_factor;
-				texture[y][x].b += (double)((IrtBType)color[2] - texture[y][x].b) * alpha_factor;
+				if (!stabilized_alpha || !alpha_bitmap[y][x]) {
+					texture[y][x].r += (double)((IrtBType)color[0] - texture[y][x].r) * alpha_factor;
+					texture[y][x].g += (double)((IrtBType)color[1] - texture[y][x].g) * alpha_factor;
+					texture[y][x].b += (double)((IrtBType)color[2] - texture[y][x].b) * alpha_factor;
+					alpha_bitmap[y][x] = true;
+				}
 			}
 		}
 	}
@@ -378,6 +380,7 @@ static int IrtMdlrTexturePainterMouseCallBack(IrtMdlrMouseEventStruct* MouseEven
 		case IRT_DSP_MOUSE_EVENT_LEFT_UP:
 			GuIritMdlrDllCaptureCursorFocus(FI, MouseEvent, false);
 			clicking = FALSE;
+			IrtMdlrTexturePainterResetAlphaBitmap();
 			break;
 		}
 		if (clicking) {
