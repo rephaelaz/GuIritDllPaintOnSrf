@@ -20,11 +20,14 @@
 
 #include <string>
 #include <vector>
+#include <map>
 #include <algorithm>
 #include <math.h>
 
 using std::string;
 using std::vector;
+using std::map;
+using std::pair;
 using std::swap;
 
 IRT_DSP_STATIC_DATA const double PI = 3.1415926535;
@@ -41,10 +44,11 @@ typedef struct {
 
 static void IrtMdlrTexturePainter(IrtMdlrFuncInfoClass* FI);
 static void IrtMdlrTexturePainterResetAlphaBitmap();
-static void IrtMdlrTexturePainterInitTexture(int new_size);
+static IrtImgPixelStruct* IrtMdlrTexturePainterGetTexture(IPObjectStruct* Pobj);
+static void IrtMdlrTexturePainterResizeTexture(IrtMdlrFuncInfoClass* FI, int new_size);
 static void IrtMdlrTexturePainterInitShapeHierarchy(IrtMdlrFuncInfoClass* FI);
 static void IrtMdlrTexturePainterCalculateLine(const Pixel& start, const Pixel& end, vector<int>& points, const int min_y);
-static void IrtMdlrTexturePainterRenderShape(IrtMdlrFuncInfoClass* FI, int x, int y);
+static void IrtMdlrTexturePainterRenderShape(IrtMdlrFuncInfoClass* FI, IrtImgPixelStruct* texture, int x, int y);
 static int IrtMdlrTexturePainterMouseCallBack(IrtMdlrMouseEventStruct* MouseEvent);
 
 IRT_DSP_STATIC_DATA IrtMdlrFuncInfoClass* GlobalFI = NULL;
@@ -61,10 +65,9 @@ IRT_DSP_STATIC_DATA char shape_selection[IRIT_LINE_LEN_LONG] = "";
 IRT_DSP_STATIC_DATA vector<vector<Point>> shapes;
 IRT_DSP_STATIC_DATA int shape_index = 0;
 
-
 IRT_DSP_STATIC_DATA IrtRType _texture_size = 1024;
 IRT_DSP_STATIC_DATA int texture_size = -1;
-IRT_DSP_STATIC_DATA IrtImgPixelStruct *texture = NULL;
+IRT_DSP_STATIC_DATA map<IPObjectStruct*, IrtImgPixelStruct*> textures;
 IRT_DSP_STATIC_DATA vector<vector<bool>> alpha_bitmap;
 
 IRT_DSP_STATIC_DATA CagdBType damier = FALSE;
@@ -177,7 +180,7 @@ static void IrtMdlrTexturePainter(IrtMdlrFuncInfoClass* FI)
 	int tmp_size = (int)_texture_size;
 
 	if (texture_size != tmp_size) {
-		IrtMdlrTexturePainterInitTexture(tmp_size);
+		IrtMdlrTexturePainterResizeTexture(tmp_size);
 	}
 
 	if (FI->IntermediateWidgetMajor == 0) {
@@ -209,19 +212,36 @@ static void IrtMdlrTexturePainterResetAlphaBitmap() {
 	alpha_bitmap = bitmap;
 }
 
-static void IrtMdlrTexturePainterInitTexture(int new_size)
+static IrtImgPixelStruct* IrtMdlrTexturePainterGetTexture(IPObjectStruct* Pobj)
 {
-	if (texture != NULL) {
-		delete[] texture;
-	}
-	texture_size = new_size;
-	texture = new IrtImgPixelStruct[texture_size * texture_size];
-	for (int i = 0; i < texture_size; i++) {
-		for (int j = 0; j < texture_size; j++) {
-			texture[i * texture_size + j].r = 255;
-			texture[i * texture_size + j].g = 255;
-			texture[i * texture_size + j].b = 255;
+	if (textures.find(Pobj) == textures.end()) {
+		IrtImgPixelStruct* texture = new IrtImgPixelStruct[texture_size * texture_size];
+		for (int i = 0; i < texture_size; i++) {
+			for (int j = 0; j < texture_size; j++) {
+				texture[i * texture_size + j].r = 255;
+				texture[i * texture_size + j].g = 255;
+				texture[i * texture_size + j].b = 255;
+			}
 		}
+		textures[Pobj] = texture;
+	}
+	return textures[Pobj];
+}
+
+static void IrtMdlrTexturePainterResizeTexture(IrtMdlrFuncInfoClass* FI, int new_size)
+{
+	texture_size = new_size;
+	for (auto& entry : textures) {
+		delete[] entry.second;
+		entry.second = new IrtImgPixelStruct[texture_size * texture_size];
+		for (int i = 0; i < texture_size; i++) {
+			for (int j = 0; j < texture_size; j++) {
+				entry.second[i * texture_size + j].r = 255;
+				entry.second[i * texture_size + j].g = 255;
+				entry.second[i * texture_size + j].b = 255;
+			}
+		}
+		GuIritMdlrDllSetTextureFromImage(FI, entry.first, entry.second, texture_size, texture_size, FALSE);
 	}
 	IrtMdlrTexturePainterResetAlphaBitmap();
 }
@@ -322,7 +342,7 @@ static void IrtMdlrTexturePainterCalculateLine(const Pixel& start, const Pixel& 
 	}
 }
 
-static void IrtMdlrTexturePainterRenderShape(IrtMdlrFuncInfoClass* FI, int x, int y) {
+static void IrtMdlrTexturePainterRenderShape(IrtMdlrFuncInfoClass* FI, IrtImgPixelStruct* texture, int x, int y) {
 	int first, last;
 	int min_y = texture_size, max_y = 0;
 	int i = 0;
@@ -420,9 +440,9 @@ static int IrtMdlrTexturePainterMouseCallBack(IrtMdlrMouseEventStruct* MouseEven
 				if (damier) {
 					x_offset = (x_offset / (int)size) * (int)size + (int)size / 2;
 					y_offset = (y_offset / (int)size) * (int)size + (int)size / 2;
-					GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO, "%d %d\n", x_offset, y_offset);
 				}
-				IrtMdlrTexturePainterRenderShape(FI, x_offset, y_offset);
+				IrtImgPixelStruct* texture = IrtMdlrTexturePainterGetTexture(PObj);
+				IrtMdlrTexturePainterRenderShape(FI, texture, x_offset, y_offset);
 				GuIritMdlrDllSetTextureFromImage(FI, PObj, texture, texture_size, texture_size, FALSE);
 			}
 		}
