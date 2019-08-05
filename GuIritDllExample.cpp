@@ -23,12 +23,14 @@
 #include <map>
 #include <algorithm>
 #include <math.h>
+#include <chrono>
 
 using std::string;
 using std::vector;
 using std::map;
 using std::pair;
 using std::swap;
+using namespace std::chrono;
 
 IRT_DSP_STATIC_DATA const double PI = 3.1415926535;
 
@@ -54,6 +56,9 @@ IRT_DSP_STATIC_DATA IrtMdlrFuncInfoClass* GlobalFI = NULL;
 
 IRT_DSP_STATIC_DATA IrtRType _texture_size = 1024;
 IRT_DSP_STATIC_DATA int texture_size = -1;
+IRT_DSP_STATIC_DATA bool texture_reset_pending = false;
+IRT_DSP_STATIC_DATA high_resolution_clock::time_point reset_timer;
+IRT_DSP_STATIC_DATA bool reset_timer_init = false;
 IRT_DSP_STATIC_DATA IrtImgPixelStruct* texture;
 IRT_DSP_STATIC_DATA vector<vector<bool>> alpha_bitmap;
 
@@ -204,12 +209,31 @@ static void IrtMdlrTexturePainter(IrtMdlrFuncInfoClass* FI)
 		GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO, "Test Save\n");
 	}
 	if (FI->IntermediateWidgetMajor == FIELD_RESET) {
-		GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO, "Test Reset\n");
+		bool res = GuIritMdlrDllGetAsyncInputConfirm(FI, "", "Are you sure you want to reset the texture ?");
+		if (res) {
+			IrtMdlrTexturePainterResizeTexture(FI, texture_size);
+		}
 	}
 	GuIritMdlrDllGetInputParameter(FI, FIELD_TEXTURE_SIZE, &_texture_size);
 	int tmp_size = (int)_texture_size;
-	if (texture_size != tmp_size) {
-		IrtMdlrTexturePainterResizeTexture(FI, tmp_size);
+	if (texture_size != tmp_size && !texture_reset_pending) {
+		texture_reset_pending = true;
+		bool res = true;
+		if (texture_size != -1) {
+			if (!reset_timer_init || duration_cast<seconds>(high_resolution_clock::now() - reset_timer).count() >= 10) {
+				res = GuIritMdlrDllGetAsyncInputConfirm(FI, "", "This will reset the texture.\nAre you sure you want to resize the texture ?");
+				reset_timer_init = true;
+				reset_timer = high_resolution_clock::now();
+			}
+		}
+		if (res) {
+			IrtMdlrTexturePainterResizeTexture(FI, tmp_size);
+		}
+		else {
+			IrtRType size = (IrtRType)texture_size;
+			GuIritMdlrDllSetInputParameter(FI, FIELD_TEXTURE_SIZE, &size);
+		}
+		texture_reset_pending = false;
 	}
 
 	// Brush fields
@@ -228,15 +252,12 @@ static void IrtMdlrTexturePainter(IrtMdlrFuncInfoClass* FI)
 static void IrtMdlrTexturePainterResetAlphaBitmap(IrtMdlrFuncInfoClass* FI) {
 	vector<bool> bitrow(texture_size, false);
 	vector<vector<bool>> bitmap(texture_size, bitrow);
-	GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO, "Created new bitmap\n");
 	alpha_bitmap = bitmap;
 }
 
 static void IrtMdlrTexturePainterResizeTexture(IrtMdlrFuncInfoClass* FI, int new_size)
-{
-	GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO, "----- New texture size: %d -----\n", new_size);
+{	
 	IrtImgPixelStruct* new_texture = new IrtImgPixelStruct[new_size * new_size];
-	GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO, "Allocated new texture\n");
 	for (int i = 0; i < new_size; i++) {
 		for (int j = 0; j < new_size; j++) {
 			//if (i < texture_size && j < texture_size) {
@@ -251,16 +272,13 @@ static void IrtMdlrTexturePainterResizeTexture(IrtMdlrFuncInfoClass* FI, int new
 			//}
 		}
 	}
-	GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO, "Generated new texture\n");
 	if (texture_size >= 0) {
 		delete[] texture;
-		GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO, "Deleted old texture\n");
 	}
 	texture = new_texture;
 	texture_size = new_size;
-	GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO, "Swapped textures\n");
 	IrtMdlrTexturePainterResetAlphaBitmap(FI);
-	GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO, "Done resizing textures\n");
+	GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO, "Texture resized to %dx%d\n", new_size, new_size);
 }
 
 void IrtMdlrTexturePainterInitShapeHierarchy(IrtMdlrFuncInfoClass* FI)
