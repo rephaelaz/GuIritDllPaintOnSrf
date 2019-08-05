@@ -67,8 +67,8 @@ IRT_DSP_STATIC_DATA IrtRType alpha = 255;
 IRT_DSP_STATIC_DATA IrtRType x_factor = 1;
 IRT_DSP_STATIC_DATA IrtRType y_factor = 1;
 
-IRT_DSP_STATIC_DATA const char GUIRIT_DLL_SAND_ART_MASKS_FILE_RELATIVE_PATH[IRIT_LINE_LEN_LONG] = "\\Example\\Shape";
-IRT_DSP_STATIC_DATA char GuIritDllSandArtMaskName[IRIT_LINE_LEN_LONG] = "";
+IRT_DSP_STATIC_DATA const char RELATIVE_PATH[IRIT_LINE_LEN_LONG] = "\\Example\\Masks";
+IRT_DSP_STATIC_DATA char shape_names[IRIT_LINE_LEN_LONG] = "";
 IRT_DSP_STATIC_DATA int shape_index = 0;
 
 typedef enum {
@@ -120,7 +120,7 @@ IRT_DSP_STATIC_DATA IrtMdlrFuncTableStruct TexturePainterFunctionTable[] =
 
 			&color,
 			&alpha,
-			GuIritDllSandArtMaskName,
+			shape_names,
 			&x_factor,
 			&y_factor,
 		},
@@ -178,7 +178,7 @@ static void IrtMdlrTexturePainter(IrtMdlrFuncInfoClass* FI)
 			(IrtDspMouseEventType)(IRT_DSP_MOUSE_EVENT_LEFT),
 			(IrtDspKeyModifierType)(IRT_DSP_KEY_MODIFIER_SHIFT_DOWN),
 			FI);
-		//IrtMdlrTexturePainterInitShapeHierarchy(FI);
+		IrtMdlrTexturePainterInitShapeHierarchy(FI);
 
 		GuIritMdlrDllSetRealInputDomain(FI, 0, IRIT_INFNTY, FIELD_TEXTURE_SIZE);
 		GuIritMdlrDllSetRealInputDomain(FI, 0, 255, FIELD_COLOR, 0);
@@ -222,8 +222,10 @@ static void IrtMdlrTexturePainter(IrtMdlrFuncInfoClass* FI)
 		if (texture_size != -1) {
 			if (!reset_timer_init || duration_cast<seconds>(high_resolution_clock::now() - reset_timer).count() >= 10) {
 				res = GuIritMdlrDllGetAsyncInputConfirm(FI, "", "This will reset the texture.\nAre you sure you want to resize the texture ?");
-				reset_timer_init = true;
-				reset_timer = high_resolution_clock::now();
+				if (res) {
+					reset_timer_init = true;
+					reset_timer = high_resolution_clock::now();
+				}
 			}
 		}
 		if (res) {
@@ -260,16 +262,9 @@ static void IrtMdlrTexturePainterResizeTexture(IrtMdlrFuncInfoClass* FI, int new
 	IrtImgPixelStruct* new_texture = new IrtImgPixelStruct[new_size * new_size];
 	for (int i = 0; i < new_size; i++) {
 		for (int j = 0; j < new_size; j++) {
-			//if (i < texture_size && j < texture_size) {
-			//	new_texture[i * new_size + j].r = texture[i * new_size + j].r;
-			//	new_texture[i * new_size + j].g = texture[i * new_size + j].g;
-			//	new_texture[i * new_size + j].b = texture[i * new_size + j].b;
-			//}
-			//else {
-				new_texture[i * new_size + j].r = 255;
-				new_texture[i * new_size + j].g = 255;
-				new_texture[i * new_size + j].b = 255;
-			//}
+			new_texture[i * new_size + j].r = 255;
+			new_texture[i * new_size + j].g = 255;
+			new_texture[i * new_size + j].b = 255;
 		}
 	}
 	if (texture_size >= 0) {
@@ -283,46 +278,42 @@ static void IrtMdlrTexturePainterResizeTexture(IrtMdlrFuncInfoClass* FI, int new
 
 void IrtMdlrTexturePainterInitShapeHierarchy(IrtMdlrFuncInfoClass* FI)
 {
-	int MaskIndex = 0;
+	int index = 0;
 	const char *p, *q;
-	char FullSearchPath[IRIT_LINE_LEN_LONG], FilePath[IRIT_LINE_LEN_LONG], MaskImageName[IRIT_LINE_LEN_LONG];
-	const IrtDspGuIritSystemInfoStruct* SysFileNames = GuIritMdlrDllGetGuIritSystemProps(FI);
-	IRT_DSP_STATIC_DATA const char** MaskImageFilesNames = NULL;
-	sprintf(FilePath, "%s%s",
-		searchpath(SysFileNames->AuxiliaryDataName, FullSearchPath),
-		GUIRIT_DLL_SAND_ART_MASKS_FILE_RELATIVE_PATH);
-	MaskImageFilesNames = GuIritMdlrDllGetAllFilesNamesInDirectory(FI, FilePath, "*.rle|*.ppm|*.gif|*.jpeg|*.png");
+	char base_path[IRIT_LINE_LEN_LONG], path[IRIT_LINE_LEN_LONG];
+	const IrtDspGuIritSystemInfoStruct* system_props = GuIritMdlrDllGetGuIritSystemProps(FI);
+	IRT_DSP_STATIC_DATA const char** shape_files = NULL;
+	sprintf(path, "%s%s", searchpath(system_props->AuxiliaryDataName, base_path), RELATIVE_PATH);
+	shape_files = GuIritMdlrDllGetAllFilesNamesInDirectory(FI, path, "*.rle|*.ppm|*.gif|*.jpeg|*.png");
 
-	/* Create selections string.					     */
-	strcpy(GuIritDllSandArtMaskName, "");
-	for (int i = 0; MaskImageFilesNames[i] != NULL; ++i) {
-		if ((p = strstr(MaskImageFilesNames[i],
-			GUIRIT_DLL_SAND_ART_MASKS_FILE_RELATIVE_PATH)) != NULL) {
-			p += strlen(GUIRIT_DLL_SAND_ART_MASKS_FILE_RELATIVE_PATH) + 1;
-			strcpy(MaskImageName, "");
+	strcpy(shape_names, "");
+	for (int i = 0; shape_files[i] != NULL; ++i) {
+		p = strstr(shape_files[i], RELATIVE_PATH);
+		if (p != NULL) {
+			p += strlen(RELATIVE_PATH) + 1;
+			char shape_name[IRIT_LINE_LEN_LONG];
+			strcpy(shape_name, "");
 			q = strchr(p, '.');
-			strncpy(MaskImageName, p, q - p);
-			MaskImageName[q - p] = '\0';
-			if (strstr(MaskImageName, "GaussianFull25") != NULL) {
-				MaskIndex = i;
+			strncpy(shape_name, p, q - p);
+			shape_name[q - p] = '\0';
+			if (strstr(shape_name, "GaussianFull25") != NULL) {
+				index = i;
 			}
-			sprintf(GuIritDllSandArtMaskName, "%s%s;", GuIritDllSandArtMaskName, MaskImageName);
+			sprintf(shape_names, "%s%s;", shape_names, shape_name);
 		}
 	}
 
-	/*if (MaskImageFilesNames[0] != NULL) {
-		sprintf(GuIritDllSandArtMaskName, "%s:%d", GuIritDllSandArtMaskName, MaskIndex);
-		SandArtMask = new GuIritDllSandArtMaskClass(MaskImageFilesNames[MaskIndex]);
-		GuIritMdlrDllSetInputSelectionStruct FilesNames(GuIritDllSandArtMaskName);
-		GuIritMdlrDllSetInputParameter(FI, SAND_ART_WIDGET_MASK_NAME, &FilesNames);
+	if (shape_files[0] != NULL) {
+		sprintf(shape_names, "%s:%d", shape_names, index);
+		//SandArtMask = new GuIritDllSandArtMaskClass(MaskImageFilesNames[MaskIndex]);
+		GuIritMdlrDllSetInputSelectionStruct files_names(shape_names);
+		GuIritMdlrDllSetInputParameter(FI, FIELD_SHAPE, &files_names);
 	}
 	else {
-		SandArtMask = new GuIritDllSandArtMaskClass(0, 0);
-		GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_ERROR,
-			"Masks files were not found. Check directory: \"%s\"\n",
-			FilePath);
+		//SandArtMask = new GuIritDllSandArtMaskClass(0, 0);
+		GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_ERROR, "Masks files were not found. Check directory: \"%s\"\n", path);
 		return;
-	}*/
+	}
 }
 
 static void IrtMdlrTexturePainterCalculateLine(const Pixel& start, const Pixel& end, vector<int>& points, const int min_y) {
