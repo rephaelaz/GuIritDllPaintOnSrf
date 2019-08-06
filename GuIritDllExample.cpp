@@ -47,6 +47,7 @@ typedef struct {
 static void IrtMdlrTexturePainter(IrtMdlrFuncInfoClass* FI);
 static void IrtMdlrTexturePainterResetAlphaBitmap(IrtMdlrFuncInfoClass* FI);
 static void IrtMdlrTexturePainterResizeTexture(IrtMdlrFuncInfoClass* FI, int new_size);
+static void IrtMdlrTexturePainterLoadShape(IrtMdlrFuncInfoClass* FI, const char* filename);
 static void IrtMdlrTexturePainterInitShapeHierarchy(IrtMdlrFuncInfoClass* FI);
 static void IrtMdlrTexturePainterCalculateLine(const Pixel& start, const Pixel& end, vector<int>& points, const int min_y);
 static void IrtMdlrTexturePainterRenderShape(IrtMdlrFuncInfoClass* FI, IrtImgPixelStruct* texture, int x, int y);
@@ -69,7 +70,12 @@ IRT_DSP_STATIC_DATA IrtRType y_factor = 1;
 
 IRT_DSP_STATIC_DATA const char RELATIVE_PATH[IRIT_LINE_LEN_LONG] = "\\Example\\Masks";
 IRT_DSP_STATIC_DATA char shape_names[IRIT_LINE_LEN_LONG] = "";
-IRT_DSP_STATIC_DATA int shape_index = 0;
+IRT_DSP_STATIC_DATA const char** shape_files = NULL;
+IRT_DSP_STATIC_DATA int shape_index = -1;
+IRT_DSP_STATIC_DATA float* shape_matrix = NULL;
+IRT_DSP_STATIC_DATA int shape_width;
+IRT_DSP_STATIC_DATA int shape_height;
+IRT_DSP_STATIC_DATA int shape_init = 1;
 
 typedef enum {
 	FIELD_LOAD = 0,
@@ -244,11 +250,15 @@ static void IrtMdlrTexturePainter(IrtMdlrFuncInfoClass* FI)
 	GuIritMdlrDllGetInputParameter(FI, FIELD_X_FACTOR, &x_factor);
 	GuIritMdlrDllGetInputParameter(FI, FIELD_Y_FACTOR, &y_factor);
 
-	//char* tmp = GuIritDllSandArtMaskName;
-	//char** ptr = &tmp;
-	//IrtRType tmp_irt;
-	//GuIritMdlrDllGetInputParameter(FI, 4, &tmp_irt, ptr);
-	//shape_index = irtrtype_to_i(tmp_irt);
+	char* tmp = shape_names;
+	char** ptr = &tmp;
+	IrtRType tmp_irt;
+	GuIritMdlrDllGetInputParameter(FI, FIELD_SHAPE, &tmp_irt, ptr);
+	int index = irtrtype_to_i(tmp_irt);
+	if (index != shape_index) {
+		shape_index = index;
+		IrtMdlrTexturePainterLoadShape(FI, shape_files[shape_index]);
+	}
 }
 
 static void IrtMdlrTexturePainterResetAlphaBitmap(IrtMdlrFuncInfoClass* FI) {
@@ -282,9 +292,10 @@ void IrtMdlrTexturePainterInitShapeHierarchy(IrtMdlrFuncInfoClass* FI)
 	const char *p, *q;
 	char base_path[IRIT_LINE_LEN_LONG], path[IRIT_LINE_LEN_LONG];
 	const IrtDspGuIritSystemInfoStruct* system_props = GuIritMdlrDllGetGuIritSystemProps(FI);
-	IRT_DSP_STATIC_DATA const char** shape_files = NULL;
 	sprintf(path, "%s%s", searchpath(system_props->AuxiliaryDataName, base_path), RELATIVE_PATH);
-	shape_files = GuIritMdlrDllGetAllFilesNamesInDirectory(FI, path, "*.rle|*.ppm|*.gif|*.jpeg|*.png");
+	if (shape_files == NULL) {
+		shape_files = GuIritMdlrDllGetAllFilesNamesInDirectory(FI, path, "*.rle|*.ppm|*.gif|*.jpeg|*.png");
+	}
 
 	strcpy(shape_names, "");
 	for (int i = 0; shape_files[i] != NULL; ++i) {
@@ -305,15 +316,37 @@ void IrtMdlrTexturePainterInitShapeHierarchy(IrtMdlrFuncInfoClass* FI)
 
 	if (shape_files[0] != NULL) {
 		sprintf(shape_names, "%s:%d", shape_names, index);
-		//SandArtMask = new GuIritDllSandArtMaskClass(MaskImageFilesNames[MaskIndex]);
 		GuIritMdlrDllSetInputSelectionStruct files_names(shape_names);
 		GuIritMdlrDllSetInputParameter(FI, FIELD_SHAPE, &files_names);
 	}
 	else {
-		//SandArtMask = new GuIritDllSandArtMaskClass(0, 0);
 		GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_ERROR, "Masks files were not found. Check directory: \"%s\"\n", path);
 		return;
 	}
+}
+
+static void IrtMdlrTexturePainterLoadShape(IrtMdlrFuncInfoClass* FI, const char* filename) {
+	int alpha;
+	IrtImgPixelStruct* image = IrtImgReadImage2(filename, &shape_width, &shape_height, &alpha);
+	shape_width++;
+	shape_height++;
+	if (!shape_init) {
+		delete[] shape_matrix;
+	}
+	else {
+		shape_init = 0;
+	}
+
+	shape_matrix = new float[shape_height * shape_width];
+	for (int i = 0; i < shape_height; i++) {
+		for (int j = 0; j < shape_width; j++) {
+			float gray;
+			IrtImgPixelStruct* ptr = image + (i * shape_width + j);
+			IRT_DSP_RGB2GREY(ptr, gray);
+			shape_matrix[i * shape_width + j] = gray;
+		}
+	}
+	GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO, "Loaded shape of size %dx%d\n", shape_width, shape_height);
 }
 
 static void IrtMdlrTexturePainterCalculateLine(const Pixel& start, const Pixel& end, vector<int>& points, const int min_y) {
