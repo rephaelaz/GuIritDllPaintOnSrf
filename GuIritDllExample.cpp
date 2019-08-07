@@ -69,7 +69,7 @@ IRT_DSP_STATIC_DATA IrtRType x_factor = 1;
 IRT_DSP_STATIC_DATA IrtRType y_factor = 1;
 
 IRT_DSP_STATIC_DATA const char RELATIVE_PATH[IRIT_LINE_LEN_LONG] = "\\Example\\Masks";
-IRT_DSP_STATIC_DATA char shape_names[IRIT_LINE_LEN_LONG] = "";
+IRT_DSP_STATIC_DATA char shape_names[IRIT_LINE_LEN_XLONG] = "";
 IRT_DSP_STATIC_DATA const char** shape_files = NULL;
 IRT_DSP_STATIC_DATA int shape_index = -1;
 IRT_DSP_STATIC_DATA float* shape_matrix = NULL;
