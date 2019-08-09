@@ -45,7 +45,6 @@ typedef struct {
 } Pixel;
 
 static void IrtMdlrTexturePainter(IrtMdlrFuncInfoClass* FI);
-static void IrtMdlrTexturePainterResetAlphaBitmap();
 static void IrtMdlrTexturePainterResizeTexture(IrtMdlrFuncInfoClass* FI, int new_size);
 static void IrtMdlrTexturePainterLoadShape(IrtMdlrFuncInfoClass* FI, const char* filename);
 static void IrtMdlrTexturePainterInitShapeHierarchy(IrtMdlrFuncInfoClass* FI);
@@ -55,13 +54,14 @@ static int IrtMdlrTexturePainterMouseCallBack(IrtMdlrMouseEventStruct* MouseEven
 
 IRT_DSP_STATIC_DATA IrtMdlrFuncInfoClass* GlobalFI = NULL;
 
-IRT_DSP_STATIC_DATA IrtRType _texture_size = 1024;
+IRT_DSP_STATIC_DATA IrtRType _texture_size = 256;
 IRT_DSP_STATIC_DATA int texture_size = -1;
 IRT_DSP_STATIC_DATA bool texture_reset_pending = false;
 IRT_DSP_STATIC_DATA high_resolution_clock::time_point reset_timer;
 IRT_DSP_STATIC_DATA bool reset_timer_init = false;
 IRT_DSP_STATIC_DATA IrtImgPixelStruct* texture;
-IRT_DSP_STATIC_DATA vector<vector<bool>> alpha_bitmap;
+IRT_DSP_STATIC_DATA IrtImgPixelStruct* texture_alpha;
+IRT_DSP_STATIC_DATA IrtImgPixelStruct* texture_buffer;
 
 IRT_DSP_STATIC_DATA IrtVecType color = { 0, 0, 0 };
 IRT_DSP_STATIC_DATA IrtRType alpha = 255;
@@ -165,6 +165,10 @@ static int irtrtype_to_i(IrtRType r) {
 	return atoi(str);
 }
 
+static double diff(double a, double b) {
+	return fabs(a - b);
+}
+
 extern "C" bool _IrtMdlrDllRegister(void)
 {
 	GuIritMdlrDllRegister(TexturePainterFunctionTable, FUNC_TABLE_SIZE, "Example", IconMenuExample);
@@ -247,8 +251,17 @@ static void IrtMdlrTexturePainter(IrtMdlrFuncInfoClass* FI)
 	// Brush fields
 	GuIritMdlrDllGetInputParameter(FI, FIELD_COLOR, &color);
 	GuIritMdlrDllGetInputParameter(FI, FIELD_ALPHA, &alpha);
-	GuIritMdlrDllGetInputParameter(FI, FIELD_X_FACTOR, &x_factor);
-	GuIritMdlrDllGetInputParameter(FI, FIELD_Y_FACTOR, &y_factor);
+
+	IrtRType tmp_x, tmp_y;
+
+	GuIritMdlrDllGetInputParameter(FI, FIELD_X_FACTOR, &tmp_x);
+	GuIritMdlrDllGetInputParameter(FI, FIELD_Y_FACTOR, &tmp_y);
+
+	if (diff(tmp_x, x_factor) > 10e-5 || diff(tmp_y, y_factor) > 10e-5) {
+		x_factor = tmp_x;
+		y_factor = tmp_y;
+		IrtMdlrTexturePainterLoadShape(FI, shape_files[shape_index]);
+	}
 
 	char* tmp = shape_names;
 	char** ptr = &tmp;
@@ -261,28 +274,33 @@ static void IrtMdlrTexturePainter(IrtMdlrFuncInfoClass* FI)
 	}
 }
 
-static void IrtMdlrTexturePainterResetAlphaBitmap() {
-	vector<bool> bitrow(texture_size, false);
-	vector<vector<bool>> bitmap(texture_size, bitrow);
-	alpha_bitmap = bitmap;
-}
-
 static void IrtMdlrTexturePainterResizeTexture(IrtMdlrFuncInfoClass* FI, int new_size)
 {	
 	IrtImgPixelStruct* new_texture = new IrtImgPixelStruct[new_size * new_size];
+	IrtImgPixelStruct* new_texture_alpha = new IrtImgPixelStruct[new_size * new_size];
+	IrtImgPixelStruct* new_texture_buffer = new IrtImgPixelStruct[new_size * new_size];
 	for (int i = 0; i < new_size; i++) {
 		for (int j = 0; j < new_size; j++) {
 			new_texture[i * new_size + j].r = 255;
 			new_texture[i * new_size + j].g = 255;
 			new_texture[i * new_size + j].b = 255;
+			new_texture_alpha[i * new_size + j].r = 255;
+			new_texture_alpha[i * new_size + j].g = 255;
+			new_texture_alpha[i * new_size + j].b = 255;
+			new_texture_buffer[i * new_size + j].r = 255;
+			new_texture_buffer[i * new_size + j].g = 255;
+			new_texture_buffer[i * new_size + j].b = 255;
 		}
 	}
 	if (texture_size >= 0) {
 		delete[] texture;
+		delete[] texture_alpha;
+		delete[] texture_buffer;
 	}
 	texture = new_texture;
+	texture_alpha = new_texture_alpha;
+	texture_buffer = new_texture_buffer;
 	texture_size = new_size;
-	IrtMdlrTexturePainterResetAlphaBitmap();
 	GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO, "Texture resized to %dx%d\n", new_size, new_size);
 }
 
@@ -326,10 +344,10 @@ void IrtMdlrTexturePainterInitShapeHierarchy(IrtMdlrFuncInfoClass* FI)
 }
 
 static void IrtMdlrTexturePainterLoadShape(IrtMdlrFuncInfoClass* FI, const char* filename) {
-	int alpha;
-	IrtImgPixelStruct* image = IrtImgReadImage2(filename, &shape_width, &shape_height, &alpha);
-	shape_width++;
-	shape_height++;
+	int alpha, width, height;
+	IrtImgPixelStruct* image = IrtImgReadImage2(filename, &width, &height, &alpha);
+	width++;
+	height++;
 	if (!shape_init) {
 		delete[] shape_matrix;
 	}
@@ -337,13 +355,19 @@ static void IrtMdlrTexturePainterLoadShape(IrtMdlrFuncInfoClass* FI, const char*
 		shape_init = 0;
 	}
 
+	shape_width = (int)(width * x_factor);
+	shape_height = (int)(height * y_factor);
+
+	float x_ratio = (float)width / (float)shape_width;
+	float y_ratio = (float)height / (float)shape_height;
+
 	shape_matrix = new float[shape_height * shape_width];
-	for (int i = 0; i < shape_height; i++) {
-		for (int j = 0; j < shape_width; j++) {
+	for (int y = 0; y < shape_height; y++) {
+		for (int x = 0; x < shape_width; x++) {
 			float gray;
-			IrtImgPixelStruct* ptr = image + (i * shape_width + j);
+			IrtImgPixelStruct* ptr = image + (int)((int)(y * y_ratio) * width + x * x_ratio);
 			IRT_DSP_RGB2GREY(ptr, gray);
-			shape_matrix[i * shape_width + j] = gray / 255.0;
+			shape_matrix[y * shape_width + x] = (float)(gray / 255.0);
 		}
 	}
 	GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO, "Loaded shape of size %dx%d\n", shape_width, shape_height);
@@ -403,11 +427,18 @@ static void IrtMdlrTexturePainterRenderShape(IrtMdlrFuncInfoClass* FI, int x_off
 			int y = (y_min + yy) % texture_size;
 			int texture_offset = x + texture_size * y;
 			int shape_offset = xx + shape_width * yy;
-			texture[texture_offset].r = (IrtBType)(shape_matrix[shape_offset]);
-			texture[texture_offset].g = (IrtBType)(shape_matrix[shape_offset]);
-			texture[texture_offset].b = (IrtBType)(shape_matrix[shape_offset]);
+			texture_alpha[texture_offset].r += (IrtBType)((color[0] - texture_alpha[texture_offset].r) * shape_matrix[shape_offset]);
+			texture_alpha[texture_offset].g += (IrtBType)((color[1] - texture_alpha[texture_offset].g) * shape_matrix[shape_offset]);
+			texture_alpha[texture_offset].b += (IrtBType)((color[2] - texture_alpha[texture_offset].b) * shape_matrix[shape_offset]);
+			texture[texture_offset].r = (IrtBType)(texture_buffer[texture_offset].r + 
+				(texture_alpha[texture_offset].r - texture_buffer[texture_offset].r) * (alpha / 255.0));
+			texture[texture_offset].g = (IrtBType)(texture_buffer[texture_offset].g +
+				(texture_alpha[texture_offset].g - texture_buffer[texture_offset].g) * (alpha / 255.0));
+			texture[texture_offset].b = (IrtBType)(texture_buffer[texture_offset].b +
+				(texture_alpha[texture_offset].b - texture_buffer[texture_offset].b) * (alpha / 255.0));
 		}
 	}
+	
 }
 
 static int IrtMdlrTexturePainterMouseCallBack(IrtMdlrMouseEventStruct* MouseEvent)
@@ -428,7 +459,16 @@ static int IrtMdlrTexturePainterMouseCallBack(IrtMdlrMouseEventStruct* MouseEven
 		case IRT_DSP_MOUSE_EVENT_LEFT_UP:
 			GuIritMdlrDllCaptureCursorFocus(FI, MouseEvent, false);
 			clicking = FALSE;
-			IrtMdlrTexturePainterResetAlphaBitmap();
+			for (int i = 0; i < texture_size; i++) {
+				for (int j = 0; j < texture_size; j++) {
+					texture_alpha[i * texture_size + j].r = texture[i * texture_size + j].r;
+					texture_alpha[i * texture_size + j].g = texture[i * texture_size + j].g;
+					texture_alpha[i * texture_size + j].b = texture[i * texture_size + j].b;
+					texture_buffer[i * texture_size + j].r = texture[i * texture_size + j].r;
+					texture_buffer[i * texture_size + j].g = texture[i * texture_size + j].g;
+					texture_buffer[i * texture_size + j].b = texture[i * texture_size + j].b;
+				}
+			}
 			break;
 		}
 		if (clicking) {
