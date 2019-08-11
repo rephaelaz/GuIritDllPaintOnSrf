@@ -250,6 +250,9 @@ static void IrtMdlrTexturePainter(IrtMdlrFuncInfoClass* FI)
 			if (last_obj != NULL) {
 				GuIritMdlrDllSetTextureFromImage(FI, last_obj, texture, texture_width, texture_height, FALSE);
 			}
+			else {
+				GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_WARNING, "Could not display loaded texture - no active object!\n");
+			}
 			texture_reset_pending = true;
 			IrtRType _width = (IrtRType)width;
 			IrtRType _height = (IrtRType)height;
@@ -284,6 +287,9 @@ static void IrtMdlrTexturePainter(IrtMdlrFuncInfoClass* FI)
 			if (last_obj != NULL) {
 				GuIritMdlrDllSetTextureFromImage(FI, last_obj, texture, texture_width, texture_height, FALSE);
 			}
+			else {
+				GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_WARNING, "Could not display loaded texture - no active object!\n");
+			}
 		}
 	}
 
@@ -294,6 +300,7 @@ static void IrtMdlrTexturePainter(IrtMdlrFuncInfoClass* FI)
 	if ((texture_width != tmp_width || texture_height != tmp_height) && !texture_reset_pending) {
 		texture_reset_pending = true;
 		bool res = true;
+		bool init = texture_width == -1;
 		if (texture_width != -1) {
 			if (!reset_timer_init || duration_cast<seconds>(high_resolution_clock::now() - reset_timer).count() >= 10) {
 				res = GuIritMdlrDllGetAsyncInputConfirm(FI, "", "This will reset the texture.\nAre you sure you want to resize the texture ?");
@@ -307,6 +314,9 @@ static void IrtMdlrTexturePainter(IrtMdlrFuncInfoClass* FI)
 			IrtMdlrTexturePainterResizeTexture(FI, tmp_width, tmp_height);
 			if (last_obj != NULL) {
 				GuIritMdlrDllSetTextureFromImage(FI, last_obj, texture, texture_width, texture_height, FALSE);
+			}
+			else if (!init) {
+				GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_WARNING, "Could not display loaded texture - no active object!\n");
 			}
 		}
 		else {
