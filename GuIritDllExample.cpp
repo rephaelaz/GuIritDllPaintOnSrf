@@ -80,7 +80,9 @@ IRT_DSP_STATIC_DATA int shape_width;
 IRT_DSP_STATIC_DATA int shape_height;
 IRT_DSP_STATIC_DATA int shape_init = 1;
 
-IPObjectStruct* last_obj = NULL;
+IRT_DSP_STATIC_DATA IPObjectStruct* last_obj = NULL;
+IRT_DSP_STATIC_DATA int last_x_offset = -1;
+IRT_DSP_STATIC_DATA int last_y_offset = -1;
 
 typedef enum {
 	FIELD_LOAD = 0,
@@ -454,7 +456,7 @@ static void IrtMdlrTexturePainterLoadShape(IrtMdlrFuncInfoClass* FI, const char*
 	GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO, "Loaded shape of size %dx%d\n", shape_width, shape_height);
 }
 
-static void IrtMdlrTexturePainterCalculateLine(const Pixel& start, const Pixel& end, vector<int>& points, const int min_y) {
+static void IrtMdlrTexturePainterCalculateLine(const Pixel& start, const Pixel& end, vector<Pixel>& points) {
 	int a1, a2, b1, b2;
 	int is_high;
 	if (abs(end.x - start.x) > abs(end.y - start.y)) {
@@ -491,7 +493,8 @@ static void IrtMdlrTexturePainterCalculateLine(const Pixel& start, const Pixel& 
 	for (int a = a1; a <= a2; a++) {
 		int x = (is_high) ? b : a;
 		int y = (is_high) ? a : b;
-		points[y - min_y] = x;
+		Pixel p = { x, y };
+		points.push_back(p);
 		if (d > 0) {
 			b += n;
 			d -= 2 * da;
@@ -552,15 +555,43 @@ static int IrtMdlrTexturePainterMouseCallBack(IrtMdlrMouseEventStruct* MouseEven
 					texture_buffer[offset].b = texture[offset].b;
 				}
 			}
+			last_x_offset = -1;
+			last_y_offset = -1;
 			break;
 		}
-		if (clicking) {
-			if (MouseEvent->UV != NULL) {
-				int x_offset = (int)((double)texture_width * fmod(MouseEvent->UV[0], 1));
-				int y_offset = (int)((double)texture_height * fmod(MouseEvent->UV[1], 1));
+		if (clicking && MouseEvent->UV != NULL) {
+			int x_offset = (int)((double)texture_width * fmod(MouseEvent->UV[0], 1));
+			int y_offset = (int)((double)texture_height * fmod(MouseEvent->UV[1], 1));
+			if (last_y_offset == -1) {
 				IrtMdlrTexturePainterRenderShape(FI, x_offset, y_offset);
-				GuIritMdlrDllSetTextureFromImage(FI, PObj, texture, texture_width, texture_height, FALSE);
+				last_x_offset = x_offset;
+				last_y_offset = y_offset;
 			}
+			else {
+				int x_backup = x_offset;
+				int y_backup = y_offset;
+				if (diff(last_x_offset, x_offset - texture_width) < diff(last_x_offset, x_offset)) {
+					x_offset -= texture_width;
+				}
+				if (diff(last_x_offset, x_offset + texture_width) < diff(last_x_offset, x_offset)) {
+					x_offset += texture_width;
+				}
+				if (diff(last_y_offset, y_offset - texture_height) < diff(last_y_offset, y_offset)) {
+					y_offset -= texture_height;
+				}
+				if (diff(last_y_offset, y_offset + texture_height) < diff(last_y_offset, y_offset)) {
+					y_offset += texture_height;
+				}
+				vector<Pixel> points;
+				Pixel start = { last_x_offset, last_y_offset }, end = { x_offset, y_offset };
+				IrtMdlrTexturePainterCalculateLine(start, end, points);
+				for (Pixel& p : points) {
+					IrtMdlrTexturePainterRenderShape(FI, p.x % texture_width, p.y % texture_height);
+				}
+				last_x_offset = x_backup;
+				last_y_offset = y_backup;
+			}
+			GuIritMdlrDllSetTextureFromImage(FI, PObj, texture, texture_width, texture_height, FALSE);
 		}
 	}
 	return TRUE;
