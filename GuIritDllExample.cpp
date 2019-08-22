@@ -49,7 +49,7 @@ static void IrtMdlrTexturePainter(IrtMdlrFuncInfoClass* FI);
 static void IrtMdlrTexturePainterResizeTexture(IrtMdlrFuncInfoClass* FI, int new_width, int new_height);
 static void IrtMdlrTexturePainterLoadShape(IrtMdlrFuncInfoClass* FI, const char* filename);
 static void IrtMdlrTexturePainterInitShapeHierarchy(IrtMdlrFuncInfoClass* FI);
-static void IrtMdlrTexturePainterCalculateLine(const Pixel& start, const Pixel& end, vector<int>& points, const int min_y);
+static void IrtMdlrTexturePainterCalculateLine(const Pixel& start, const Pixel& end, vector<int>& points);
 static void IrtMdlrTexturePainterRenderShape(IrtMdlrFuncInfoClass* FI, int x_offset, int y_offset);
 static int IrtMdlrTexturePainterMouseCallBack(IrtMdlrMouseEventStruct* MouseEvent);
 
@@ -286,6 +286,12 @@ static void IrtMdlrTexturePainter(IrtMdlrFuncInfoClass* FI)
 		bool res = GuIritMdlrDllGetAsyncInputConfirm(FI, "", "Are you sure you want to reset the texture ?");
 		if (res) {
 			IrtMdlrTexturePainterResizeTexture(FI, DEFAULT_TEXTURE_SIZE, DEFAULT_TEXTURE_SIZE);
+			texture_reset_pending = true;
+			IrtRType _width = (IrtRType)DEFAULT_TEXTURE_SIZE;
+			IrtRType _height = (IrtRType)DEFAULT_TEXTURE_SIZE;
+			GuIritMdlrDllSetInputParameter(FI, FIELD_TEXTURE_WIDTH, &_width);
+			GuIritMdlrDllSetInputParameter(FI, FIELD_TEXTURE_HEIGHT, &_height);
+			texture_reset_pending = false;
 			if (last_obj != NULL) {
 				GuIritMdlrDllSetTextureFromImage(FI, last_obj, texture, texture_width, texture_height, FALSE);
 			}
@@ -358,9 +364,18 @@ static void IrtMdlrTexturePainter(IrtMdlrFuncInfoClass* FI)
 
 static void IrtMdlrTexturePainterResizeTexture(IrtMdlrFuncInfoClass* FI, int new_width, int new_height)
 {	
+	if (texture_width >= 0) {
+		GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO, "Deleting old textures... ");
+		delete[] texture;
+		delete[] texture_alpha;
+		delete[] texture_buffer;
+		GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO, "Done\n");
+	}
+	GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO, "Allocating new textures... ");
 	IrtImgPixelStruct* new_texture = new IrtImgPixelStruct[new_width * new_height];
 	IrtImgPixelStruct* new_texture_alpha = new IrtImgPixelStruct[new_width * new_height];
 	IrtImgPixelStruct* new_texture_buffer = new IrtImgPixelStruct[new_width * new_height];
+	GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO, "Done\n");
 	for (int y = 0; y < new_height; y++) {
 		for (int x = 0; x < new_width; x++) {
 			new_texture[y * new_width + x].r = 255;
@@ -373,11 +388,6 @@ static void IrtMdlrTexturePainterResizeTexture(IrtMdlrFuncInfoClass* FI, int new
 			new_texture_buffer[y * new_width + x].g = 255;
 			new_texture_buffer[y * new_width + x].b = 255;
 		}
-	}
-	if (texture_width >= 0) {
-		delete[] texture;
-		delete[] texture_alpha;
-		delete[] texture_buffer;
 	}
 	texture = new_texture;
 	texture_alpha = new_texture_alpha;
@@ -432,7 +442,9 @@ static void IrtMdlrTexturePainterLoadShape(IrtMdlrFuncInfoClass* FI, const char*
 	width++;
 	height++;
 	if (!shape_init) {
+		GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO, "Deleting old shape... ");
 		delete[] shape_matrix;
+		GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO, "Done\n");
 	}
 	else {
 		shape_init = 0;
@@ -444,7 +456,9 @@ static void IrtMdlrTexturePainterLoadShape(IrtMdlrFuncInfoClass* FI, const char*
 	float x_ratio = (float)width / (float)shape_width;
 	float y_ratio = (float)height / (float)shape_height;
 
+	GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO, "Allocating new shape... ");
 	shape_matrix = new float[shape_height * shape_width];
+	GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO, "Done\n");
 	for (int y = 0; y < shape_height; y++) {
 		for (int x = 0; x < shape_width; x++) {
 			float gray;
@@ -521,8 +535,7 @@ static void IrtMdlrTexturePainterRenderShape(IrtMdlrFuncInfoClass* FI, int x_off
 			texture[texture_offset].b = (IrtBType)(texture_buffer[texture_offset].b +
 				(texture_alpha[texture_offset].b - texture_buffer[texture_offset].b) * (alpha / 255.0));
 		}
-	}
-	
+	}	
 }
 
 static int IrtMdlrTexturePainterMouseCallBack(IrtMdlrMouseEventStruct* MouseEvent)
