@@ -16,5 +16,7 @@ def copy_dir(old_path, new_path):
 
 if __name__ == "__main__":
     copy_dir(irit_vs12_lib, irit_lib)
+    if not os.path.exists(irit_ntbin):
+        os.makedirs(irit_ntbin)
     copy_dir(irit_vs12_ntbin, irit_ntbin)
     print('DONE')
