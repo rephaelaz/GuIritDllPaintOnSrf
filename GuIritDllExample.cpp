@@ -518,13 +518,25 @@ static void IrtMdlrTexturePainterCalculateLine(const Pixel& start, const Pixel& 
 }
 
 static void IrtMdlrTexturePainterRenderShape(IrtMdlrFuncInfoClass* FI, int x_offset, int y_offset) {
-	int x_min = x_offset - shape_width / 2, y_min = y_offset - shape_height / 2;
+	int x_min = x_offset - shape_width / 2;
+	while (x_min < 0) {
+		x_min += texture_width;
+	}
+	x_min %= texture_width;
+
+	int y_min = (y_offset - shape_height / 2);
+	while (y_min < 0) {
+		y_min += texture_height;
+	}
+	y_min %= texture_height;
+	
 	for (int yy = 0; yy < shape_height; yy++) {
 		for (int xx = 0; xx < shape_width; xx++) {
 			int x = (x_min + xx) % texture_width;
 			int y = (y_min + yy) % texture_height;
 			int texture_offset = x + texture_width * y;
 			int shape_offset = xx + shape_width * yy;
+
 			texture_alpha[texture_offset].r += (IrtBType)((color[0] - texture_alpha[texture_offset].r) * shape_matrix[shape_offset]);
 			texture_alpha[texture_offset].g += (IrtBType)((color[1] - texture_alpha[texture_offset].g) * shape_matrix[shape_offset]);
 			texture_alpha[texture_offset].b += (IrtBType)((color[2] - texture_alpha[texture_offset].b) * shape_matrix[shape_offset]);
