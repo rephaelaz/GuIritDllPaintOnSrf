@@ -85,7 +85,8 @@ IRT_DSP_STATIC_DATA int last_x_offset = -1;
 IRT_DSP_STATIC_DATA int last_y_offset = -1;
 
 typedef enum {
-	FIELD_LOAD = 0,
+	FIELD_SURFACE = 0,
+	FIELD_LOAD,
 	FIELD_SAVE,
 	FIELD_RESET,
 	FIELD_TEXTURE_WIDTH,
@@ -110,9 +111,12 @@ IRT_DSP_STATIC_DATA IrtMdlrFuncTableStruct TexturePainterFunctionTable[] =
 		NULL,
 		IRT_MDLR_PARAM_VIEW_CHANGES_UDPATE | IRT_MDLR_PARAM_INTERMEDIATE_UPDATE_DFLT_ON,
 		IRT_MDLR_NUMERIC_EXPR,
-		10,
+		11,
 		IRT_MDLR_PARAM_EXACT,
 		{
+			// Surface selection
+			IRT_MDLR_SURFACE_EXPR,
+			
 			// Texture fields
 			IRT_MDLR_BUTTON_EXPR,				// Load Texture
 			IRT_MDLR_BUTTON_EXPR,				// Save Texture
@@ -129,6 +133,8 @@ IRT_DSP_STATIC_DATA IrtMdlrFuncTableStruct TexturePainterFunctionTable[] =
 		},
 		{
 			NULL,
+			
+			NULL,
 			NULL, 
 			NULL,
 			& _texture_width,
@@ -141,6 +147,8 @@ IRT_DSP_STATIC_DATA IrtMdlrFuncTableStruct TexturePainterFunctionTable[] =
 			&y_factor,
 		},
 		{
+			"Surface",
+			
 			"Load Texture",
 			"Save Texture",
 			"Reset Texture",
@@ -154,6 +162,8 @@ IRT_DSP_STATIC_DATA IrtMdlrFuncTableStruct TexturePainterFunctionTable[] =
 			"Y Factor"
 		},
 		{
+			"Select a surface.",
+			
 			"Loads a texture from an image file.",
 			"Saves the texture into an image file.",
 			"Resets the current texture to a blank texture.",
@@ -170,12 +180,6 @@ IRT_DSP_STATIC_DATA IrtMdlrFuncTableStruct TexturePainterFunctionTable[] =
 };
 
 IRT_DSP_STATIC_DATA const int FUNC_TABLE_SIZE = sizeof(TexturePainterFunctionTable) / sizeof(IrtMdlrFuncTableStruct);
-
-static int irtrtype_to_i(IrtRType r) {
-	char str[IRIT_LINE_LEN_SHORT];
-	sprintf(str, "%d", r);
-	return atoi(str);
-}
 
 static double diff(double a, double b) {
 	return fabs(a - b);
@@ -222,6 +226,10 @@ static void IrtMdlrTexturePainter(IrtMdlrFuncInfoClass* FI)
 		GuIritMdlrDllPopMouseEventFunc(FI);
 		GlobalFI = false;
 		GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO, "Texture Painter unloaded\n");
+	}
+
+	CagdSrfStruct *IrtMdlrIsoCrvSrfCovrSrf = NULL;
+	if (!GuIritMdlrDllGetSurfaceParameter(FI, "TexturePainter", FIELD_SURFACE, &IrtMdlrIsoCrvSrfCovrSrf)) {
 	}
 
 	// Texture fields
@@ -340,6 +348,16 @@ static void IrtMdlrTexturePainter(IrtMdlrFuncInfoClass* FI)
 	GuIritMdlrDllGetInputParameter(FI, FIELD_COLOR, &color);
 	GuIritMdlrDllGetInputParameter(FI, FIELD_ALPHA, &alpha);
 
+	char* tmp = shape_names;
+	char** ptr = &tmp;
+	int index;
+
+	GuIritMdlrDllGetInputParameter(FI, FIELD_SHAPE, &index, ptr);
+	if (index != shape_index) {
+		shape_index = index;
+		IrtMdlrTexturePainterLoadShape(FI, shape_files[shape_index]);
+	}
+
 	IrtRType tmp_x, tmp_y;
 
 	GuIritMdlrDllGetInputParameter(FI, FIELD_X_FACTOR, &tmp_x);
@@ -348,16 +366,6 @@ static void IrtMdlrTexturePainter(IrtMdlrFuncInfoClass* FI)
 	if (diff(tmp_x, x_factor) > 10e-5 || diff(tmp_y, y_factor) > 10e-5) {
 		x_factor = tmp_x;
 		y_factor = tmp_y;
-		IrtMdlrTexturePainterLoadShape(FI, shape_files[shape_index]);
-	}
-
-	char* tmp = shape_names;
-	char** ptr = &tmp;
-	IrtRType tmp_irt;
-	GuIritMdlrDllGetInputParameter(FI, FIELD_SHAPE, &tmp_irt, ptr);
-	int index = irtrtype_to_i(tmp_irt);
-	if (index != shape_index) {
-		shape_index = index;
 		IrtMdlrTexturePainterLoadShape(FI, shape_files[shape_index]);
 	}
 }
