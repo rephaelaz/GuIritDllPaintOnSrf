@@ -33,7 +33,10 @@ using std::swap;
 using namespace std::chrono;
 
 IRT_DSP_STATIC_DATA const double PI = 3.1415926535;
-IRT_DSP_STATIC_DATA const int DEFAULT_TEXTURE_SIZE = 256;
+IRT_DSP_STATIC_DATA const int DEFAULT_TEXTURE_WIDTH = 256;
+IRT_DSP_STATIC_DATA const int DEFAULT_TEXTURE_HEIGHT = 256;
+IRT_DSP_STATIC_DATA const int DEFAULT_TEXTURE_SIZE = DEFAULT_TEXTURE_WIDTH * DEFAULT_TEXTURE_HEIGHT;
+IRT_DSP_STATIC_DATA IrtImgPixelStruct WHITE = { 255, 255, 255 };
 
 typedef struct {
 	double x;
@@ -45,8 +48,14 @@ typedef struct {
 	int y;
 } Pixel;
 
+typedef struct {
+	int width;
+	int height;
+	IrtImgPixelStruct* texture;
+} Texture;
+
 static void IrtMdlrTexturePainter(IrtMdlrFuncInfoClass* FI);
-static void IrtMdlrTexturePainterResizeTexture(IrtMdlrFuncInfoClass* FI, int new_width, int new_height);
+static void IrtMdlrTexturePainterResizeTexture(IrtMdlrFuncInfoClass* FI, int new_width, int new_height, bool reset);
 static void IrtMdlrTexturePainterLoadShape(IrtMdlrFuncInfoClass* FI, const char* filename);
 static void IrtMdlrTexturePainterInitShapeHierarchy(IrtMdlrFuncInfoClass* FI);
 static void IrtMdlrTexturePainterCalculateLine(const Pixel& start, const Pixel& end, vector<int>& points);
@@ -55,16 +64,19 @@ static int IrtMdlrTexturePainterMouseCallBack(IrtMdlrMouseEventStruct* MouseEven
 
 IRT_DSP_STATIC_DATA IrtMdlrFuncInfoClass* GlobalFI = NULL;
 
-IRT_DSP_STATIC_DATA IrtRType _texture_width = DEFAULT_TEXTURE_SIZE;
-IRT_DSP_STATIC_DATA IrtRType _texture_height = DEFAULT_TEXTURE_SIZE;
-IRT_DSP_STATIC_DATA int texture_width = -1;
-IRT_DSP_STATIC_DATA int texture_height = -1;
-IRT_DSP_STATIC_DATA bool texture_reset_pending = false;
+IRT_DSP_STATIC_DATA IPObjectStruct* active_surface = NULL;
+
+IRT_DSP_STATIC_DATA IrtRType _texture_width = DEFAULT_TEXTURE_WIDTH;
+IRT_DSP_STATIC_DATA IrtRType _texture_height = DEFAULT_TEXTURE_HEIGHT;
 IRT_DSP_STATIC_DATA high_resolution_clock::time_point reset_timer;
 IRT_DSP_STATIC_DATA bool reset_timer_init = false;
-IRT_DSP_STATIC_DATA IrtImgPixelStruct* texture;
+IRT_DSP_STATIC_DATA map<IPObjectStruct*, Texture*> textures;
 IRT_DSP_STATIC_DATA IrtImgPixelStruct* texture_alpha;
 IRT_DSP_STATIC_DATA IrtImgPixelStruct* texture_buffer;
+
+IRT_DSP_STATIC_DATA bool texture_reset_flag = false;
+IRT_DSP_STATIC_DATA bool init_done_flag = false;
+
 
 IRT_DSP_STATIC_DATA IrtVecType color = { 0, 0, 0 };
 IRT_DSP_STATIC_DATA IrtRType alpha = 255;
@@ -80,7 +92,6 @@ IRT_DSP_STATIC_DATA int shape_width;
 IRT_DSP_STATIC_DATA int shape_height;
 IRT_DSP_STATIC_DATA int shape_init = 1;
 
-IRT_DSP_STATIC_DATA IPObjectStruct* last_obj = NULL;
 IRT_DSP_STATIC_DATA int last_x_offset = -1;
 IRT_DSP_STATIC_DATA int last_y_offset = -1;
 
@@ -228,84 +239,113 @@ static void IrtMdlrTexturePainter(IrtMdlrFuncInfoClass* FI)
 		GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO, "Texture Painter unloaded\n");
 	}
 
-	CagdSrfStruct *IrtMdlrIsoCrvSrfCovrSrf = NULL;
-	if (!GuIritMdlrDllGetSurfaceParameter(FI, "TexturePainter", FIELD_SURFACE, &IrtMdlrIsoCrvSrfCovrSrf)) {
+	IPObjectStruct *surface = NULL;
+	GuIritMdlrDllGetInputParameter(FI, FIELD_SURFACE, &surface);
+	if (surface != NULL && !texture_reset_flag) {
+		texture_reset_flag = true;
+		if (textures.find(surface) == textures.end()) {
+			Texture* new_texture = new Texture;
+			new_texture->width = DEFAULT_TEXTURE_WIDTH;
+			new_texture->height = DEFAULT_TEXTURE_HEIGHT;
+			new_texture->texture = new IrtImgPixelStruct[DEFAULT_TEXTURE_SIZE];
+			for (int i = 0; i < DEFAULT_TEXTURE_SIZE; i++) {
+				new_texture->texture[i] = WHITE;
+			}
+			textures[surface] = new_texture;
+			GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO, "Surface %s initialized\n", surface->ObjName);
+		}
+		if (surface != active_surface) {
+			Texture* texture = textures[surface];
+			IrtRType width = (IrtRType)(texture->width);
+			IrtRType height = (IrtRType)(texture->height);
+			GuIritMdlrDllSetInputParameter(FI, FIELD_TEXTURE_WIDTH, &width);
+			GuIritMdlrDllSetInputParameter(FI, FIELD_TEXTURE_HEIGHT, &height);
+			active_surface = surface;
+			texture_alpha = new IrtImgPixelStruct[DEFAULT_TEXTURE_SIZE];
+			texture_buffer = new IrtImgPixelStruct[DEFAULT_TEXTURE_SIZE];
+			for (int i = 0; i < DEFAULT_TEXTURE_SIZE; i++) {
+				texture_alpha[i] = texture->texture[i];
+				texture_buffer[i] = texture->texture[i];
+			}
+			GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO, "Surface %s selected\n", active_surface->ObjName);
+			init_done_flag = true;
+		}
+		texture_reset_flag = false;
 	}
 
 	// Texture fields
-	if (FI->IntermediateWidgetMajor == FIELD_LOAD) {
-		char* filename;
-		bool res = GuIritMdlrDllGetAsyncInputFileName(FI, "Load Texture from....", "*.png", &filename);
-		if (res) {
-			int alpha, width, height;
-			IrtImgPixelStruct* image = IrtImgReadImage2(filename, &width, &height, &alpha);
-			width++;
-			height++;
-			GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO, "Texture loaded successfully from \"%s\" (%dx%d)\n", filename, width, height);
-			IrtMdlrTexturePainterResizeTexture(FI, width, height);
-			for (int y = 0; y < height; y++) {
-				for (int x = 0; x < width; x++) {
-					int offset = y * width + x;
-					texture[offset].r = image[offset].r;
-					texture[offset].g = image[offset].g;
-					texture[offset].b = image[offset].b;
-					texture_alpha[offset].r = image[offset].r;
-					texture_alpha[offset].g = image[offset].g;
-					texture_alpha[offset].b = image[offset].b;
-					texture_buffer[offset].r = image[offset].r;
-					texture_buffer[offset].g = image[offset].g;
-					texture_buffer[offset].b = image[offset].b;
+	if (FI->IntermediateWidgetMajor == FIELD_LOAD && !texture_reset_flag) {
+		if (active_surface != NULL) {
+			char* filename;
+			bool res = GuIritMdlrDllGetAsyncInputFileName(FI, "Load Texture from....", "*.png", &filename);
+			if (res) {
+				int alpha, width, height;
+				IrtImgPixelStruct* image = IrtImgReadImage2(filename, &width, &height, &alpha);
+				width++;
+				height++;
+				GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO, "Texture loaded successfully from \"%s\" (%dx%d)\n", filename, width, height);
+				IrtMdlrTexturePainterResizeTexture(FI, width, height, false);
+				Texture* texture = textures[surface];
+				for (int i = 0; i < width * height; i++) {
+					texture->texture[i] = image[i];
+					texture_alpha[i] = image[i];
+					texture_buffer[i] = image[i];
 				}
+				GuIritMdlrDllSetTextureFromImage(FI, active_surface, texture->texture, texture->width, texture->height, FALSE);
+				texture_reset_flag = true;
+				IrtRType _width = (IrtRType)texture->width;
+				IrtRType _height = (IrtRType)texture->height;
+				GuIritMdlrDllSetInputParameter(FI, FIELD_TEXTURE_WIDTH, &_width);
+				GuIritMdlrDllSetInputParameter(FI, FIELD_TEXTURE_HEIGHT, &_height);
+				texture_reset_flag = false;
 			}
-			if (last_obj != NULL) {
-				GuIritMdlrDllSetTextureFromImage(FI, last_obj, texture, texture_width, texture_height, FALSE);
-			}
-			else {
-				GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_WARNING, "Could not display loaded texture - no active object!\n");
-			}
-			texture_reset_pending = true;
-			IrtRType _width = (IrtRType)width;
-			IrtRType _height = (IrtRType)height;
-			GuIritMdlrDllSetInputParameter(FI, FIELD_TEXTURE_WIDTH, &_width);
-			GuIritMdlrDllSetInputParameter(FI, FIELD_TEXTURE_HEIGHT, &_height);
-			texture_reset_pending = false;
+		}
+		else {
+			GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_WARNING, "Please select a surface.\n");
 		}
 	}
 
 	if (FI->IntermediateWidgetMajor == FIELD_SAVE) {
-		char* filename;
-		bool res = GuIritMdlrDllGetAsyncInputFileName(FI, "Save Texture to....", "*.png", &filename);
-		if (res) {
-			MiscWriteGenInfoStructPtr GI = IrtImgWriteOpenFile(NULL, filename, IRIT_IMAGE_PNG_TYPE, false, texture_width, texture_height);
-			if (GI == NULL) {
-				GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_ERROR, "Error saving texture to \"%s\"\n", filename);
-			}
-			else {
-				for (int y = 0; y < texture_height; y++) {
-					IrtImgWritePutLine(GI, NULL, &texture[y * texture_width]);
+		if (active_surface != NULL) {
+			char* filename;
+			bool res = GuIritMdlrDllGetAsyncInputFileName(FI, "Save Texture to....", "*.png", &filename);
+			if (res) {
+				Texture* texture = textures[surface];
+				MiscWriteGenInfoStructPtr GI = IrtImgWriteOpenFile(NULL, filename, IRIT_IMAGE_PNG_TYPE, false, texture->width, texture->height);
+				if (GI == NULL) {
+					GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_ERROR, "Error saving texture to \"%s\"\n", filename);
 				}
-				IrtImgWriteCloseFile(GI);
-				GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO, "Texture saved successfully to \"%s\"\n", filename);
+				else {
+					for (int y = 0; y < texture->height; y++) {
+						IrtImgWritePutLine(GI, NULL, &texture->texture[y * texture->width]);
+					}
+					IrtImgWriteCloseFile(GI);
+					GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO, "Texture saved successfully to \"%s\"\n", filename);
+				}
 			}
+		}
+		else {
+			GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_WARNING, "Please select a surface.\n");
 		}
 	}
 
-	if (FI->IntermediateWidgetMajor == FIELD_RESET) {
-		bool res = GuIritMdlrDllGetAsyncInputConfirm(FI, "", "Are you sure you want to reset the texture ?");
-		if (res) {
-			IrtMdlrTexturePainterResizeTexture(FI, DEFAULT_TEXTURE_SIZE, DEFAULT_TEXTURE_SIZE);
-			texture_reset_pending = true;
-			IrtRType _width = (IrtRType)DEFAULT_TEXTURE_SIZE;
-			IrtRType _height = (IrtRType)DEFAULT_TEXTURE_SIZE;
-			GuIritMdlrDllSetInputParameter(FI, FIELD_TEXTURE_WIDTH, &_width);
-			GuIritMdlrDllSetInputParameter(FI, FIELD_TEXTURE_HEIGHT, &_height);
-			texture_reset_pending = false;
-			if (last_obj != NULL) {
-				GuIritMdlrDllSetTextureFromImage(FI, last_obj, texture, texture_width, texture_height, FALSE);
+	if (FI->IntermediateWidgetMajor == FIELD_RESET && !texture_reset_flag) {
+		if (active_surface != NULL) {
+			bool res = GuIritMdlrDllGetAsyncInputConfirm(FI, "", "Are you sure you want to reset the texture ?");
+			if (res) {
+				Texture* texture = textures[surface];
+				IrtMdlrTexturePainterResizeTexture(FI, DEFAULT_TEXTURE_WIDTH, DEFAULT_TEXTURE_HEIGHT, true);
+				texture_reset_flag = true;
+				IrtRType _width = (IrtRType)DEFAULT_TEXTURE_WIDTH;
+				IrtRType _height = (IrtRType)DEFAULT_TEXTURE_HEIGHT;
+				GuIritMdlrDllSetInputParameter(FI, FIELD_TEXTURE_WIDTH, &_width);
+				GuIritMdlrDllSetInputParameter(FI, FIELD_TEXTURE_HEIGHT, &_height);
+				texture_reset_flag = false;
+				GuIritMdlrDllSetTextureFromImage(FI, active_surface, texture->texture, texture->width, texture->height, FALSE);
 			}
-			else {
-				GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_WARNING, "Could not display loaded texture - no active object!\n");
-			}
+		}
+		else {
+			GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_WARNING, "Please select a surface.\n");
 		}
 	}
 
@@ -313,35 +353,32 @@ static void IrtMdlrTexturePainter(IrtMdlrFuncInfoClass* FI)
 	GuIritMdlrDllGetInputParameter(FI, FIELD_TEXTURE_HEIGHT, &_texture_height);
 	int tmp_width = (int)_texture_width;
 	int tmp_height = (int)_texture_height;
-	if ((texture_width != tmp_width || texture_height != tmp_height) && !texture_reset_pending) {
-		texture_reset_pending = true;
-		bool res = true;
-		bool init = texture_width == -1;
-		if (texture_width != -1) {
-			if (!reset_timer_init || duration_cast<seconds>(high_resolution_clock::now() - reset_timer).count() >= 10) {
-				res = GuIritMdlrDllGetAsyncInputConfirm(FI, "", "This will reset the texture.\nAre you sure you want to resize the texture ?");
-				if (res) {
-					reset_timer_init = true;
-					reset_timer = high_resolution_clock::now();
+	if (active_surface != NULL) {
+		Texture* texture = textures[surface];
+		if ((texture->width != tmp_width || texture->height != tmp_height) && !texture_reset_flag) {
+			texture_reset_flag = true;
+			bool res = true;
+			if (init_done_flag) {
+				if (!reset_timer_init || duration_cast<seconds>(high_resolution_clock::now() - reset_timer).count() >= 10) {
+					res = GuIritMdlrDllGetAsyncInputConfirm(FI, "", "This will reset the texture.\nAre you sure you want to resize the texture ?");
+					if (res) {
+						reset_timer_init = true;
+						reset_timer = high_resolution_clock::now();
+					}
 				}
 			}
-		}
-		if (res) {
-			IrtMdlrTexturePainterResizeTexture(FI, tmp_width, tmp_height);
-			if (last_obj != NULL) {
-				GuIritMdlrDllSetTextureFromImage(FI, last_obj, texture, texture_width, texture_height, FALSE);
+			if (res) {
+				IrtMdlrTexturePainterResizeTexture(FI, tmp_width, tmp_height, true);
+				GuIritMdlrDllSetTextureFromImage(FI, active_surface, texture->texture, texture->width, texture->height, FALSE);
 			}
-			else if (!init) {
-				GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_WARNING, "Could not display loaded texture - no active object!\n");
+			else {
+				IrtRType width = (IrtRType)texture->width;
+				IrtRType height = (IrtRType)texture->height;
+				GuIritMdlrDllSetInputParameter(FI, FIELD_TEXTURE_WIDTH, &width);
+				GuIritMdlrDllSetInputParameter(FI, FIELD_TEXTURE_HEIGHT, &height);
 			}
+			texture_reset_flag = false;
 		}
-		else {
-			IrtRType width = (IrtRType)texture_width;
-			IrtRType height = (IrtRType)texture_height;
-			GuIritMdlrDllSetInputParameter(FI, FIELD_TEXTURE_WIDTH, &width);
-			GuIritMdlrDllSetInputParameter(FI, FIELD_TEXTURE_HEIGHT, &height);
-		}
-		texture_reset_pending = false;
 	}
 
 	// Brush fields
@@ -370,38 +407,28 @@ static void IrtMdlrTexturePainter(IrtMdlrFuncInfoClass* FI)
 	}
 }
 
-static void IrtMdlrTexturePainterResizeTexture(IrtMdlrFuncInfoClass* FI, int new_width, int new_height)
+static void IrtMdlrTexturePainterResizeTexture(IrtMdlrFuncInfoClass* FI, int new_width, int new_height, bool reset)
 {	
-	if (texture_width >= 0) {
-		GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO, "Deleting old textures... ");
-		delete[] texture;
-		delete[] texture_alpha;
-		delete[] texture_buffer;
-		GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO, "Done\n");
-	}
-	GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO, "Allocating new textures... ");
+	delete[] textures[active_surface]->texture;
+	delete[] texture_alpha;
+	delete[] texture_buffer;
 	IrtImgPixelStruct* new_texture = new IrtImgPixelStruct[new_width * new_height];
 	IrtImgPixelStruct* new_texture_alpha = new IrtImgPixelStruct[new_width * new_height];
 	IrtImgPixelStruct* new_texture_buffer = new IrtImgPixelStruct[new_width * new_height];
-	GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO, "Done\n");
-	for (int y = 0; y < new_height; y++) {
-		for (int x = 0; x < new_width; x++) {
-			new_texture[y * new_width + x].r = 255;
-			new_texture[y * new_width + x].g = 255;
-			new_texture[y * new_width + x].b = 255;
-			new_texture_alpha[y * new_width + x].r = 255;
-			new_texture_alpha[y * new_width + x].g = 255;
-			new_texture_alpha[y * new_width + x].b = 255;
-			new_texture_buffer[y * new_width + x].r = 255;
-			new_texture_buffer[y * new_width + x].g = 255;
-			new_texture_buffer[y * new_width + x].b = 255;
+	if (reset) {
+		for (int y = 0; y < new_height; y++) {
+			for (int x = 0; x < new_width; x++) {
+				new_texture[y * new_width + x] = WHITE;
+				new_texture_alpha[y * new_width + x] = WHITE;
+				new_texture_buffer[y * new_width + x] = WHITE;
+			}
 		}
 	}
-	texture = new_texture;
+	textures[active_surface]->texture = new_texture;
 	texture_alpha = new_texture_alpha;
 	texture_buffer = new_texture_buffer;
-	texture_width = new_width;
-	texture_height = new_height;
+	textures[active_surface]->width = new_width;
+	textures[active_surface]->height = new_height;
 	GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO, "Texture resized to %dx%d\n", new_width, new_height);
 }
 
@@ -450,9 +477,7 @@ static void IrtMdlrTexturePainterLoadShape(IrtMdlrFuncInfoClass* FI, const char*
 	width++;
 	height++;
 	if (!shape_init) {
-		GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO, "Deleting old shape... ");
 		delete[] shape_matrix;
-		GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO, "Done\n");
 	}
 	else {
 		shape_init = 0;
@@ -464,9 +489,7 @@ static void IrtMdlrTexturePainterLoadShape(IrtMdlrFuncInfoClass* FI, const char*
 	float x_ratio = (float)width / (float)shape_width;
 	float y_ratio = (float)height / (float)shape_height;
 
-	GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO, "Allocating new shape... ");
 	shape_matrix = new float[shape_height * shape_width];
-	GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO, "Done\n");
 	for (int y = 0; y < shape_height; y++) {
 		for (int x = 0; x < shape_width; x++) {
 			float gray;
@@ -526,36 +549,34 @@ static void IrtMdlrTexturePainterCalculateLine(const Pixel& start, const Pixel& 
 }
 
 static void IrtMdlrTexturePainterRenderShape(IrtMdlrFuncInfoClass* FI, int x_offset, int y_offset) {
+	Texture* texture = textures[active_surface];
 	int x_min = x_offset - shape_width / 2;
 	while (x_min < 0) {
-		x_min += texture_width;
+		x_min += texture->width;
 	}
-	x_min %= texture_width;
+	x_min %= texture->width;
 
 	int y_min = (y_offset - shape_height / 2);
 	while (y_min < 0) {
-		y_min += texture_height;
+		y_min += texture->height;
 	}
-	y_min %= texture_height;
+	y_min %= texture->height;
 	
 	for (int yy = 0; yy < shape_height; yy++) {
 		for (int xx = 0; xx < shape_width; xx++) {
-			int x = (x_min + xx) % texture_width;
-			int y = (y_min + yy) % texture_height;
-			int texture_offset = x + texture_width * y;
+			int x = (x_min + xx) % texture->width;
+			int y = (y_min + yy) % texture->height;
+			int texture_offset = x + texture->width * y;
 			int shape_offset = xx + shape_width * yy;
 
 			texture_alpha[texture_offset].r += (IrtBType)((color[0] - texture_alpha[texture_offset].r) * shape_matrix[shape_offset]);
 			texture_alpha[texture_offset].g += (IrtBType)((color[1] - texture_alpha[texture_offset].g) * shape_matrix[shape_offset]);
 			texture_alpha[texture_offset].b += (IrtBType)((color[2] - texture_alpha[texture_offset].b) * shape_matrix[shape_offset]);
-			texture[texture_offset].r = (IrtBType)(texture_buffer[texture_offset].r + 
-				(texture_alpha[texture_offset].r - texture_buffer[texture_offset].r) * (alpha / 255.0));
-			texture[texture_offset].g = (IrtBType)(texture_buffer[texture_offset].g +
-				(texture_alpha[texture_offset].g - texture_buffer[texture_offset].g) * (alpha / 255.0));
-			texture[texture_offset].b = (IrtBType)(texture_buffer[texture_offset].b +
-				(texture_alpha[texture_offset].b - texture_buffer[texture_offset].b) * (alpha / 255.0));
+			texture->texture[texture_offset].r = (IrtBType)(texture_buffer[texture_offset].r + (texture_alpha[texture_offset].r - texture_buffer[texture_offset].r) * (alpha / 255.0));
+			texture->texture[texture_offset].g = (IrtBType)(texture_buffer[texture_offset].g + (texture_alpha[texture_offset].g - texture_buffer[texture_offset].g) * (alpha / 255.0));
+			texture->texture[texture_offset].b = (IrtBType)(texture_buffer[texture_offset].b + (texture_alpha[texture_offset].b - texture_buffer[texture_offset].b) * (alpha / 255.0));
 		}
-	}	
+	}
 }
 
 static int IrtMdlrTexturePainterMouseCallBack(IrtMdlrMouseEventStruct* MouseEvent)
@@ -564,7 +585,6 @@ static int IrtMdlrTexturePainterMouseCallBack(IrtMdlrMouseEventStruct* MouseEven
 	IRT_DSP_STATIC_DATA int clicking = FALSE;
 
 	IPObjectStruct* PObj = (IPObjectStruct*)MouseEvent->PObj;
-	last_obj = PObj;
 
 	if (MouseEvent->KeyModifiers & IRT_DSP_KEY_MODIFIER_SHIFT_DOWN)
 	{
@@ -577,24 +597,24 @@ static int IrtMdlrTexturePainterMouseCallBack(IrtMdlrMouseEventStruct* MouseEven
 		case IRT_DSP_MOUSE_EVENT_LEFT_UP:
 			GuIritMdlrDllCaptureCursorFocus(FI, MouseEvent, false);
 			clicking = FALSE;
-			for (int y = 0; y < texture_height; y++) {
-				for (int x = 0; x < texture_width; x++) {
-					int offset = y * texture_width + x;
-					texture_alpha[offset].r = texture[offset].r;
-					texture_alpha[offset].g = texture[offset].g;
-					texture_alpha[offset].b = texture[offset].b;
-					texture_buffer[offset].r = texture[offset].r;
-					texture_buffer[offset].g = texture[offset].g;
-					texture_buffer[offset].b = texture[offset].b;
+			if (active_surface != NULL) {
+				Texture* texture = textures[active_surface];
+				for (int y = 0; y < texture->height; y++) {
+					for (int x = 0; x < texture->width; x++) {
+						int offset = y * texture->width + x;
+						texture_alpha[offset] = texture->texture[offset];
+						texture_buffer[offset] = texture->texture[offset];
+					}
 				}
 			}
 			last_x_offset = -1;
 			last_y_offset = -1;
 			break;
 		}
-		if (clicking && MouseEvent->UV != NULL) {
-			int x_offset = (int)((double)texture_width * fmod(MouseEvent->UV[0], 1));
-			int y_offset = (int)((double)texture_height * fmod(MouseEvent->UV[1], 1));
+		if (clicking && MouseEvent->UV != NULL && PObj != NULL && PObj == active_surface) {
+			Texture* texture = textures[active_surface];
+			int x_offset = (int)((double)texture->width * fmod(MouseEvent->UV[0], 1));
+			int y_offset = (int)((double)texture->height * fmod(MouseEvent->UV[1], 1));
 			if (last_y_offset == -1) {
 				IrtMdlrTexturePainterRenderShape(FI, x_offset, y_offset);
 				last_x_offset = x_offset;
@@ -603,28 +623,28 @@ static int IrtMdlrTexturePainterMouseCallBack(IrtMdlrMouseEventStruct* MouseEven
 			else {
 				int x_backup = x_offset;
 				int y_backup = y_offset;
-				if (diff(last_x_offset, x_offset - texture_width) < diff(last_x_offset, x_offset)) {
-					x_offset -= texture_width;
+				if (diff(last_x_offset, x_offset - texture->width) < diff(last_x_offset, x_offset)) {
+					x_offset -= texture->width;
 				}
-				if (diff(last_x_offset, x_offset + texture_width) < diff(last_x_offset, x_offset)) {
-					x_offset += texture_width;
+				if (diff(last_x_offset, x_offset + texture->width) < diff(last_x_offset, x_offset)) {
+					x_offset += texture->width;
 				}
-				if (diff(last_y_offset, y_offset - texture_height) < diff(last_y_offset, y_offset)) {
-					y_offset -= texture_height;
+				if (diff(last_y_offset, y_offset - texture->height) < diff(last_y_offset, y_offset)) {
+					y_offset -= texture->height;
 				}
-				if (diff(last_y_offset, y_offset + texture_height) < diff(last_y_offset, y_offset)) {
-					y_offset += texture_height;
+				if (diff(last_y_offset, y_offset + texture->height) < diff(last_y_offset, y_offset)) {
+					y_offset += texture->height;
 				}
 				vector<Pixel> points;
 				Pixel start = { last_x_offset, last_y_offset }, end = { x_offset, y_offset };
 				IrtMdlrTexturePainterCalculateLine(start, end, points);
 				for (Pixel& p : points) {
-					IrtMdlrTexturePainterRenderShape(FI, p.x % texture_width, p.y % texture_height);
+					IrtMdlrTexturePainterRenderShape(FI, p.x % texture->width, p.y % texture->height);
 				}
 				last_x_offset = x_backup;
 				last_y_offset = y_backup;
 			}
-			GuIritMdlrDllSetTextureFromImage(FI, PObj, texture, texture_width, texture_height, FALSE);
+			GuIritMdlrDllSetTextureFromImage(FI, active_surface, texture->texture, texture->width, texture->height, FALSE);
 		}
 	}
 	return TRUE;
