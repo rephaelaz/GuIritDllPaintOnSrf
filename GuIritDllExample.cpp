@@ -481,41 +481,52 @@ static void IrtMdlrSrfPaintResizeTexture(IrtMdlrFuncInfoClass* FI,
     delete[] IrtMdlrSrfPaintTextures[IrtMdlrSrfPaintSurface]->Texture;
     delete[] IrtMdlrSrfPaintTextureAlpha;
     delete[] IrtMdlrSrfPaintTextureBuffer;
-    IrtImgPixelStruct* new_texture = new IrtImgPixelStruct[Width * Height];
-    IrtImgPixelStruct* new_texture_alpha = new IrtImgPixelStruct[Width * Height];
-    IrtImgPixelStruct* new_texture_buffer = new IrtImgPixelStruct[Width * Height];
+    IrtImgPixelStruct* Texture = new IrtImgPixelStruct[Width * Height];
+    IrtImgPixelStruct* TextureAlpha = new IrtImgPixelStruct[Width * Height];
+    IrtImgPixelStruct* TextureBuffer = new IrtImgPixelStruct[Width * Height];
     if (Reset) {
         for (int y = 0; y < Height; y++) {
             for (int x = 0; x < Width; x++) {
-                new_texture[y * Width + x].r = 255;
-                new_texture[y * Width + x].g = 255;
-                new_texture[y * Width + x].b = 255;
-                new_texture_alpha[y * Width + x].r = 255;
-                new_texture_alpha[y * Width + x].g = 255;
-                new_texture_alpha[y * Width + x].b = 255;
-                new_texture_buffer[y * Width + x].r = 255;
-                new_texture_buffer[y * Width + x].g = 255;
-                new_texture_buffer[y * Width + x].b = 255;
+                Texture[y * Width + x].r = 255;
+                Texture[y * Width + x].g = 255;
+                Texture[y * Width + x].b = 255;
+                TextureAlpha[y * Width + x].r = 255;
+                TextureAlpha[y * Width + x].g = 255;
+                TextureAlpha[y * Width + x].b = 255;
+                TextureBuffer[y * Width + x].r = 255;
+                TextureBuffer[y * Width + x].g = 255;
+                TextureBuffer[y * Width + x].b = 255;
             }
         }
     }
-    IrtMdlrSrfPaintTextures[IrtMdlrSrfPaintSurface]->Texture = new_texture;
-    IrtMdlrSrfPaintTextureAlpha = new_texture_alpha;
-    IrtMdlrSrfPaintTextureBuffer = new_texture_buffer;
+    IrtMdlrSrfPaintTextures[IrtMdlrSrfPaintSurface]->Texture = Texture;
+    IrtMdlrSrfPaintTextureAlpha = TextureAlpha;
+    IrtMdlrSrfPaintTextureBuffer = TextureBuffer;
     IrtMdlrSrfPaintTextures[IrtMdlrSrfPaintSurface]->Width = Width;
     IrtMdlrSrfPaintTextures[IrtMdlrSrfPaintSurface]->Height = Height;
-    GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO, "Texture resized to %dx%d\n", Width, Height);
+    GuIritMdlrDllPrintf(FI, 
+        IRT_DSP_LOG_INFO, 
+        "Texture resized to %dx%d\n", 
+        Width, 
+        Height);
 }
 
 void IrtMdlrSrfPaintInitShapes(IrtMdlrFuncInfoClass* FI)
 {
-    int index = 0;
+    int Index = 0;
     const char* p, * q;
-    char base_path[IRIT_LINE_LEN_LONG], path[IRIT_LINE_LEN_LONG];
-    const IrtDspGuIritSystemInfoStruct* system_props = GuIritMdlrDllGetGuIritSystemProps(FI);
-    sprintf(path, "%s\\Example\\Masks", searchpath(system_props->AuxiliaryDataName, base_path));
+    char Base[IRIT_LINE_LEN_LONG], Path[IRIT_LINE_LEN_LONG];
+
+    const IrtDspGuIritSystemInfoStruct* Props = 
+        GuIritMdlrDllGetGuIritSystemProps(FI);
+    sprintf(Path, 
+        "%s\\Example\\Masks", 
+        searchpath(Props->AuxiliaryDataName, Base));
     if (IrtMdlrSrfPaintShapesFiles == NULL) {
-        IrtMdlrSrfPaintShapesFiles = GuIritMdlrDllGetAllFilesNamesInDirectory(FI, path, "*.rle|*.ppm|*.gif|*.jpeg|*.png");
+        IrtMdlrSrfPaintShapesFiles = 
+            GuIritMdlrDllGetAllFilesNamesInDirectory(FI, 
+                Path, 
+                "*.rle|*.ppm|*.gif|*.jpeg|*.png");
     }
 
     strcpy(IrtMdlrSrfPaintShapesNames, "");
@@ -523,25 +534,34 @@ void IrtMdlrSrfPaintInitShapes(IrtMdlrFuncInfoClass* FI)
         p = strstr(IrtMdlrSrfPaintShapesFiles[i], "\\Example\\Masks");
         if (p != NULL) {
             p += strlen("\\Example\\Masks") + 1;
-            char shape_name[IRIT_LINE_LEN_LONG];
-            strcpy(shape_name, "");
+            char Name[IRIT_LINE_LEN_LONG];
+            strcpy(Name, "");
             q = strchr(p, '.');
-            strncpy(shape_name, p, q - p);
-            shape_name[q - p] = '\0';
-            if (strstr(shape_name, "GaussianFull25") != NULL) {
-                index = i;
+            strncpy(Name, p, q - p);
+            Name[q - p] = '\0';
+            if (strstr(Name, "GaussianFull25") != NULL) {
+                Index = i;
             }
-            sprintf(IrtMdlrSrfPaintShapesNames, "%s%s;", IrtMdlrSrfPaintShapesNames, shape_name);
+            sprintf(IrtMdlrSrfPaintShapesNames, 
+                "%s%s;", 
+                IrtMdlrSrfPaintShapesNames, 
+                Name);
         }
     }
 
     if (IrtMdlrSrfPaintShapesFiles[0] != NULL) {
-        sprintf(IrtMdlrSrfPaintShapesNames, "%s:%d", IrtMdlrSrfPaintShapesNames, index);
-        GuIritMdlrDllSetInputSelectionStruct files_names(IrtMdlrSrfPaintShapesNames);
-        GuIritMdlrDllSetInputParameter(FI, SRF_PAINT_SHAPE, &files_names);
+        sprintf(IrtMdlrSrfPaintShapesNames, 
+            "%s:%d", 
+            IrtMdlrSrfPaintShapesNames, 
+            Index);
+        GuIritMdlrDllSetInputSelectionStruct Files(IrtMdlrSrfPaintShapesNames);
+        GuIritMdlrDllSetInputParameter(FI, SRF_PAINT_SHAPE, &Files);
     }
     else {
-        GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_ERROR, "Masks files were not found. Check directory: \"%s\"\n", path);
+        GuIritMdlrDllPrintf(FI, 
+            IRT_DSP_LOG_ERROR, 
+            "Masks files were not found. Check directory: \"%s\"\n", 
+            Path);
         return;
     }
 }
@@ -549,85 +569,90 @@ void IrtMdlrSrfPaintInitShapes(IrtMdlrFuncInfoClass* FI)
 static void IrtMdlrSrfPaintLoadShape(IrtMdlrFuncInfoClass* FI,
                         const char* Filename)
 {
-    IRT_DSP_STATIC_DATA bool shape_init = false;
+    IRT_DSP_STATIC_DATA bool ShapeInit = false;
+    int Alpha, Width, Height;
 
-    int alpha, width, height;
-    IrtImgPixelStruct* image = IrtImgReadImage2(Filename, &width, &height, &alpha);
-    width++;
-    height++;
-    if (shape_init) {
+    IrtImgPixelStruct* Image = IrtImgReadImage2(Filename, &Width, &Height, &Alpha);
+    Width++, Height++;
+    if (ShapeInit) {
         delete[] IrtMdlrSrfPaintShape -> Shape;
     }
     else {
         IrtMdlrSrfPaintShape = new SrfPaintShapeStruct;
-        shape_init = true;
+        ShapeInit = true;
     }
 
-    IrtMdlrSrfPaintShape -> Width = (int)(width * IrtMdlrSrfPaintXFactor);
-    IrtMdlrSrfPaintShape->Height = (int)(height * IrtMdlrSrfPaintYFactor);
+    IrtMdlrSrfPaintShape -> Width = (int)(Width * IrtMdlrSrfPaintXFactor);
+    IrtMdlrSrfPaintShape -> Height = (int)(Height * IrtMdlrSrfPaintYFactor);
 
-    float x_ratio = (float)width / (float)IrtMdlrSrfPaintShape->Width;
-    float y_ratio = (float)height / (float) IrtMdlrSrfPaintShape->Height;
+    float XRatio = (float)Width / (float)IrtMdlrSrfPaintShape->Width;
+    float YRatio = (float)Height / (float) IrtMdlrSrfPaintShape->Height;
 
-    IrtMdlrSrfPaintShape->Shape = new float[IrtMdlrSrfPaintShape->Height * IrtMdlrSrfPaintShape->Width];
+    IrtMdlrSrfPaintShape->Shape = 
+        new float[IrtMdlrSrfPaintShape->Height * IrtMdlrSrfPaintShape->Width];
     for (int y = 0; y < IrtMdlrSrfPaintShape->Height; y++) {
         for (int x = 0; x < IrtMdlrSrfPaintShape->Width; x++) {
+            int Off = y * IrtMdlrSrfPaintShape->Width + x;
             float gray;
-            IrtImgPixelStruct* ptr = image + (int)((int)(y * y_ratio) * width + x * x_ratio);
+            IrtImgPixelStruct* ptr = 
+                Image + (int)((int)(y * YRatio) * Width + x * XRatio);
             IRT_DSP_RGB2GREY(ptr, gray);
-            IrtMdlrSrfPaintShape->Shape[y * IrtMdlrSrfPaintShape->Width + x] = (float)(gray / 255.0);
+            IrtMdlrSrfPaintShape->Shape[Off] = (float)(gray / 255.0);
         }
     }
-    GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO, "Loaded shape of size %dx%d\n", IrtMdlrSrfPaintShape->Width, IrtMdlrSrfPaintShape->Height);
+    GuIritMdlrDllPrintf(FI, 
+        IRT_DSP_LOG_INFO, 
+        "Loaded shape of size %dx%d\n",
+        IrtMdlrSrfPaintShape->Width, 
+        IrtMdlrSrfPaintShape->Height);
 }
 
 static void IrtMdlrSrfPaintBresenham(const pair<int, int>& a,
                         const pair<int, int>& b,
                         vector<pair<int, int>>& Points)
 {
-    int a1, a2, b1, b2;
-    int is_high;
+    bool High;
+    int A1, A2, B1, B2, Da, Db, n = 1, d, v;
     if (abs(b.first - a.first) > abs(b.second - a.second)) {
-        a1 = a.first;
-        b1 = a.second;
-        a2 = b.first;
-        b2 = b.second;
-        is_high = 0;
+        A1 = a.first;
+        B1 = a.second;
+        A2 = b.first;
+        B2 = b.second;
+        High = false;
     }
     else {
-        a1 = a.second;
-        b1 = a.first;
-        a2 = b.second;
-        b2 = b.first;
-        is_high = 1;
+        A1 = a.second;
+        B1 = a.first;
+        A2 = b.second;
+        B2 = b.first;
+        High = true;
     }
-    if (a1 > a2) {
-        swap(a1, a2);
-        swap(b1, b2);
+    if (A1 > A2) {
+        swap(A1, A2);
+        swap(B1, B2);
     }
-    int da = a2 - a1;
-    int db = b2 - b1;
-    int n = 1;
-    if (da < 0) {
+    Da = A2 - A1;
+    Db = B2 - B1;
+    if (Da < 0) {
         n *= -1;
-        da *= -1;
+        Da *= -1;
     }
-    if (db < 0) {
+    if (Db < 0) {
         n *= -1;
-        db *= -1;
+        Db *= -1;
     }
-    int d = 2 * db - da;
-    int v = b1;
-    for (int u = a1; u <= a2; u++) {
-        int x = (is_high) ? v : u;
-        int y = (is_high) ? u : v;
+    d = 2 * Db - Da;
+    v = B1;
+    for (int u = A1; u <= A2; u++) {
+        int x = (High) ? v : u;
+        int y = (High) ? u : v;
         pair<int, int> p = pair<int, int>(x, y);
         Points.push_back(p);
         if (d > 0) {
             v += n;
-            d -= 2 * da;
+            d -= 2 * Da;
         }
-        d += 2 * db;
+        d += 2 * Db;
     }
 }
 
@@ -635,32 +660,55 @@ static void IrtMdlrSrfPaintRenderShape(IrtMdlrFuncInfoClass* FI,
                         int XOff,
                         int YOff)
 {
-    SrfPaintTextureStruct* texture = IrtMdlrSrfPaintTextures[IrtMdlrSrfPaintSurface];
-    int x_min = XOff - IrtMdlrSrfPaintShape->Width / 2;
-    while (x_min < 0) {
-        x_min += texture->Width;
+    int XMin = XOff - IrtMdlrSrfPaintShape->Width / 2;
+    int YMin = (YOff - IrtMdlrSrfPaintShape->Height / 2);
+    SrfPaintTextureStruct* Texture = 
+        IrtMdlrSrfPaintTextures[IrtMdlrSrfPaintSurface];
+    
+    /* Modulo needs positive values to work as intended */
+    while (XMin < 0) {
+        XMin += Texture->Width;
     }
-    x_min %= texture->Width;
-
-    int y_min = (YOff - IrtMdlrSrfPaintShape->Height / 2);
-    while (y_min < 0) {
-        y_min += texture->Height;
+    while (YMin < 0) {
+        YMin += Texture->Height;
     }
-    y_min %= texture->Height;
+    XMin %= Texture->Width;
+    YMin %= Texture->Height;
 
-    for (int yy = 0; yy < IrtMdlrSrfPaintShape->Height; yy++) {
-        for (int xx = 0; xx < IrtMdlrSrfPaintShape->Width; xx++) {
-            int x = (x_min + xx) % texture->Width;
-            int y = (y_min + yy) % texture->Height;
-            int texture_offset = x + texture->Width * y;
-            int shape_offset = xx + IrtMdlrSrfPaintShape->Width * yy;
+    for (int v = 0; v < IrtMdlrSrfPaintShape->Height; v++) {
+        for (int u = 0; u < IrtMdlrSrfPaintShape->Width; u++) {
+            int x = (XMin + u) % Texture->Width;
+            int y = (YMin + v) % Texture->Height;
+            int texture_offset = x + Texture->Width * y;
+            int shape_offset = u + IrtMdlrSrfPaintShape->Width * v;
 
-            IrtMdlrSrfPaintTextureAlpha[texture_offset].r += (IrtBType)((IrtMdlrSrfPaintColor[0] - IrtMdlrSrfPaintTextureAlpha[texture_offset].r) * IrtMdlrSrfPaintShape->Shape[shape_offset]);
-            IrtMdlrSrfPaintTextureAlpha[texture_offset].g += (IrtBType)((IrtMdlrSrfPaintColor[1] - IrtMdlrSrfPaintTextureAlpha[texture_offset].g) * IrtMdlrSrfPaintShape->Shape[shape_offset]);
-            IrtMdlrSrfPaintTextureAlpha[texture_offset].b += (IrtBType)((IrtMdlrSrfPaintColor[2] - IrtMdlrSrfPaintTextureAlpha[texture_offset].b) * IrtMdlrSrfPaintShape->Shape[shape_offset]);
-            texture->Texture[texture_offset].r = (IrtBType)(IrtMdlrSrfPaintTextureBuffer[texture_offset].r + (IrtMdlrSrfPaintTextureAlpha[texture_offset].r - IrtMdlrSrfPaintTextureBuffer[texture_offset].r) * (IrtMdlrSrfPaintAlpha / 255.0));
-            texture->Texture[texture_offset].g = (IrtBType)(IrtMdlrSrfPaintTextureBuffer[texture_offset].g + (IrtMdlrSrfPaintTextureAlpha[texture_offset].g - IrtMdlrSrfPaintTextureBuffer[texture_offset].g) * (IrtMdlrSrfPaintAlpha / 255.0));
-            texture->Texture[texture_offset].b = (IrtBType)(IrtMdlrSrfPaintTextureBuffer[texture_offset].b + (IrtMdlrSrfPaintTextureAlpha[texture_offset].b - IrtMdlrSrfPaintTextureBuffer[texture_offset].b) * (IrtMdlrSrfPaintAlpha / 255.0));
+            IrtMdlrSrfPaintTextureAlpha[texture_offset].r += 
+                (IrtBType)((IrtMdlrSrfPaintColor[0] 
+                - IrtMdlrSrfPaintTextureAlpha[texture_offset].r) 
+                * IrtMdlrSrfPaintShape->Shape[shape_offset]);
+            IrtMdlrSrfPaintTextureAlpha[texture_offset].g += 
+                (IrtBType)((IrtMdlrSrfPaintColor[1] 
+                - IrtMdlrSrfPaintTextureAlpha[texture_offset].g) 
+                * IrtMdlrSrfPaintShape->Shape[shape_offset]);
+            IrtMdlrSrfPaintTextureAlpha[texture_offset].b +=
+                (IrtBType)((IrtMdlrSrfPaintColor[2] 
+                - IrtMdlrSrfPaintTextureAlpha[texture_offset].b) 
+                * IrtMdlrSrfPaintShape->Shape[shape_offset]);
+            Texture->Texture[texture_offset].r = 
+                (IrtBType)(IrtMdlrSrfPaintTextureBuffer[texture_offset].r 
+                + (IrtMdlrSrfPaintTextureAlpha[texture_offset].r 
+                - IrtMdlrSrfPaintTextureBuffer[texture_offset].r) 
+                * (IrtMdlrSrfPaintAlpha / 255.0));
+            Texture->Texture[texture_offset].g = 
+                (IrtBType)(IrtMdlrSrfPaintTextureBuffer[texture_offset].g 
+                + (IrtMdlrSrfPaintTextureAlpha[texture_offset].g 
+                - IrtMdlrSrfPaintTextureBuffer[texture_offset].g)
+                * (IrtMdlrSrfPaintAlpha / 255.0));
+            Texture->Texture[texture_offset].b = 
+                (IrtBType)(IrtMdlrSrfPaintTextureBuffer[texture_offset].b 
+                + (IrtMdlrSrfPaintTextureAlpha[texture_offset].b 
+                - IrtMdlrSrfPaintTextureBuffer[texture_offset].b) 
+                * (IrtMdlrSrfPaintAlpha / 255.0));
         }
     }
 }
