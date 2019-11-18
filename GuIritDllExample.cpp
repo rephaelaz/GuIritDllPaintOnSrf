@@ -414,7 +414,8 @@ static void IrtMdlrSrfPaint(IrtMdlrFuncInfoClass* FI)
                 IRT_DSP_STATIC_DATA bool TimerInit = false;
 
                 if (!TimerInit 
-                    || duration_cast<seconds>(high_resolution_clock::now() - Timer).count() >= 20) {
+                    || duration_cast<seconds>(high_resolution_clock::now() 
+                    - Timer).count() >= 20) {
                     Res = GuIritMdlrDllGetAsyncInputConfirm(FI, 
                         "", 
                         "This will reset the texture.\n" \
@@ -572,7 +573,8 @@ static void IrtMdlrSrfPaintLoadShape(IrtMdlrFuncInfoClass* FI,
     IRT_DSP_STATIC_DATA bool ShapeInit = false;
     int Alpha, Width, Height;
 
-    IrtImgPixelStruct* Image = IrtImgReadImage2(Filename, &Width, &Height, &Alpha);
+    IrtImgPixelStruct* Image = 
+        IrtImgReadImage2(Filename, &Width, &Height, &Alpha);
     Width++, Height++;
     if (ShapeInit) {
         delete[] IrtMdlrSrfPaintShape -> Shape;
@@ -715,73 +717,85 @@ static void IrtMdlrSrfPaintRenderShape(IrtMdlrFuncInfoClass* FI,
 
 static int IrtMdlrSrfPaintMouseCallBack(IrtMdlrMouseEventStruct* MouseEvent)
 {
-    IRT_DSP_STATIC_DATA int last_x_offset = -1;
-    IRT_DSP_STATIC_DATA int last_y_offset = -1;
-    
+    IRT_DSP_STATIC_DATA bool Clicking = false;
+    IRT_DSP_STATIC_DATA int PrevXOff = -1;
+    IRT_DSP_STATIC_DATA int PrefYOff = -1;
     IrtMdlrFuncInfoClass* FI = (IrtMdlrFuncInfoClass*)MouseEvent->Data;
-    IRT_DSP_STATIC_DATA int clicking = FALSE;
-
     IPObjectStruct* PObj = (IPObjectStruct*)MouseEvent->PObj;
 
     if (MouseEvent->KeyModifiers & IRT_DSP_KEY_MODIFIER_CTRL_DOWN) {
         switch (MouseEvent->Type) {
         case IRT_DSP_MOUSE_EVENT_LEFT_DOWN:
             GuIritMdlrDllCaptureCursorFocus(FI, MouseEvent, true);
-            clicking = TRUE;
+            Clicking = TRUE;
             break;
         case IRT_DSP_MOUSE_EVENT_LEFT_UP:
             GuIritMdlrDllCaptureCursorFocus(FI, MouseEvent, false);
-            clicking = FALSE;
+            Clicking = FALSE;
             if (IrtMdlrSrfPaintSurface != NULL) {
-                SrfPaintTextureStruct* texture = IrtMdlrSrfPaintTextures[IrtMdlrSrfPaintSurface];
-                for (int y = 0; y < texture->Height; y++) {
-                    for (int x = 0; x < texture->Width; x++) {
-                        int offset = y * texture->Width + x;
-                        IrtMdlrSrfPaintTextureAlpha[offset] = texture->Texture[offset];
-                        IrtMdlrSrfPaintTextureBuffer[offset] = texture->Texture[offset];
+                SrfPaintTextureStruct* Texture 
+                    = IrtMdlrSrfPaintTextures[IrtMdlrSrfPaintSurface];
+                for (int y = 0; y < Texture->Height; y++) {
+                    for (int x = 0; x < Texture->Width; x++) {
+                        int offset = y * Texture->Width + x;
+                        IrtMdlrSrfPaintTextureAlpha[offset] = 
+                            Texture->Texture[offset];
+                        IrtMdlrSrfPaintTextureBuffer[offset] = 
+                            Texture->Texture[offset];
                     }
                 }
             }
-            last_x_offset = -1;
-            last_y_offset = -1;
+            PrevXOff = -1;
+            PrefYOff = -1;
             break;
         }
-        if (clicking && MouseEvent->UV != NULL && PObj != NULL && PObj == IrtMdlrSrfPaintSurface) {
-            SrfPaintTextureStruct* texture = IrtMdlrSrfPaintTextures[IrtMdlrSrfPaintSurface];
-            int x_offset = (int)((double)texture->Width * fmod(MouseEvent->UV[0], 1));
-            int y_offset = (int)((double)texture->Height * fmod(MouseEvent->UV[1], 1));
-            if (last_y_offset == -1) {
-                IrtMdlrSrfPaintRenderShape(FI, x_offset, y_offset);
-                last_x_offset = x_offset;
-                last_y_offset = y_offset;
+        if (Clicking && MouseEvent->UV != NULL && PObj != NULL 
+            && PObj == IrtMdlrSrfPaintSurface) {
+            SrfPaintTextureStruct* Texture = 
+                IrtMdlrSrfPaintTextures[IrtMdlrSrfPaintSurface];
+            int XOff = 
+                (int)((double) Texture->Width * fmod(MouseEvent->UV[0], 1)),
+                YOff = 
+                (int)((double)Texture->Height * fmod(MouseEvent->UV[1], 1));
+            if (PrefYOff == -1) {
+                IrtMdlrSrfPaintRenderShape(FI, XOff, YOff);
+                PrevXOff = XOff;
+                PrefYOff = YOff;
             }
             else {
-                int x_backup = x_offset;
-                int y_backup = y_offset;
-                if (D(last_x_offset, x_offset - texture->Width) < D(last_x_offset, x_offset)) {
-                    x_offset -= texture->Width;
+                int XBackup = XOff;
+                int YBackup = YOff;
+                if (D(PrevXOff, XOff - Texture->Width) < D(PrevXOff, XOff)) {
+                    XOff -= Texture->Width;
                 }
-                if (D(last_x_offset, x_offset + texture->Width) < D(last_x_offset, x_offset)) {
-                    x_offset += texture->Width;
+                if (D(PrevXOff, XOff + Texture->Width) < D(PrevXOff, XOff)) {
+                    XOff += Texture->Width;
                 }
-                if (D(last_y_offset, y_offset - texture->Height) < D(last_y_offset, y_offset)) {
-                    y_offset -= texture->Height;
+                if (D(PrefYOff, YOff - Texture->Height) < D(PrefYOff, YOff)) {
+                    YOff -= Texture->Height;
                 }
-                if (D(last_y_offset, y_offset + texture->Height) < D(last_y_offset, y_offset)) {
-                    y_offset += texture->Height;
+                if (D(PrefYOff, YOff + Texture->Height) < D(PrefYOff, YOff)) {
+                    YOff += Texture->Height;
                 }
-                vector<pair<int, int>> points;
+                vector<pair<int, int>> Points;
                 pair<int, int>
-                    start = pair<int, int>(last_x_offset, last_y_offset),
-                    end = pair<int, int>(x_offset, y_offset);
-                IrtMdlrSrfPaintBresenham(start, end, points);
-                for (pair<int, int>& p : points) {
-                    IrtMdlrSrfPaintRenderShape(FI, p.first % texture->Width, p.second % texture->Height);
+                    Start = pair<int, int>(PrevXOff, PrefYOff),
+                    End = pair<int, int>(XOff, YOff);
+                IrtMdlrSrfPaintBresenham(Start, End, Points);
+                for (pair<int, int>& p : Points) {
+                    IrtMdlrSrfPaintRenderShape(FI, 
+                        p.first % Texture->Width, 
+                        p.second % Texture->Height);
                 }
-                last_x_offset = x_backup;
-                last_y_offset = y_backup;
+                PrevXOff = XBackup;
+                PrefYOff = YBackup;
             }
-            GuIritMdlrDllSetTextureFromImage(FI, IrtMdlrSrfPaintSurface, texture->Texture, texture->Width, texture->Height, FALSE);
+            GuIritMdlrDllSetTextureFromImage(FI, 
+                IrtMdlrSrfPaintSurface, 
+                Texture->Texture, 
+                Texture->Width, 
+                Texture->Height, 
+                FALSE);
         }
     }
     return TRUE;
