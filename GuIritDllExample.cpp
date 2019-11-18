@@ -38,11 +38,17 @@ using namespace std::chrono;
 
 #define D(a, b) (fabs((double)(a) - (double)(b)))
 
-typedef struct {
+struct Shape {
+    int width;
+    int height;
+    float* shape;
+};
+
+struct Texture {
     int width;
     int height;
     IrtImgPixelStruct* texture;
-} Texture;
+};
 
 static void IrtMdlrSrfPaint(IrtMdlrFuncInfoClass* FI);
 static void IrtMdlrSrfPaintResizeTexture(IrtMdlrFuncInfoClass* FI,
@@ -66,8 +72,6 @@ IRT_DSP_STATIC_DATA IPObjectStruct* active_surface = NULL;
 
 IRT_DSP_STATIC_DATA int texture_width = 256;
 IRT_DSP_STATIC_DATA int texture_height = 256;
-IRT_DSP_STATIC_DATA high_resolution_clock::time_point reset_timer;
-IRT_DSP_STATIC_DATA bool reset_timer_init = false;
 IRT_DSP_STATIC_DATA map<IPObjectStruct*, Texture*> textures;
 IRT_DSP_STATIC_DATA IrtImgPixelStruct* texture_alpha;
 IRT_DSP_STATIC_DATA IrtImgPixelStruct* texture_buffer;
@@ -81,17 +85,13 @@ IRT_DSP_STATIC_DATA IrtRType alpha = 255;
 IRT_DSP_STATIC_DATA IrtRType x_factor = 1;
 IRT_DSP_STATIC_DATA IrtRType y_factor = 1;
 
-IRT_DSP_STATIC_DATA const char RELATIVE_PATH[IRIT_LINE_LEN_LONG] = "\\Example\\Masks";
 IRT_DSP_STATIC_DATA char shape_names[IRIT_LINE_LEN_XLONG] = "";
 IRT_DSP_STATIC_DATA const char** shape_files = NULL;
 IRT_DSP_STATIC_DATA int shape_index = -1;
-IRT_DSP_STATIC_DATA float* shape_matrix = NULL;
-IRT_DSP_STATIC_DATA int shape_width;
-IRT_DSP_STATIC_DATA int shape_height;
-IRT_DSP_STATIC_DATA int shape_init = 1;
 
-IRT_DSP_STATIC_DATA int last_x_offset = -1;
-IRT_DSP_STATIC_DATA int last_y_offset = -1;
+IRT_DSP_STATIC_DATA Shape* shape;
+
+IRT_DSP_STATIC_DATA bool shape_init = false;
 
 typedef enum {
     FIELD_SURFACE = 0,
@@ -349,6 +349,9 @@ static void IrtMdlrSrfPaint(IrtMdlrFuncInfoClass* FI)
             texture_reset_flag = true;
             bool res = true;
             if (init_done_flag) {
+                IRT_DSP_STATIC_DATA high_resolution_clock::time_point reset_timer;
+                IRT_DSP_STATIC_DATA bool reset_timer_init = false;
+
                 if (!reset_timer_init || duration_cast<seconds>(high_resolution_clock::now() - reset_timer).count() >= 10) {
                     res = GuIritMdlrDllGetAsyncInputConfirm(FI, "", "This will reset the texture.\nAre you sure you want to resize the texture ?");
                     if (res) {
@@ -435,16 +438,16 @@ void IrtMdlrSrfPaintInitShapes(IrtMdlrFuncInfoClass* FI)
     const char* p, * q;
     char base_path[IRIT_LINE_LEN_LONG], path[IRIT_LINE_LEN_LONG];
     const IrtDspGuIritSystemInfoStruct* system_props = GuIritMdlrDllGetGuIritSystemProps(FI);
-    sprintf(path, "%s%s", searchpath(system_props->AuxiliaryDataName, base_path), RELATIVE_PATH);
+    sprintf(path, "%s\\Example\\Masks", searchpath(system_props->AuxiliaryDataName, base_path));
     if (shape_files == NULL) {
         shape_files = GuIritMdlrDllGetAllFilesNamesInDirectory(FI, path, "*.rle|*.ppm|*.gif|*.jpeg|*.png");
     }
 
     strcpy(shape_names, "");
     for (int i = 0; shape_files[i] != NULL; ++i) {
-        p = strstr(shape_files[i], RELATIVE_PATH);
+        p = strstr(shape_files[i], "\\Example\\Masks");
         if (p != NULL) {
-            p += strlen(RELATIVE_PATH) + 1;
+            p += strlen("\\Example\\Masks") + 1;
             char shape_name[IRIT_LINE_LEN_LONG];
             strcpy(shape_name, "");
             q = strchr(p, '.');
@@ -475,29 +478,30 @@ static void IrtMdlrSrfPaintLoadShape(IrtMdlrFuncInfoClass* FI,
     IrtImgPixelStruct* image = IrtImgReadImage2(Filename, &width, &height, &alpha);
     width++;
     height++;
-    if (!shape_init) {
-        delete[] shape_matrix;
+    if (shape_init) {
+        delete[] shape -> shape;
     }
     else {
-        shape_init = 0;
+        shape = new Shape;
+        shape_init = true;
     }
 
-    shape_width = (int)(width * x_factor);
-    shape_height = (int)(height * y_factor);
+    shape -> width = (int)(width * x_factor);
+    shape->height = (int)(height * y_factor);
 
-    float x_ratio = (float)width / (float)shape_width;
-    float y_ratio = (float)height / (float)shape_height;
+    float x_ratio = (float)width / (float)shape->width;
+    float y_ratio = (float)height / (float) shape->height;
 
-    shape_matrix = new float[shape_height * shape_width];
-    for (int y = 0; y < shape_height; y++) {
-        for (int x = 0; x < shape_width; x++) {
+    shape->shape = new float[shape->height * shape->width];
+    for (int y = 0; y < shape->height; y++) {
+        for (int x = 0; x < shape->width; x++) {
             float gray;
             IrtImgPixelStruct* ptr = image + (int)((int)(y * y_ratio) * width + x * x_ratio);
             IRT_DSP_RGB2GREY(ptr, gray);
-            shape_matrix[y * shape_width + x] = (float)(gray / 255.0);
+            shape->shape[y * shape->width + x] = (float)(gray / 255.0);
         }
     }
-    GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO, "Loaded shape of size %dx%d\n", shape_width, shape_height);
+    GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO, "Loaded shape of size %dx%d\n", shape->width, shape->height);
 }
 
 static void IrtMdlrSrfPaintBresenham(const pair<int, int>& a,
@@ -555,28 +559,28 @@ static void IrtMdlrSrfPaintRenderShape(IrtMdlrFuncInfoClass* FI,
                         int YOff)
 {
     Texture* texture = textures[active_surface];
-    int x_min = XOff - shape_width / 2;
+    int x_min = XOff - shape->width / 2;
     while (x_min < 0) {
         x_min += texture->width;
     }
     x_min %= texture->width;
 
-    int y_min = (YOff - shape_height / 2);
+    int y_min = (YOff - shape->height / 2);
     while (y_min < 0) {
         y_min += texture->height;
     }
     y_min %= texture->height;
 
-    for (int yy = 0; yy < shape_height; yy++) {
-        for (int xx = 0; xx < shape_width; xx++) {
+    for (int yy = 0; yy < shape->height; yy++) {
+        for (int xx = 0; xx < shape->width; xx++) {
             int x = (x_min + xx) % texture->width;
             int y = (y_min + yy) % texture->height;
             int texture_offset = x + texture->width * y;
-            int shape_offset = xx + shape_width * yy;
+            int shape_offset = xx + shape->width * yy;
 
-            texture_alpha[texture_offset].r += (IrtBType)((color[0] - texture_alpha[texture_offset].r) * shape_matrix[shape_offset]);
-            texture_alpha[texture_offset].g += (IrtBType)((color[1] - texture_alpha[texture_offset].g) * shape_matrix[shape_offset]);
-            texture_alpha[texture_offset].b += (IrtBType)((color[2] - texture_alpha[texture_offset].b) * shape_matrix[shape_offset]);
+            texture_alpha[texture_offset].r += (IrtBType)((color[0] - texture_alpha[texture_offset].r) * shape->shape[shape_offset]);
+            texture_alpha[texture_offset].g += (IrtBType)((color[1] - texture_alpha[texture_offset].g) * shape->shape[shape_offset]);
+            texture_alpha[texture_offset].b += (IrtBType)((color[2] - texture_alpha[texture_offset].b) * shape->shape[shape_offset]);
             texture->texture[texture_offset].r = (IrtBType)(texture_buffer[texture_offset].r + (texture_alpha[texture_offset].r - texture_buffer[texture_offset].r) * (alpha / 255.0));
             texture->texture[texture_offset].g = (IrtBType)(texture_buffer[texture_offset].g + (texture_alpha[texture_offset].g - texture_buffer[texture_offset].g) * (alpha / 255.0));
             texture->texture[texture_offset].b = (IrtBType)(texture_buffer[texture_offset].b + (texture_alpha[texture_offset].b - texture_buffer[texture_offset].b) * (alpha / 255.0));
@@ -586,6 +590,9 @@ static void IrtMdlrSrfPaintRenderShape(IrtMdlrFuncInfoClass* FI,
 
 static int IrtMdlrSrfPaintMouseCallBack(IrtMdlrMouseEventStruct* MouseEvent)
 {
+    IRT_DSP_STATIC_DATA int last_x_offset = -1;
+    IRT_DSP_STATIC_DATA int last_y_offset = -1;
+    
     IrtMdlrFuncInfoClass* FI = (IrtMdlrFuncInfoClass*)MouseEvent->Data;
     IRT_DSP_STATIC_DATA int clicking = FALSE;
 
