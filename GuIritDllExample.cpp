@@ -25,7 +25,11 @@
 #include <math.h>
 #include <chrono>
 
+using std::vector;
+using std::map;
+using std::pair;
 using namespace std::chrono;
+using std::swap;
 
 #define DEFAULT_WIDTH 256
 #define DEFAULT_HEIGHT 256
