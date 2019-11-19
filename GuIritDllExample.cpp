@@ -254,21 +254,19 @@ static void IrtMdlrSrfPaint(IrtMdlrFuncInfoClass* FI)
         TextureUpdate = true;
         if (IrtMdlrSrfPaintTextures.find(Surface) 
             == IrtMdlrSrfPaintTextures.end()) {
-            SrfPaintTextureStruct* Texture = new SrfPaintTextureStruct;
-
+            SrfPaintTextureStruct* Texture = (SrfPaintTextureStruct*)
+                IritMalloc(sizeof(SrfPaintTextureStruct));
+            
             Texture -> Width = DEFAULT_WIDTH;
             Texture -> Height = DEFAULT_HEIGHT;
-            Texture -> Texture = new IrtImgPixelStruct[DEFAULT_SIZE];
+            Texture -> Texture = (IrtImgPixelStruct*) 
+                IritMalloc(sizeof(IrtImgPixelStruct) * DEFAULT_SIZE);
             for (int i = 0; i < DEFAULT_SIZE; i++) {
                 Texture -> Texture[i].r = 255;
                 Texture -> Texture[i].g = 255;
                 Texture -> Texture[i].b = 255;
             }
             IrtMdlrSrfPaintTextures[Surface] = Texture;
-            GuIritMdlrDllPrintf(FI, 
-                IRT_DSP_LOG_INFO, 
-                "Surface %s initialized\n", 
-                Surface -> ObjName);
         }
         if (Surface != IrtMdlrSrfPaintSurface) {
             SrfPaintTextureStruct* Texture = IrtMdlrSrfPaintTextures[Surface];
@@ -280,16 +278,14 @@ static void IrtMdlrSrfPaint(IrtMdlrFuncInfoClass* FI)
                 SRF_PAINT_HEIGHT, 
                 &Texture -> Height);
             IrtMdlrSrfPaintSurface = Surface;
-            IrtMdlrSrfPaintTextureAlpha = new IrtImgPixelStruct[DEFAULT_SIZE];
-            IrtMdlrSrfPaintTextureBuffer = new IrtImgPixelStruct[DEFAULT_SIZE];
+            IrtMdlrSrfPaintTextureAlpha = (IrtImgPixelStruct*)
+                IritMalloc(sizeof(IrtImgPixelStruct) * DEFAULT_SIZE);
+            IrtMdlrSrfPaintTextureBuffer = (IrtImgPixelStruct*)
+                IritMalloc(sizeof(IrtImgPixelStruct) * DEFAULT_SIZE);
             for (int i = 0; i < DEFAULT_SIZE; i++) {
                 IrtMdlrSrfPaintTextureAlpha[i] = Texture -> Texture[i];
                 IrtMdlrSrfPaintTextureBuffer[i] = Texture -> Texture[i];
             }
-            GuIritMdlrDllPrintf(FI, 
-                IRT_DSP_LOG_INFO, 
-                "Surface %s selected\n",
-                IrtMdlrSrfPaintSurface -> ObjName);
             TextureInit = true;
         }
         TextureUpdate = false;
@@ -489,10 +485,12 @@ static void IrtMdlrSrfPaintResizeTexture(IrtMdlrFuncInfoClass* FI,
                         int Height,
                         bool Reset)
 {
-    IrtImgPixelStruct
-        *Texture = new IrtImgPixelStruct[Width * Height],
-        *TextureAlpha = new IrtImgPixelStruct[Width * Height],
-        *TextureBuffer = new IrtImgPixelStruct[Width * Height];
+    IrtImgPixelStruct *Texture = (IrtImgPixelStruct*) 
+        IritMalloc(sizeof(IrtImgPixelStruct) * Width * Height);
+    IrtImgPixelStruct *TextureAlpha = (IrtImgPixelStruct*)
+        IritMalloc(sizeof(IrtImgPixelStruct) * Width * Height);
+    IrtImgPixelStruct *TextureBuffer = (IrtImgPixelStruct*)
+        IritMalloc(sizeof(IrtImgPixelStruct) * Width * Height);
 
     if (Reset) {
         for (int y = 0; y < Height; y++) {
@@ -509,13 +507,13 @@ static void IrtMdlrSrfPaintResizeTexture(IrtMdlrFuncInfoClass* FI,
             }
         }
     }
+    IritFree(IrtMdlrSrfPaintTextures[IrtMdlrSrfPaintSurface] -> Texture);
+    IritFree(IrtMdlrSrfPaintTextureAlpha);
+    IritFree(IrtMdlrSrfPaintTextureBuffer);
     IrtMdlrSrfPaintTextures[IrtMdlrSrfPaintSurface] -> Width = Width;
     IrtMdlrSrfPaintTextures[IrtMdlrSrfPaintSurface] -> Height = Height;
-    delete[] IrtMdlrSrfPaintTextures[IrtMdlrSrfPaintSurface] -> Texture;
     IrtMdlrSrfPaintTextures[IrtMdlrSrfPaintSurface] -> Texture = Texture;
-    delete[] IrtMdlrSrfPaintTextureAlpha;
     IrtMdlrSrfPaintTextureAlpha = TextureAlpha;
-    delete[] IrtMdlrSrfPaintTextureBuffer;
     IrtMdlrSrfPaintTextureBuffer = TextureBuffer;
     GuIritMdlrDllPrintf(FI, 
         IRT_DSP_LOG_INFO, 
@@ -584,25 +582,25 @@ static void IrtMdlrSrfPaintLoadShape(IrtMdlrFuncInfoClass* FI,
                         const char* Filename)
 {
     IRT_DSP_STATIC_DATA bool ShapeInit = false;
-    int Alpha, Width, Height;
+    int Alpha, Width, Height, Size;
     float XRatio, YRatio;
     IrtImgPixelStruct* Image = 
         IrtImgReadImage2(Filename, &Width, &Height, &Alpha);
 
     Width++, Height++;
     if (ShapeInit) {
-        delete[] IrtMdlrSrfPaintShape -> Shape;
+        IritFree(IrtMdlrSrfPaintShape -> Shape);
     }
     else {
-        IrtMdlrSrfPaintShape = new SrfPaintShapeStruct;
+        IrtMdlrSrfPaintShape = (SrfPaintShapeStruct*)
+            IritMalloc(sizeof(SrfPaintShapeStruct));
         ShapeInit = true;
     }
 
     IrtMdlrSrfPaintShape -> Width = (int)(Width * IrtMdlrSrfPaintXFactor);
     IrtMdlrSrfPaintShape -> Height = (int) (Height * IrtMdlrSrfPaintYFactor);
-    IrtMdlrSrfPaintShape -> Shape = 
-        new float[IrtMdlrSrfPaintShape -> Height 
-        * IrtMdlrSrfPaintShape -> Width];
+    Size = IrtMdlrSrfPaintShape -> Height * IrtMdlrSrfPaintShape -> Width;
+    IrtMdlrSrfPaintShape -> Shape = (float *) IritMalloc(sizeof(float) * Size);
     XRatio = (float) Width / (float) IrtMdlrSrfPaintShape -> Width;
     YRatio = (float) Height / (float) IrtMdlrSrfPaintShape -> Height;
     for (int y = 0; y < IrtMdlrSrfPaintShape -> Height; y++) {
