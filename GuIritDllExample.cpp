@@ -15,6 +15,7 @@
 #include "IrtMdlrDll.h"
 #include "GuIritDllExtensions.h"
 
+/* Include and define function icons. */
 #include "Icons/IconMenuExample.xpm"
 #include "Icons/IconExample.xpm"
 
@@ -190,6 +191,20 @@ IRT_DSP_STATIC_DATA IrtMdlrFuncTableStruct SrfPainterFunctionTable[] =
 IRT_DSP_STATIC_DATA const int SRF_PAINT_FUNC_TABLE_SIZE =
     sizeof(SrfPainterFunctionTable) / sizeof(IrtMdlrFuncTableStruct);
 
+/*****************************************************************************
+* DESCRIPTION:                                                               M
+*   Registration function of GuIrit dll extension.  Always define as         M
+* 'extern "C"' to prevent from name mangling.                                M
+*                                                                            *
+* PARAMETERS:                                                                M
+*   None                                                                     M
+*                                                                            *
+* RETURN VALUE:                                                              M
+*   extern "C" bool:     True if successful, false otherwise.                M
+*                                                                            *
+* KEYWORDS:                                                                  M
+*   _IrtMdlrDllRegister                                                      M
+*****************************************************************************/
 extern "C" bool _IrtMdlrDllRegister(void)
 {
     GuIritMdlrDllRegister(SrfPainterFunctionTable, 
@@ -199,6 +214,16 @@ extern "C" bool _IrtMdlrDllRegister(void)
     return true;
 }
 
+/*****************************************************************************
+* DESCRIPTION:                                                               *
+*   Initialize the parameters of the GuIrit dll extension.                   *
+*                                                                            *
+* PARAMETERS:                                                                *
+*   FI:      Function information - holds generic information such as Panel. *
+*                                                                            *
+* RETURN VALUE:                                                              *
+*   void                                                                     *
+*****************************************************************************/
 static void IrtMdlrSrfPaint(IrtMdlrFuncInfoClass* FI)
 {
     IRT_DSP_STATIC_DATA bool 
@@ -480,6 +505,19 @@ static void IrtMdlrSrfPaint(IrtMdlrFuncInfoClass* FI)
     }
 }
 
+/*****************************************************************************
+* DESCRIPTION:                                                               *
+*   Resize the texture of the selected object.                               *
+*                                                                            *
+* PARAMETERS:                                                                *
+*   FI:      Function information - holds generic information such as Panel. *
+*   Width:   New Width of the texture.                                       *
+*   Height:  New Height of the texture.                                      *
+*   Reset:   Set the texture to blank.                                       *
+*                                                                            *
+* RETURN VALUE:                                                              *
+*   void                                                                     *
+*****************************************************************************/
 static void IrtMdlrSrfPaintResizeTexture(IrtMdlrFuncInfoClass* FI,
                         int Width,
                         int Height,
@@ -522,7 +560,17 @@ static void IrtMdlrSrfPaintResizeTexture(IrtMdlrFuncInfoClass* FI,
         Height);
 }
 
-void IrtMdlrSrfPaintInitShapes(IrtMdlrFuncInfoClass* FI)
+/*****************************************************************************
+* AUXILIARY:                                                                 *
+* Auxiliary function to function IrtMdlrSrfPaint                             *
+*                                                                            *
+* PARAMETERS:                                                                *
+*   FI:      Function information - holds generic information such as Panel. *
+*                                                                            *
+* RETURN VALUE:                                                              *
+*   void                                                                     *
+*****************************************************************************/
+static void IrtMdlrSrfPaintInitShapes(IrtMdlrFuncInfoClass* FI)
 {
     int Index = 0;
     const char* p, * q;
@@ -578,6 +626,17 @@ void IrtMdlrSrfPaintInitShapes(IrtMdlrFuncInfoClass* FI)
     }
 }
 
+/*****************************************************************************
+* DESCRIPTION:                                                               *
+*   Load a shape to be used by the painter.                                  *
+*                                                                            *
+* PARAMETERS:                                                                *
+*   FI:       Function information - holds generic information such as Panel.*
+*   Filename: Path to the file containing the shape.                         *
+*                                                                            *
+* RETURN VALUE:                                                              *
+*   void                                                                     *
+*****************************************************************************/
 static void IrtMdlrSrfPaintLoadShape(IrtMdlrFuncInfoClass* FI,
                         const char* Filename)
 {
@@ -621,6 +680,18 @@ static void IrtMdlrSrfPaintLoadShape(IrtMdlrFuncInfoClass* FI,
         IrtMdlrSrfPaintShape -> Height);
 }
 
+/*****************************************************************************
+* DESCRIPTION:                                                               *
+*   Draw a line between two points on the texture.                           *
+*                                                                            *
+* PARAMETERS:                                                                *
+*   a:       Starting point of the line to draw.                             *
+*   b:       Ending point of the line to draw.                               *
+*   Points:  The output points to draw.                                      *
+*                                                                            *
+* RETURN VALUE:                                                              *
+*   void                                                                     *
+*****************************************************************************/
 static void IrtMdlrSrfPaintBresenham(const pair<int, int>& a,
                         const pair<int, int>& b,
                         vector<pair<int, int>>& Points)
@@ -670,6 +741,18 @@ static void IrtMdlrSrfPaintBresenham(const pair<int, int>& a,
     }
 }
 
+/*****************************************************************************
+* DESCRIPTION:                                                               *
+*   Paint the current shape on the texture.                                  *
+*                                                                            *
+* PARAMETERS:                                                                *
+*   FI:      Function information - holds generic information such as Panel. *
+*   XOff:    Offset on the X axis                                            *
+*   YOff:    Offset on the y axis                                            *
+*                                                                            *
+* RETURN VALUE:                                                              *
+*   void                                                                     *
+*****************************************************************************/
 static void IrtMdlrSrfPaintRenderShape(IrtMdlrFuncInfoClass* FI,
                         int XOff,
                         int YOff)
@@ -727,6 +810,16 @@ static void IrtMdlrSrfPaintRenderShape(IrtMdlrFuncInfoClass* FI,
     }
 }
 
+/*****************************************************************************
+* DESCRIPTION:                                                               *
+*   Callback function for mouse events for painting .          	             *
+*                                                                            *
+* PARAMETERS:                                                                *
+*   MouseEvent:  The mouse call back event to handle.		                 *
+*                                                                            *
+* RETURN VALUE:                                                              *
+*   int: True if event handled, false to propagate event to next handler.    *
+*****************************************************************************/
 static int IrtMdlrSrfPaintMouseCallBack(IrtMdlrMouseEventStruct* MouseEvent)
 {
     IRT_DSP_STATIC_DATA bool Clicking = false;
