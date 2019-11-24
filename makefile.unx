@@ -5,19 +5,19 @@
 
 include ../makeflag.unx
 
-SRCS = GuIritDllExample.cpp
+SRCS = GuIritDllPaintOnSrf.cpp
 
 OBJS = $(SRCS:.cpp=.o$(IRIT_OBJ_PF))
 
-libGuIritDllExample$(IRIT_EXE_PF).$(GUIRIT_SHARED_LIB): $(OBJS) 
+libGuIritDllPaintOnSrf$(IRIT_EXE_PF).$(GUIRIT_SHARED_LIB): $(OBJS) 
 	$(GUIRIT_LINK_SHARED_LIB) \
-		-o libGuIritDllExample$(IRIT_EXE_PF).$(GUIRIT_SHARED_LIB) \
+		-o libGuIritDllPaintOnSrf$(IRIT_EXE_PF).$(GUIRIT_SHARED_LIB) \
 		$(OBJS) $(GUIRIT_EXT_DLL_LIB) $(IRIT_ALL_LIBS)
 	$(GUIRIT_LINK_SHARED_LIB_POST_PROCESS) \
-		libGuIritDllExample$(IRIT_EXE_PF).$(GUIRIT_SHARED_LIB)
+		libGuIritDllPaintOnSrf$(IRIT_EXE_PF).$(GUIRIT_SHARED_LIB)
 
-install:	libGuIritDllExample$(IRIT_EXE_PF).$(GUIRIT_SHARED_LIB)
-	mv -f libGuIritDllExample$(IRIT_EXE_PF).$(GUIRIT_SHARED_LIB) \
+install:	libGuIritDllPaintOnSrf$(IRIT_EXE_PF).$(GUIRIT_SHARED_LIB)
+	mv -f libGuIritDllPaintOnSrf$(IRIT_EXE_PF).$(GUIRIT_SHARED_LIB) \
 							$(GUIRIT_DLL_INSTALL)
 
 depend:

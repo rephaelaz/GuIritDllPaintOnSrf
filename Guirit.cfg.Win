@@ -1,0 +1,928 @@
+; 
+; This is the main configuration file of the GuIrit application.
+; 
+; This file best viewed with Unix style tabs - Tab = 8, Indent = 4.
+; 
+; This file is converted to Windows/Unix version via GenGuiritCfg.cmd
+; First characters' meaning:
+; '; ' - a comment
+; '= ' - only for windows
+; '+ ' - only for windows 64 bit
+; '- ' - only for unix
+;
+
+; 
+; Setup
+; 
+AppName			"GuIrit"
+
+
+;******************** Windows specific setup: ****************************
+;
+; Where to save local preferences, windows/tool bar arrangment, etc.
+;
+; The substrings 'USERPROFILE' or 'USERNAME', if found in the string,
+; will be replaced by the user's USERPROFILE/USERNAME environment variable,
+; if such a variable is found.
+; On windows the file is called "GuIritGui.cfg"
+;
+; Typical for Windows XP:
+; GuIritWINGuiCfg	"USERPROFILE\Application Data\GuIrit"
+;
+; Typical for Windows 7/10:
+GuIritWINGuiCfg		"USERPROFILE\AppData\GuIrit"
+;
+; The Font name/size to use in the GUI.  If zero length and zero size
+; (the default), uses the wxWidget's default font name/size.
+;
+; For windows the default font is usually O.k.
+; GUIFontName		"Sans"
+;
+
+;************************************************************************
+
+; A subdirectory to the location of Guirit.cfg/exe that holds
+; predefined objects to load at init time.  You probably do not want
+; to change this unless you really know what you are doing.
+AppObjectsDir		"GuIritData/Objects"
+
+;
+; Information of user defined toolbars is kept in this directory.
+;
+AppToolBarsDir		"GuIritData/ToolBars"
+
+;
+; Extension DLLs of GuIrit will be searched here.
+;
+AppExtensionsDir	"GuIritData/Extensions"
+
+;
+; Auxiliary data will be saved/searched here.
+;
+AppAuxiliaryDir		"GuIritData/Auxiliary"
+
+; Help data will be temporarily saved/searched here.
+;
+AppHelpDir		"GuIritData/Temp"
+
+; Test most scripts irt file.
+GuiritTestScriptsFile    "GuIritData/Scripts/test.irt"
+
+; Irit interpreter init file.
+IrtInterpGuiritStartFile    "GuIritData/GuIritinit.irt"
+
+;
+; ToolBar activation
+;
+ToolBarActive		TRUE
+
+;Windows activation & size settings
+;
+HierarchyActive		TRUE
+HistoryActive		FALSE
+InputWinHeight		100
+OutputWinHeight		150
+TabWinWidth		235
+
+;
+; An introductory window display upon loading of GuIrit
+;
+SplashScreen		TRUE
+
+;
+; Use FALSE for OGL 1 support only, TRUE for OGL 3.2 (GPU support)
+;
+UseOpenGL32		TRUE
+
+;
+; Shaders will be saved/searched here, if UseOpenGL32 uses shader (TRUE)
+;
+AppShadersDir		"GuIritData/Shaders"
+
+;
+; Graphics' window automatic highligting of objects the mouse is hovvering on.
+;
+AutoHighlight		TRUE
+
+; Open GL State.
+;
+UseDisplayList		TRUE
+
+;
+; Objects' default rendering options
+;
+DrawSolid		TRUE
+DrawBackFace		TRUE
+DrawInternalEdges	FALSE
+DrawVerticesNormals	FALSE
+DrawPlanesNormals	FALSE
+Draw4PerFlat		FALSE
+DrawSurfaceMesh		FALSE
+DrawSurfacePoly		FALSE
+DrawSurfaceWire		FALSE
+DrawSurfaceSktc		FALSE
+
+FlipNormalsOrientation	FALSE
+DepthCue		FALSE
+NumberOfIsolinesU	10
+NumberOfIsolinesV	10
+NumberOfIsolinesW	10
+LineWidth		1
+ShadingModel		3
+NormalLength		0.8
+ClippingPlanesMinZ	-10
+ClippingPlanesMaxZ	50
+PolylineFineness	0.001
+PolylineZOffset		0.005
+PolygonFineness		0.005
+PointWidth		0.05
+
+;
+
+; Single Action mode
+
+;
+
+
+
+SingleActionType	""
+
+
+; KeyMouseBinding help - See the GuIritConfigHelp.doc.  
+KeyMouseBinding {
+	;OpenGL window
+	"1",		"OPENGL",		"IRT_DSP_VIEW_WINDOW_ONE",
+	"2",		"OPENGL",		"IRT_DSP_VIEW_WINDOW_TWO_VERTICAL",
+	"3",		"OPENGL",		"IRT_DSP_VIEW_WINDOW_TWO_HORIZONTAL",
+	"4",		"OPENGL",		"IRT_DSP_VIEW_WINDOW_FOUR",
+	"V"		"OPENGL"		"IRT_DSP_TRAVERSE_WINDOW_FOCUS",
+	"A",		"OPENGL",		"IRT_DSP_OBJECT_ANIMATE",
+	"SC-A",		"OPENGL",		"IRT_MDLR_EXPLOSION_ANIMATION",
+	"B",		"OPENGL",		"IRT_DSP_VIEW_BACK",
+	"D",		"OPENGL",		"IRT_DSP_VIEW_DOWN",
+	"A-E",		"OPENGL",		"IRT_DSP_EXPAND_HIERARCHY_UP_TO_OBJECT",
+	"E",		"OPENGL",		"IRT_DSP_OBJECT_EDIT_GEOM",
+	"F",		"OPENGL",		"IRT_DSP_VIEW_FRONT",
+	"C-F",		"OPENGL",		"IRT_DSP_VIEW_WINDOW_FULLSCREEN",
+	"A-F",		"OPENGL",		"IRT_DSP_VIEW_WINDOW_UNFOCUS",
+	"C-G",		"OPENGL",		"IRT_DSP_CLEAR_GEOM_FOLDER",
+	"H",		"OPENGL",		"IRT_DSP_OBJECT_HIDE",
+	"S",		"OPENGL",		"IRT_DSP_OBJECT_SHOW",
+	"S-L"		"OPENGL",		"IRT_DSP_SET_LIGHTS_VISIBILITY",
+	"S-C"		"OPENGL",		"IRT_DSP_SET_CAMERAS_VISIBILITY",
+	"S-A"		"OPENGL",		"IRT_DSP_SET_AUX_GEOM_VISIBILITY",
+	"A-H",		"OPENGL",		"IRT_DSP_OBJECT_UNHIDE_LAST",
+	"I",		"OPENGL",		"IRT_DSP_VIEW_ISOMETRIC",
+	"C-I",		"OPENGL",		"IRT_MDLR_IMPORT_IMAGE_MOVIE",
+	"L",		"OPENGL",		"IRT_DSP_VIEW_LEFT",
+	"C-L",		"OPENGL",		"IRT_DSP_LOAD_GEOM_FILE",
+	"A-L",		"OPENGL",		"IRT_DSP_LOAD_GEOM_FILE_TO_NEW_SCENE",
+	"M-L",		"OPENGL",		"IRT_DSP_SCENE_ROTATION_XY",
+	"TM-L",		"OPENGL",		"IRT_DSP_SCENE_ROTATION_Z",
+	"TCM-L",	"OPENGL",		"IRT_DSP_SCENE_ROTATION_X",
+	"TSM-L",	"OPENGL",		"IRT_DSP_SCENE_ROTATION_Y",
+	"AM-CL",	"OPENGL",		"IRT_DSP_GROUP_OBJECT_SELECTION",
+	"SAM-CL",	"OPENGL",		"IRT_DSP_SINGLE_POLYGON_SELECTION",
+	"SM-CL",	"OPENGL",		"IRT_DSP_GROUP_POLYGON_SELECTION",
+	"SC-M",		"OPENGL",		"IRT_MDLR_MELTING_ANIMATION",
+	"TM-M",		"OPENGL",		"IRT_DSP_SCENE_HOR_ROT_AROUND_OBJ",
+	"M-M",		"OPENGL",		"IRT_DSP_SCENE_SCALING",
+	"ACSM-L",	"OPENGL",		"IRT_DSP_SCENE_SCALING",
+	"C-N",		"OPENGL",		"IRT_DSP_NEW_SCRIPT_FILE",
+	"S-N",		"OPENGL",		"IRT_MDLR_GRAPH_SELECTION",
+	"M-CR",		"OPENGL",		"IRT_DSP_OBJECT_POPUP_MENU",
+	"M",		"OPENGL",		"IRT_DSP_OBJECT_POPUP_MENU",
+	"O",		"OPENGL",		"IRT_DSP_OBJECT_OPTION_PANEL",
+	"C-O",		"OPENGL",		"IRT_DSP_LOAD_SCRIPT_FILE",
+	"C-P",		"OPENGL",		"IRT_DSP_OBJECT_PRINT_SUMMARY",
+	"A-P",		"OPENGL",		"IRT_DSP_OBJECT_PRINT_DETAILS",
+	"R",		"OPENGL",		"IRT_DSP_VIEW_RIGHT",
+	"P",		"OPENGL",		"IRT_DSP_OBJECT_RENDER_OP",
+	"C-R",		"OPENGL",		"IRT_DSP_OBJECT_RECENTER",
+	"M-R",		"OPENGL",		"IRT_DSP_SCENE_TRANSLATION",
+	"TM-R",		"OPENGL",		"IRT_DSP_SCENE_ROT_AROUND_OBJ",
+	"AM-R",		"OPENGL",		"IRT_DSP_OBJECT_DRAG",
+	"C",		"OPENGL",		"IRT_DSP_SAVE_CRNT_SCENE_FILE_AS",
+	"C-S",		"OPENGL",		"IRT_DSP_SAVE_ALL_SCENES_FILE_AS",
+	"T-S",		"OPENGL",		"IRT_DSP_BACKUP_GEOM_LAST_SAVE",
+	"S-S",		"OPENGL",		"IRT_DSP_SAVE_SCRIPT_FILE",
+	"A-S",		"OPENGL",		"IRT_DSP_SAVE_SCRIPT_FILE_AS",
+	"T",		"OPENGL",		"IRT_DSP_OBJECT_TGL_TRANSFORM3D",
+	"M-DL",		"OPENGL",		"IRT_DSP_OBJECT_TGL_TRANSFORM3D",
+	"N",		"OPENGL",		"IRT_DSP_OBJECT_TGL_TRANSFORM2D",
+	"U",		"OPENGL",		"IRT_DSP_VIEW_UP",
+	"C-U",		"OPENGL",		"IRT_MDLR_IMPORT_IMAGE_URL",
+	"C-V",		"OPENGL",		"IRT_DSP_NEW_CAMERA_CRNT_VIEW",
+	"W",		"OPENGL",		"IRT_DSP_WINDOW_OGL_PANEL",
+	"C-X",		"OPENGL",		"IRT_MDLR_IMPORT_TEXT",
+	"F-Esc",	"OPENGL",		"IRT_DSP_VIEW_WINDOW_FULLSCREEN",
+	"F-PgUp",	"OPENGL",		"IRT_DSP_VIEW_PREV_IMMED",
+	"F-PgDn",	"OPENGL",		"IRT_DSP_VIEW_NEXT_IMMED",
+	"F-Del",	"OPENGL",		"IRT_DSP_VIEW_LAST_IMMED",
+	"F-Rtrn",	"OPENGL",		"IRT_DSP_VIEW_PREV_DELAY",
+	" ",		"OPENGL",		"IRT_DSP_VIEW_NEXT_DELAY",
+	"F-BkSp",	"OPENGL",		"IRT_DSP_VIEW_LAST_DELAY",
+	"F-1",		"OPENGL",		"IRT_DSP_HELP_SHOW_BINDING",
+	"F-2",		"OPENGL",		"IRT_DSP_HELP_SHOW_BUILTIN_FUNCS",
+	"F-3",		"OPENGL",		"IRT_DSP_HELP_SHOW_MODELER_FUNCS",
+	"F-CpLk",	"OPENGL",		"IRT_DSP_MOUSE_SENS_MODE",
+	"F-Prnt",	"OPENGL",		"IRT_DSP_PRINT_CRNT_WINDOW",
+	"F-4",		"OPENGL",		"IRT_DSP_OBJECT_SNAP_TO_GRID",
+	"F-6",		"OPENGL",		"IRT_DSP_ANIM_MNGR_SELECTED_OBJ",
+	"F-7",		"OPENGL",		"IRT_DSP_ANIM_MNGR_ALL_OBJECTS",
+	"F-8",		"OPENGL",		"IRT_DSP_ANIM_MNGR_OGL_PROPS",
+	"F-9",		"OPENGL",		"IRT_DSP_ANIM_MNGR_HELP",
+	"F-10",		"OPENGL",		"IRT_DSP_SAVE_CRNT_WINDOW_AS_IMAGE",
+	"F-11",		"OPENGL",		"IRT_DSP_FUNC_PANEL_HELP",
+
+	"C-B",		"HIERARCHY",		"IRT_MDLR_EXAMPLE_BEEP",
+	"A-B",		"HIERARCHY",		"IRT_MDLR_EXAMPLE_OFFSCRN_RNDR",
+	"C",		"HIERARCHY",		"IRT_DSP_OBJECT_COPY",
+	"D",		"HIERARCHY",		"IRT_DSP_OBJECT_DUPLICATE",
+	"E",		"HIERARCHY",		"IRT_DSP_OBJECT_EDIT_GEOM",
+	"C-G",		"HIERARCHY",		"IRT_DSP_CLEAR_GEOM_FOLDER",
+	"C-E",		"HIERARCHY",		"IRT_DSP_OBJECT_EXPAND_HIERARCHY",
+	"C-C",		"HIERARCHY",		"IRT_DSP_OBJECT_COLLAPSE_HIERARCHY",
+	"S-L"		"HIERARCHY",		"IRT_DSP_SET_LIGHTS_VISIBILITY",
+	"S-C"		"HIERARCHY",		"IRT_DSP_SET_CAMERAS_VISIBILITY",
+	"S-A"		"HIERARCHY",		"IRT_DSP_SET_AUX_GEOM_VISIBILITY",
+	"H",		"HIERARCHY",		"IRT_DSP_OBJECT_HIDE",
+	"M",		"HIERARCHY",		"IRT_DSP_OBJECT_POPUP_MENU",
+	"C-M",		"HIERARCHY",		"IRT_MDLR_OBJS_MERGE",
+	"O",		"HIERARCHY",		"IRT_DSP_OBJECT_OPTION_PANEL",
+	"P",		"HIERARCHY",		"IRT_DSP_OBJECT_RENDER_OP",
+	"M-R",		"HIERARCHY",		"IRT_DSP_OBJECT_POPUP_MENU",
+	"S",		"HIERARCHY",		"IRT_DSP_OBJECT_SHOW",
+	"C-S",		"HIERARCHY",		"IRT_MDLR_OBJ_SPLIT",
+	"F-Del",	"HIERARCHY",		"IRT_DSP_OBJECT_CUT",
+	"F-Ins",	"HIERARCHY",		"IRT_DSP_OBJECT_PASTE",
+	"F-1",		"HIERARCHY",		"IRT_DSP_OBJECT_OPTION_PANEL",
+	"F-2",		"HIERARCHY",		"IRT_DSP_OBJECT_OGL_PANEL",
+	"F-11",		"HIERARCHY",		"IRT_DSP_FUNC_PANEL_HELP",
+	"C-X",		"HIERARCHY",		"IRT_DSP_FUNC_PANEL_CLOSE",
+	"T",		"HIERARCHY",		"IRT_DSP_OBJECT_TGL_TRANSFORM3D",
+	"N",		"HIERARCHY",		"IRT_DSP_OBJECT_TGL_TRANSFORM2D",
+	"A",		"HIERARCHY",		"IRT_DSP_OBJECT_ANIMATE",
+	"C-R",		"HIERARCHY",		"IRT_DSP_OBJECT_RECENTER",
+	"C-P",		"HIERARCHY",		"IRT_DSP_OBJECT_PRINT_SUMMARY",
+	"A-P",		"HIERARCHY",		"IRT_DSP_OBJECT_PRINT_DETAILS",
+	"F-6",		"HIERARCHY",		"IRT_DSP_ANIM_MNGR_SELECTED_OBJ",
+	
+	"C-C",		"TXT",			"IRT_DSP_TXT_WINDOW_COPY",
+	"C-F",		"TXT",			"IRT_DSP_TXT_WINDOW_FIND",
+	"C-N",		"TXT",			"IRT_DSP_NEW_SCRIPT_FILE",
+	"C-O",		"TXT",			"IRT_DSP_LOAD_SCRIPT_FILE",
+	"C-R",		"TXT",			"IRT_DSP_TXT_WINDOW_REPLACE",
+	"S-S",		"TXT",			"IRT_DSP_SAVE_SCRIPT_FILE",
+	"A-S",		"TXT",			"IRT_DSP_SAVE_SCRIPT_FILE_AS",
+	"C-V",		"TXT",			"IRT_DSP_TXT_WINDOW_PASTE",
+	"C-X",		"TXT",			"IRT_DSP_TXT_WINDOW_CUT",
+	"C-Y",		"TXT",			"IRT_DSP_TXT_WINDOW_REDO",
+	"C-Z",		"TXT",			"IRT_DSP_TXT_WINDOW_UNDO",
+	"A-H",		"TXT",			"IRT_DSP_TXT_WINDOW_HELP",
+	"A-R",		"TXT",			"IRT_DSP_TXT_WINDOW_EXEC_SELECTION",
+	"A-E",		"TXT",			"IRT_DSP_TXT_WINDOW_EXEC_SINGLE_BLOCK",
+	"A-S"		"TXT",			"IRT_DSP_TXT_WINDOW_EXEC_LINE_FROM_INPUT",
+	
+	"c-A",		"ANIMAN",		"IRT_DSP_ANIMAN_SHOW_ALL",
+	"C-D",		"ANIMAN",		"IRT_DSP_ANIMAN_SET_DOMAIN",
+	"C-E",		"ANIMAN",		"IRT_DSP_ANIMAN_EDIT_ANIM",
+	"C-F",		"ANIMAN",		"IRT_DSP_ANIMAN_FIXED_DOMAIN",
+	"C-P",		"ANIMAN",		"IRT_DSP_ANIMAN_TEST_ANIM",
+	"C-X",		"ANIMAN",		"IRT_DSP_ANIMAN_CLOSE",
+	"F-Ins",	"ANIMAN",		"IRT_DSP_ANIMAN_ADD_TRANSFORM",
+	"SF-Ins",	"ANIMAN",		"IRT_DSP_ANIMAN_ADD_OGL_PROP",
+	"F-Del",	"ANIMAN",		"IRT_DSP_ANIMAN_REMOVE_ANIM"
+}
+
+;
+; Menu definition format - See the GuIritConfigHelp.doc. 
+;
+MenuBinding {
+    ;
+    ; LOADING AND SAVING
+    ;
+    "File",							"",						"Type:TAB",
+    "File.Load\nGeometry",					"IRT_DSP_LOAD_GEOM_FILE",			"Type:REGULAR, Size:32, FGRGB:160 0 0",
+    "File.Load\nNew Scene",					"IRT_DSP_LOAD_GEOM_FILE_TO_NEW_SCENE",		"Type:REGULAR, Size:32, FGRGB:160 0 0",
+    "File.Load Recent Files",					"IRT_DSP_LOAD_RECENT_FILES",			"Type:WIDGET, Width:120, Height:22, FGRGB:160 0 0",
+    "File.Separator1",						"",						"Type:SEPARATOR, BGRGB:200 0 0, Size:70",
+    "File.Save\nScene",						"IRT_DSP_SAVE_CRNT_SCENE_FILE_AS",		"Type:REGULAR, Size:32",
+    "File.Save All\nScenes",					"IRT_DSP_SAVE_ALL_SCENES_FILE_AS",		"Type:REGULAR, Size:32",
+    "File.Backup\nLast",					"IRT_DSP_BACKUP_GEOM_LAST_SAVE",		"Type:REGULAR, Size:32",
+    "File.Separator2",						"",						"Type:SEPARATOR, BGRGB:200 0 0, Size:70",
+
+    "File.New\nScene",						"IRT_DSP_NEW_SCENE",				"Type:REGULAR, BGRGB:210 240 223, FGRGB:0 0 160, Size:32",
+    "File.Separator3",						"",						"Type:SEPARATOR, BGRGB:200 0 0, Size:70",
+
+    "File.Matrix",						"",						"Type:MENU, Size:32, FGRGB:0 160 0",
+    "File.Matrix.Load\nMatrix",					"IRT_DSP_LOAD_MATRIX",				"Type:REGULAR",
+    "File.Matrix.Save\nMatrix",					"IRT_DSP_SAVE_MATRIX",				"Type:REGULAR",
+    "File.Matrix.Save\nMatrix As",				"IRT_DSP_SAVE_MATRIX_AS",			"Type:REGULAR",
+           
+    "File.Script",						"",						"Type:MENU, BGRGB:210 220 235, FGRGB:0 160 0, Size:32",
+    "File.Script.New\nscript",					"IRT_DSP_NEW_SCRIPT_FILE",			"Type:REGULAR, BGRGB:225 200 225",
+    "File.Script.Load\nscript",					"IRT_DSP_LOAD_SCRIPT_FILE",			"Type:REGULAR",
+    "File.Script.Save\nscript",					"IRT_DSP_SAVE_SCRIPT_FILE",			"Type:REGULAR",
+    "File.Script.Save\nscript as",				"IRT_DSP_SAVE_SCRIPT_FILE_AS",			"Type:REGULAR",
+    "File.Script.Test scripts",					"IRT_DSP_TEST_SCRIPT_FILES",			"Type:REGULAR",
+    "File.Separator4",						"",						"Type:SEPARATOR, BGRGB:200 0 0, Size:70",
+
+    "File.Print\nWindow",					"IRT_DSP_PRINT_CRNT_WINDOW",			"Type:REGULAR, Size:32",
+    "File.Save as\nImage",					"IRT_DSP_SAVE_CRNT_WINDOW_AS_IMAGE",		"Type:REGULAR, BGRGB:210 240 223, Size:32",
+    "File.Save\nConfig",					"IRT_DSP_SAVE_CONFIGURATION",			"Type:REGULAR, Size:32",
+    "File.Separator5",						"",						"Type:SEPARATOR, BGRGB:200 0 0, Size:70",
+
+    "File.eXit",						"IRT_DSP_EXIT",					"Type:REGULAR, Size:32",
+    "File.Separator6",						"",						"Type:SEPARATOR, BGRGB:200 0 0, Size:70",
+
+    ;
+    ; WINDOWS and VIEWS CONTROL
+    ;
+    "Windows & Views"						"",						"Type:TAB",
+    "Windows & Views.1 Window",					"IRT_DSP_VIEW_WINDOW_ONE",			"Type:REGULAR, Size:32",
+    "Windows & Views.vertical\n2-split",			"IRT_DSP_VIEW_WINDOW_TWO_VERTICAL",		"Type:REGULAR, Size:32",
+    "Windows & Views.horizontal\n2-split",			"IRT_DSP_VIEW_WINDOW_TWO_HORIZONTAL",		"Type:REGULAR, Size:32",
+    "Windows & Views.windows\n4-split",				"IRT_DSP_VIEW_WINDOW_FOUR",			"Type:REGULAR, Size:32",
+    "Windows & Views.Separator1",				"",						"Type:SEPARATOR, BGRGB:200 0 0, Size:70",
+
+    "Windows & Views.Up",					"IRT_DSP_VIEW_UP",				"Type:REGULAR, Size:32",
+    "Windows & Views.Down",					"IRT_DSP_VIEW_DOWN",				"Type:REGULAR, Size:32",
+    "Windows & Views.Right",					"IRT_DSP_VIEW_RIGHT",				"Type:REGULAR, Size:32",
+    "Windows & Views.Left",					"IRT_DSP_VIEW_LEFT",				"Type:REGULAR, Size:32",
+    "Windows & Views.BacK",					"IRT_DSP_VIEW_BACK",				"Type:REGULAR, Size:32",
+    "Windows & Views.Front",					"IRT_DSP_VIEW_FRONT",				"Type:REGULAR, Size:32",
+    "Windows & Views.Isometric",				"IRT_DSP_VIEW_ISOMETRIC",			"Type:REGULAR, Size:32",
+    "Windows & Views.Orthographic",				"IRT_DSP_VIEW_ORTHOGRAPHIC",			"Type:REGULAR, Size:32",
+    "Windows & Views.Perspective",				"IRT_DSP_VIEW_PERSPECTIVE",			"Type:REGULAR, Size:32",
+    "Windows & Views.Next",					"IRT_DSP_VIEW_NEXT_IMMED",			"Type:REGULAR, Size:32",
+    "Windows & Views.Prev",					"IRT_DSP_VIEW_PREV_IMMED",			"Type:REGULAR, Size:32",
+    "Windows & Views.Separator2",				"",						"Type:SEPARATOR, BGRGB:200 0 0, Size:70",
+
+    "Windows & Views.Save View\nNew Camera",			"IRT_DSP_NEW_CAMERA_CRNT_VIEW",			"Type:REGULAR, Size:32",
+    "Windows & Views.Separator3",				"",						"Type:SEPARATOR, BGRGB:200 0 0, Size:70",
+
+    "Windows & Views.Full\nscreen",				"IRT_DSP_VIEW_WINDOW_FULLSCREEN",		"Type:REGULAR, Size:32",
+    "Windows & Views.Unfocus",					"IRT_DSP_VIEW_WINDOW_UNFOCUS",			"Type:REGULAR, Size:32",
+    "Windows & Views.OpenGL\nProperties",			"IRT_DSP_WINDOW_OGL_PANEL",			"Type:REGULAR, Size:32",  
+    "Windows & Views.Separator4",				"",						"Type:SEPARATOR, BGRGB:200 0 0, Size:70",
+
+    "Windows & Views.Toolbars",					"",						"Type:MENU, BGRGB:210 210 235, Size:32",
+    "Windows & Views.Toolbars.Show All\nToolbars",		"IRT_DSP_WINDOW_SHOW_ALL_TOOLBARS",		"Type:REGULAR",
+    "Windows & Views.Toolbars.Show Modeling\nToolbars",		"IRT_DSP_WINDOW_SHOW_MODELING_TOOLBARS",	"Type:REGULAR",
+    "Windows & Views.Toolbars.Hide All\nToolbars",		"IRT_DSP_WINDOW_HIDE_ALL_TOOLBARS",		"Type:REGULAR",
+    "Windows & Views.Toolbars.Hide Modeling\nToolbars",		"IRT_DSP_WINDOW_HIDE_MODELING_TOOLBARS",	"Type:REGULAR",
+    "Windows & Views.Toolbars.Show Recently Used\nToolbar",	"IRT_DSP_WINDOW_SHOW_USED_ICONS_TOOLBAR",	"Type:REGULAR",
+    "Windows & Views.Toolbars.Hide Recently Used\nToolbar",	"IRT_DSP_WINDOW_HIDE_USED_ICONS_TOOLBAR",	"Type:REGULAR",
+
+    ;
+    ;general Object processing
+    ; 
+    "Object"							"",						"Type:TAB",
+
+    "Object.Merge",						"IRT_MDLR_OBJS_MERGE",				"Type:REGULAR, BGRGB:210 230 215, Size:32",
+    "Object.Split",						"IRT_MDLR_OBJ_SPLIT",				"Type:REGULAR, BGRGB:210 230 215, Size:32",
+    "Object.Convert",						"IRT_MDLR_OBJ_CONVERT",				"Type:REGULAR, BGRGB:210 230 215, Size:32",
+    "Object.Duplicate",						"IRT_MDLR_OBJ_DUPLICATE",			"Type:REGULAR, BGRGB:210 230 215, Size:32",
+    "Object.Mirror",						"IRT_MDLR_OBJ_MIRROR",				"Type:REGULAR, BGRGB:210 230 215, Size:32",
+    "Object.Negate",						"IRT_MDLR_OBJ_NEGATE",				"Type:REGULAR, BGRGB:210 230 215, Size:32",
+
+    "Object.Separator1",					"",						"Type:SEPARATOR, BGRGB:200 0 0, Size:70",
+
+    "Object.Selection",						"IRT_MDLR_GRAPH_SELECTION",			"Type:REGULAR, BGRGB:210 230 215, Size:32",
+    "Object.Selective\nhighlight",				"IRT_MDLR_SELECTIVE_HIGHLIGHT",			"Type:REGULAR, BGRGB:210 230 215, Size:32",
+
+    "Object.Separator2",					"",						"Type:SEPARATOR, BGRGB:200 0 0, Size:70",
+
+    "Object.Random\nRGBs",					"IRT_MDLR_OBJ_RANDOM_RGB_ATTR",			"Type:REGULAR, BGRGB:210 230 215, Size:32",
+    "Object.Exploded\nView",					"IRT_MDLR_OBJ_EXPLODED_VIEW",			"Type:REGULAR, BGRGB:210 230 215, Size:32",
+
+    "Object.Separator3",					"",						"Type:SEPARATOR, BGRGB:200 0 0, Size:70",
+
+    "Object.Measure",						"IRT_MDLR_OBJ_MEASURE",				"Type:REGULAR, Size:32",
+
+    ;
+    ; CSG processing
+    ; 
+    "CSG",							"",						"Type:TAB",
+
+    "CSG.Points\nVectors",					"IRT_MDLR_PRIM_POINT",				"Type:REGULAR, Size:32",
+    "CSG.Poly",							"IRT_MDLR_PRIM_POLY",				"Type:REGULAR, Size:32",
+
+    "CSG.Separator1",						"",						"Type:SEPARATOR, BGRGB:200 0 0, Size:70",
+
+    "CSG.Primitive\nType",					"IRT_MDLR_PRIM_MENU_TYPE",			"Type:WIDGET, Width:100, Height:22, FGRGB:20 0 155",
+    "CSG.Rational\nSurfaces",					"IRT_MDLR_PRIM_MENU_SRF_RATIONAL",		"Type:WIDGET, FGRGB:20 0 155",
+    "CSG.Fineness",						"IRT_MDLR_PRIM_MENU_FINENESS",			"Type:WIDGET, Width:60, FGRGB:20 0 155, MinValue:2, MaxValue:2000",
+  ; "CSG.Parameters",						"IRT_MDLR_PRIM_TYPE_FINENESS",			"Type:REGULAR, Size:32",
+    "CSG.Box",							"IRT_MDLR_PRIM_BOX",				"Type:REGULAR, Size:32",
+    "CSG.Generalized\nBox",					"IRT_MDLR_PRIM_GBOX",				"Type:REGULAR, Size:32",
+    "CSG.Sphere",						"IRT_MDLR_PRIM_SPHERE",				"Type:REGULAR, Size:32",
+    "CSG.Cylinder",						"IRT_MDLR_PRIM_CYLINDER",			"Type:REGULAR, Size:32",
+    "CSG.Cone",							"IRT_MDLR_PRIM_CONE",				"Type:REGULAR, Size:32",
+    "CSG.Truncated\nCone",					"IRT_MDLR_PRIM_CON2",				"Type:REGULAR, Size:32",
+    "CSG.Torus",						"IRT_MDLR_PRIM_TORUS",				"Type:REGULAR, Size:32",
+
+    "CSG.Separator2",						"",						"Type:SEPARATOR, BGRGB:200 0 0, Size:70",
+    
+    "CSG.Union",						"IRT_MDLR_BOOL_OR",				"Type:REGULAR, Size:32",
+    "CSG.Intersection",						"IRT_MDLR_BOOL_AND",				"Type:REGULAR, Size:32",
+    "CSG.Subtraction",						"IRT_MDLR_BOOL_SUB",				"Type:REGULAR, Size:32",
+    "CSG.Negate",						"IRT_MDLR_BOOL_NEG",				"Type:REGULAR, Size:32",
+    "CSG.Cut",							"IRT_MDLR_BOOL_CUT",				"Type:REGULAR, Size:32",
+    "CSG.Merge",						"IRT_MDLR_BOOL_MERGE",				"Type:REGULAR, Size:32",
+    "CSG.Inter Curve",						"IRT_MDLR_BOOL_INTER_CRV",			"Type:REGULAR, Size:32",
+
+    "CSG.Separator3",						"",						"Type:SEPARATOR, BGRGB:200 0 0, Size:70",
+
+    "CSG.Freeform Boolean Control",				"IRT_MDLR_BOOL_TOLERANCES_CONTROL",		"Type:WIDGET, Width:60, FGRGB:20 0 155",
+
+    
+    ;
+    ; GEOMETRY PROCESSING
+    ;
+    "Geometry",							"",						"Type:TAB",
+    
+    "Geometry.On a\nGrid",					"IRT_MDLR_AGGREGATE_OBJ_GRID",			"Type:REGULAR, Size:32",
+    "Geometry.Along\na Curve",					"IRT_MDLR_AGGREGATE_OBJ_CRV",			"Type:REGULAR, Size:32",
+    "Geometry.On a\nSurface",					"IRT_MDLR_AGGREGATE_OBJ_SRF",			"Type:REGULAR, Size:32",
+    "Geometry.In a\nVolume",					"IRT_MDLR_AGGREGATE_OBJ_VOL",			"Type:REGULAR, Size:32",
+    "Geometry.Separator1",					"",						"Type:SEPARATOR, BGRGB:200 0 0, Size:70",
+
+    "Geometry.Polygonal\nMeshes",				"",						"Type:MENU, BGRGB:230 210 215, Size:32",
+    "Geometry.Polygonal\nMeshes.Edit\nMesh",			"IRT_MDLR_POLY_MESH_EDIT",			"Type:REGULAR, BGRGB:230 210 215",
+    "Geometry.Polygonal\nMeshes.Mesh\nProcessing",		"IRT_MDLR_MESH_PROCESSING",			"Type:REGULAR, BGRGB:230 210 215",
+    "Geometry.Polygonal\nMeshes.Mesh\nCleaning",		"IRT_MDLR_MESHLAB_CLEAN",			"Type:REGULAR, BGRGB:230 210 215",
+    "Geometry.Polygonal\nMeshes.Subdiv\nSrfs",			"IRT_MDLR_SUBDIV_SRFS",				"Type:REGULAR, BGRGB:230 210 215",
+
+    "Geometry.Paint on\nSurfaces",				"IRT_MDLR_PAINT_ON_SRF",			"Type:REGULAR, BGRGB:230 210 215, Size:32",
+    "Geometry.Impossible\nObjects",				"IRT_MDLR_IMPOSSIBLE_MDL",			"Type:REGULAR, BGRGB:230 210 215, Size:32",
+    "Geometry.AM Sim",						"IRT_MDLR_AM_SIM"				"Type:REGULAR, BGRGB:230 210 215, Size:32",	
+    "Geometry.Separator3",					"",						"Type:SEPARATOR, BGRGB:200 0 0, Size:70",
+
+    "Geometry.Deformation",					"",						"Type:MENU, BGRGB:230 210 205, Size:32",
+    "Geometry.Deformation.3D Deformation",			"IRT_MDLR_DEFORM_GEOM_3D",			"Type:REGULAR, BGRGB:230 210 205",
+    "Geometry.Deformation.2D Deformation",			"IRT_MDLR_DEFORM_GEOM_2D",			"Type:REGULAR, BGRGB:230 210 205",
+    "Geometry.Separator4",					"",						"Type:SEPARATOR, BGRGB:200 0 0, Size:70",
+
+    "Geometry.Depth\nExaminer",					"IRT_MDLR_DEPTH_EXAMINER"			"Type:REGULAR, Size:32"
+    "Geometry.Separator5",					"",						"Type:SEPARATOR, BGRGB:200 0 0, Size:70",
+
+    "Geometry.Import",						"",						"Type:MENU, BGRGB:210 230 215, Size:32"
+    "Geometry.Import.Image/Movie",				"IRT_MDLR_IMPORT_IMAGE_MOVIE"			"Type:REGULAR"
+    "Geometry.Import.Image from URL",				"IRT_MDLR_IMPORT_IMAGE_URL"			"Type:REGULAR"
+    "Geometry.Import.Text",					"IRT_MDLR_IMPORT_TEXT"				"Type:REGULAR"
+    "Geometry.Separator6",					"",						"Type:SEPARATOR, BGRGB:200 0 0, Size:70",
+
+    "Geometry.March\nCubes",					"",						"Type:MENU, BGRGB:210 230 215, Size:32",
+    "Geometry.March\nCubes.From\nFile",				"IRT_MDLR_MC_FILE",				"Type:REGULAR",
+    "Geometry.March\nCubes.From\nTrivariate",			"IRT_MDLR_MC_TRIVAR",				"Type:REGULAR",
+    "Geometry.March\nCubes.From\nImplicit",			"IRT_MDLR_MC_IMPLCT",				"Type:REGULAR",
+    
+    "Geometry.Query",	    					"",						"Type:MENU, BGRGB:210 210 235, Size:32",
+    "Geometry.Query.Length",					"IRT_MDLR_QUERY_LENGTH",			"Type:REGULAR",
+    "Geometry.Query.Area",					"IRT_MDLR_QUERY_AREA",				"Type:REGULAR",
+    "Geometry.Query.Volume",					"IRT_MDLR_QUERY_VOLUME",			"Type:REGULAR",
+    "Geometry.Query.BBox",					"IRT_MDLR_QUERY_BBOX",				"Type:REGULAR",
+        
+    "Geometry.Freeform\nApplications",				"",						"Type:MENU, BGRGB:210 230 235, Size:32",
+    "Geometry.Freeform\nApplications.Isocurves\nSurface\n Coverage",	"IRT_MDLR_ISOCRV_SRF_COVERAGE",		"Type:REGULAR",
+    "Geometry.Freeform\nApplications.Curve's\nConvex Hull",		"IRT_MDLR_CRV_CNVX_HULL",		"Type:REGULAR",
+    "Geometry.Freeform\nApplications.Duality",				"IRT_MDLR_FF_DUALITY",			"Type:REGULAR",
+    "Geometry.Freeform\nApplications.Piecewise\nRuled Srfs\napprox",	"IRT_MDLR_PIECEWISE_RULEDSRF",		"Type:REGULAR",
+    "Geometry.Freeform\nApplications.Surface\nPlanar Layout\n(Prisa)",	"IRT_MDLR_LAYOUT_PRISA",		"Type:REGULAR",
+    "Geometry.Freeform\nApplications.Parameteric\nPolynomial\nForms",	"IRT_MDLR_PARAM_POLY_FORMS",		"Type:REGULAR",
+
+    "Geometry.General\nApplications",				"",						"Type:MENU, BGRGB:210 230 235, Size:32",
+    "Geometry.General\nApplications.3D Pixel Statue\n from Images", 	"IRT_MDLR_3DPIXELS_IMAGES",		"Type:REGULAR",
+    "Geometry.General\nApplications.3D Blob Statue\n from Images",	"IRT_MDLR_3DSTATUE_IMAGES",		"Type:REGULAR",
+    "Geometry.General\nApplications.Ortho\nLetters",			"IRT_MDLR_ORTHO_LETTERS",		"Type:REGULAR",
+    "Geometry.General\nApplications.Belt\nCurve",			"IRT_MDLR_BELT_CURVE",			"Type:REGULAR",
+    "Geometry.General\nApplications.VTS\nImporter",			"IRT_MDLR_IMPORT_VTS",			"Type:REGULAR",
+
+    "Geometry.Constraints\nApplications",			"",						"Type:MENU, BGRGB:210 230 235, Size:32",
+    "Geometry.Constraints\nApplications.Pack 3 Circs\nin Triangle",	"IRT_MDLR_PACK_3CIRC_IN_TRI",		"Type:REGULAR",
+    "Geometry.Constraints\nApplications.Pack 6 Circs\nin Triangle",	"IRT_MDLR_PACK_6CIRC_IN_TRI",		"Type:REGULAR",
+    "Geometry.Constraints\nApplications.Antipodal\nPoints",	 	"IRT_MDLR_ANTIPODAL_PTS",		"Type:REGULAR",
+    "Geometry.Constraints\nApplications.Cyclic k-\nPath",		"IRT_MDLR_CTRL_CYCLIC_PATH",		"Type:REGULAR",
+    "Geometry.Constraints\nApplications.Ray\nTraps",			"IRT_MDLR_RAY_TRAPS",			"Type:REGULAR",
+    "Geometry.Constraints\nApplications.Stewart\nPlatform",		"IRT_MDLR_STEWART_PLATFORM",		"Type:REGULAR",
+    "Geometry.Constraints\nApplications.Kinematics",			"IRT_MDLR_KINEMATICS",			"Type:REGULAR",
+    "Geometry.Constraints\nApplications.Two\nContact",			"IRT_MDLR_TWO_CONTACT",			"Type:REGULAR",
+
+    "Geometry.Bisectors",    					"",						"Type:MENU, BGRGB:230 210 215, Size:32",
+    "Geometry.Bisectors.Pt-Crv\nBisector",			"IRT_MDLR_BISECTOR_CRV_CRV_PT",			"Type:REGULAR",
+    "Geometry.Bisectors.2D Crv-Crv\nBisector",			"IRT_MDLR_BISECTOR_CRV_2DCRVS",			"Type:REGULAR",
+    "Geometry.Bisectors.3D Crv-Crv\nBisector",			"IRT_MDLR_BISECTOR_SRF_3DCRVS",			"Type:REGULAR",
+    "Geometry.Bisectors.Pt-Srf\nBisector",			"IRT_MDLR_BISECTOR_SRF_SRF_PT",			"Type:REGULAR",
+    "Geometry.Bisectors.Cone/Cylin-Plane\nBisector",		"IRT_MDLR_BISECTOR_CONECYLIN_PLANE",		"Type:REGULAR",
+    "Geometry.Bisectors.Cone/Cylin-Sphere\nBisector",		"IRT_MDLR_BISECTOR_CONECYLIN_SPHERE",		"Type:REGULAR",
+    "Geometry.Bisectors.Torus-Sphere\nBisector",		"IRT_MDLR_BISECTOR_TORUS_SPHERE",		"Type:REGULAR",
+
+    "Geometry.Geometric\ncoverage",				"",						"Type:MENU, BGRGB:210 230 235, Size:32",
+    "Geometry.Geometric\ncoverage.Compute coverage",		"IRT_MDLR_GC_MAIN",				"Type:REGULAR",
+    "Geometry.Geometric\ncoverage.Add sensor",			"IRT_MDLR_GC_ADD_SENSOR",			"Type:REGULAR",
+    "Geometry.Geometric\ncoverage.Setup",			"IRT_MDLR_GC_SETUP",				"Type:REGULAR",
+    "Geometry.Geometric\ncoverage.Display solution",		"IRT_MDLR_GC_SOLUTION",				"Type:REGULAR",
+
+
+    ;
+    ; CURVE PROCESSING
+    ;
+    "Curves",    						"",						"Type:TAB",
+
+    "Curves.Circle",						"",						"Type:MENU, Size:32",
+    "Curves.Circle.Center &\nradius",				"IRT_MDLR_CRV_CNTR_RAD_CIRCLE",			"Type:REGULAR",
+    "Curves.Circle.2 points\n & diameter",			"IRT_MDLR_CRV_2PTS_DIAM_CIRCLE",		"Type:REGULAR",
+    "Curves.Circle.3 points",					"IRT_MDLR_CRV_3PTS_CIRCLE",			"Type:REGULAR",
+    "Curves.Circle.n points\n(least squares)",			"IRT_MDLR_CRV_LEAST_SQR_CIRCLE",		"Type:REGULAR",
+    "Curves.Circle.2 points &radius",				"IRT_MDLR_CRV_2PTS_RAD_CIRCLE",			"Type:REGULAR",
+    "Curves.Circle.2 tan crvs\n& radius",			"IRT_MDLR_CRV_2TAN_CRVS_RAD_CIRCLE",		"Type:REGULAR",
+    "Curves.Circle.3 tangent\ncurves",				"IRT_MDLR_CRV_3TAN_CRVS_CIRCLE",		"Type:REGULAR",
+   
+    "Curves.Arc",						"",						"Type:MENU, Size:32",
+    "Curves.Arc.2 points\n& center",				"IRT_MDLR_CRV_START_END_CNTR_ARC",		"Type:REGULAR",
+    "Curves.Arc.2 points\n& radius",				"IRT_MDLR_CRV_START_END_RAD_ARC",		"Type:REGULAR",
+    "Curves.Arc.2 angles\n& radius",				"IRT_MDLR_CRV_2ANG_RAD_ARC",			"Type:REGULAR",
+    "Curves.Arc.3 points",					"IRT_MDLR_CRV_3PTS_ARC",			"Type:REGULAR",
+    "Curves.Arc.2 tan crvs\n& radius",				"IRT_MDLR_CRV_2TAN_CRVS_RAD_ARC",		"Type:REGULAR",
+    "Curves.Arc.Curve to\n bi-arcs approx",			"IRT_MDLR_CRV_PIECEWISE_BIARCS",		"Type:REGULAR",
+ 
+    "Curves.Ellipse",						"",						"Type:MENU, Size:32",
+    "Curves.Ellipse.Center &\n2 diameters",			"IRT_MDLR_CRV_2DIAM_ELLIPSE",			"Type:REGULAR",
+    "Curves.Ellipse.3 points\n(min area)",			"IRT_MDLR_CRV_3PTS_MIN_AREA_ELLIPSE",		"Type:REGULAR",
+    "Curves.Ellipse.4 points\n(min area)",			"IRT_MDLR_CRV_4PTS_MIN_AREA_ELLIPSE",		"Type:REGULAR",
+    "Curves.Ellipse.Conic From\n6 coefficients",		"IRT_MDLR_CRV_6COEFS_CONIC",			"Type:REGULAR",
+    "Curves.Separator1",					"",						"Type:SEPARATOR, BGRGB:200 0 0, Size:70",
+
+    "Curves.Intrplt",	    					"IRT_MDLR_CRV_INTERPOL",			"Type:REGULAR, Size:32",
+    "Curves.Sketch",						"IRT_MDLR_CRV_SKTCH",				"Type:REGULAR, Size:32",
+
+    "Curves.Font",						"IRT_MDLR_FONT_TO_BEZIER",			"Type:REGULAR, Size:32",
+
+    "Curves.Hermite",						"IRT_MDLR_CRV_HERMITE",				"Type:REGULAR, Size:32",
+    "Curves.Bezier",						"IRT_MDLR_CRV_BEZIER",				"Type:REGULAR, Size:32",
+    "Curves.Bspline",						"IRT_MDLR_CRV_BSPLINE",				"Type:REGULAR, Size:32",
+    "Curves.Curves\nArngmnt",					"IRT_MDLR_CURVES_ARRANGMENT",			"Type:REGULAR, Size:32",
+    "Curves.Curves\nProfile",					"IRT_MDLR_CRV_PROFILE",				"Type:REGULAR, Size:32",
+    "Curves.Curve\nMerge",					"IRT_MDLR_CRV_MERGE",				"Type:REGULAR, Size:32",
+    "Curves.Curve Corners\nRound/Chamfer",			"IRT_MDLR_CRV_ROUND_CHAMFER",			"Type:REGULAR, Size:32",
+    "Curves.Hermite\nEdit",					"IRT_MDLR_HRMT_CRV_EDIT",			"Type:REGULAR, Size:32",
+    "Curves.Plane Curve\nTiler",				"IRT_MDLR_CURVE_TILER",				"Type:REGULAR, Size:32",
+    "Curves.Separator2",					"",						"Type:SEPARATOR, BGRGB:200 0 0, Size:70",
+
+    "Curves.Primitive",						"",						"Type:MENU, Size:32",
+    "Curves.Primitive.Spiral",					"IRT_MDLR_CRV_SPIRAL",				"Type:REGULAR",
+    "Curves.Primitive.Sine",					"IRT_MDLR_CRV_SINE",				"Type:REGULAR",
+    "Curves.Primitive.Helix",					"IRT_MDLR_CRV_HELIX",				"Type:REGULAR",
+ 
+    "Curves.Eval",    						"",						"Type:MENU, Size:32",
+    "Curves.Eval.Domain",					"IRT_MDLR_CRV_DOMAIN",				"Type:REGULAR",
+    "Curves.Eval.Position",					"IRT_MDLR_CRV_EVAL",				"Type:REGULAR",
+    "Curves.Eval.Tangent",					"IRT_MDLR_CRV_EVAL_TAN",			"Type:REGULAR",
+    "Curves.Eval.Normal",					"IRT_MDLR_CRV_EVAL_NRML",			"Type:REGULAR",
+    "Curves.Eval.Bi-\ntangent",					"IRT_MDLR_CRV_EVAL_BINRML",			"Type:REGULAR",
+    "Curves.Eval.Curvature",					"IRT_MDLR_CRV_EVAL_CRVTR",			"Type:REGULAR",
+    "Curves.Eval.Intersection",					"IRT_MDLR_CRV_EVAL_INTER",			"Type:REGULAR",
+    "Curves.Eval.Blend",					"IRT_MDLR_CRV_EVAL_BLEND",			"Type:REGULAR",
+ 
+    "Curves.Edit",    						"",						"Type:MENU, Size:32",
+    "Curves.Edit.Edit\ncurve",					"IRT_MDLR_CRV_EDIT_CRV",			"Type:REGULAR",
+    "Curves.Edit.MR Edit\ncurve",				"IRT_MDLR_MR_CRV_EDIT",				"Type:REGULAR",
+    "Curves.Edit.Edit\nCtlpt",					"IRT_MDLR_CRV_EDIT_PT",				"Type:REGULAR",
+    "Curves.Edit.Divide\ncurve",				"IRT_MDLR_CRV_DIVIDE",				"Type:REGULAR",
+    "Curves.Edit.Raise\norder",					"IRT_MDLR_CRV_RAISE",				"Type:REGULAR",
+    "Curves.Edit.Reparam\ncurve",				"IRT_MDLR_CRV_REPARAM",				"Type:REGULAR",
+    "Curves.Edit.Extract\nregion",				"IRT_MDLR_CRV_REGION",				"Type:REGULAR",
+    "Curves.Edit.Refine\ncurve",				"IRT_MDLR_CRV_REFINE",				"Type:REGULAR",
+    "Curves.Edit.Curve from\nsurface",				"IRT_MDLR_CRV_FROM_SRF",			"Type:REGULAR",
+    "Curves.Edit.Curve\nfrom mesh",				"IRT_MDLR_CRV_FROM_MESH",			"Type:REGULAR",
+    "Curves.Edit.Offset\ncurve",				"IRT_MDLR_CRV_OFFSET",				"Type:REGULAR",
+  
+    "Curves.Symbolic",    					"",						"Type:MENU, Size:32",
+    "Curves.Symbolic.Derive",					"IRT_MDLR_CRV_DERIVE",				"Type:REGULAR",
+    "Curves.Symbolic.Integrate",				"IRT_MDLR_CRV_INTEGRATE",			"Type:REGULAR",
+    "Curves.Symbolic.Add",					"IRT_MDLR_CRV_ADD",				"Type:REGULAR",
+    "Curves.Symbolic.Subtract",					"IRT_MDLR_CRV_SUB",				"Type:REGULAR",
+    "Curves.Symbolic.Multiply",					"IRT_MDLR_CRV_MULT",				"Type:REGULAR",
+    "Curves.Symbolic.Dot\nproduct",				"IRT_MDLR_CRV_DOT_PROD",			"Type:REGULAR",
+    "Curves.Symbolic.Cross\nproduct",				"IRT_MDLR_CRV_CROSS_PROD",			"Type:REGULAR",
+    "Curves.Symbolic.Crv crv\ncompose",				"IRT_MDLR_CRV_CRV_COMPOSE",			"Type:REGULAR",
+    "Curves.Symbolic.Crv srf\ncompose",				"IRT_MDLR_CRV_SRF_COMPOSE",			"Type:REGULAR",
+    "Curves.Symbolic.Curvature",				"IRT_MDLR_CRV_CURVATURE",			"Type:REGULAR",
+
+    ;
+    ; SURFACE PROCESSING
+    ;
+    "Surfaces",    						"",						"Type:TAB",
+    "Surfaces.Bezier",						"IRT_MDLR_SRF_BEZIER",				"Type:REGULAR, Size:32",
+    "Surfaces.Bspline",						"IRT_MDLR_SRF_BSPLINE",				"Type:REGULAR, Size:32",
+    "Surfaces.Plane",						"IRT_MDLR_SRF_PLANE",				"Type:REGULAR, Size:32",
+    "Surfaces.Sphere",						"IRT_MDLR_SRF_SPHERE",				"Type:REGULAR, Size:32",
+    "Surfaces.Cylinder",					"IRT_MDLR_SRF_CYLIN",				"Type:REGULAR, Size:32",
+    "Surfaces.coNe",						"IRT_MDLR_SRF_CONE",				"Type:REGULAR, Size:32",
+    "Surfaces.tcone",						"IRT_MDLR_SRF_TCONE",				"Type:REGULAR, Size:32",
+    "Surfaces.Torus",						"IRT_MDLR_SRF_TORUS",				"Type:REGULAR, Size:32",
+    "Surfaces.Separator1",					"",						"Type:SEPARATOR, BGRGB:200 0 0, Size:70",
+
+    "Surfaces.Hermite",						"IRT_MDLR_SRF_HERMITE",				"Type:REGULAR, BGRGB:210 230 215, Size:32",
+    "Surfaces.Intrplt",						"IRT_MDLR_SRF_INTERPOL",			"Type:REGULAR, BGRGB:210 230 215, Size:32",
+    "Surfaces.Bilinear",					"IRT_MDLR_SRF_BILINEAR",			"Type:REGULAR, BGRGB:210 230 215, Size:32",
+    "Surfaces.Extrude",						"IRT_MDLR_SRF_EXTRUDE",				"Type:REGULAR, BGRGB:210 230 215, Size:32",
+    "Surfaces.Ruling",						"IRT_MDLR_SRF_RULED",				"Type:REGULAR, BGRGB:210 230 215, Size:32",
+    "Surfaces.Surface\nRevol\.",				"IRT_MDLR_SRF_SREV",				"Type:REGULAR, BGRGB:210 230 215, Size:32",
+    "Surfaces.Boolean\nsum",					"IRT_MDLR_SRF_BOOL_SUM",			"Type:REGULAR, BGRGB:210 230 215, Size:32",
+    "Surfaces.Boolean\nOne",					"IRT_MDLR_SRF_BOOL_ONE",			"Type:REGULAR, BGRGB:210 230 215, Size:32",
+    "Surfaces.From\nCrvs",					"IRT_MDLR_SRF_FROM_CRVS",			"Type:REGULAR, BGRGB:210 230 215, Size:32",
+    "Surfaces.Alg Sum/\nProd/Swung",				"IRT_MDLR_SRF_ALG_CRVCRV",			"Type:REGULAR, BGRGB:210 230 215, Size:32",
+    "Surfaces.Sweep",						"IRT_MDLR_SRF_SWEEP",				"Type:REGULAR, BGRGB:210 230 215, Size:32",
+    "Surfaces.Trimmed",						"IRT_MDLR_SRF_TRIM",				"Type:REGULAR, BGRGB:210 230 215, Size:32",
+    "Surfaces.Separator2",					"",						"Type:SEPARATOR, BGRGB:200 0 0, Size:70",
+
+    "Surfaces.Eval",						"",						"Type:MENU, Icon:IconIdMenuEvalSurfaces, Size:32",
+    "Surfaces.Eval.Domain",					"IRT_MDLR_SRF_DOMAIN",				"Type:REGULAR",
+    "Surfaces.Eval.Position",					"IRT_MDLR_SRF_EVAL",				"Type:REGULAR",
+    "Surfaces.Eval.Tangent",					"IRT_MDLR_SRF_EVAL_TAN",			"Type:REGULAR",
+    "Surfaces.Eval.Normal",					"IRT_MDLR_SRF_EVAL_NRML",			"Type:REGULAR",
+    "Surfaces.Eval.Curvature",					"IRT_MDLR_SRF_EVAL_CRVTR",			"Type:REGULAR",
+    "Surfaces.Eval.Silhouette",					"IRT_MDLR_SRF_EVAL_SILH",			"Type:REGULAR",
+    "Surfaces.Eval.Boundary",					"IRT_MDLR_SRF_EVAL_BNDRY",			"Type:REGULAR",
+    "Surfaces.Eval.Polygonal\ntesselation",			"IRT_MDLR_SRF_EVAL_PLGN_TESS",			"Type:REGULAR",
+    "Surfaces.Eval.Polyline\ntesselation",			"IRT_MDLR_SRF_EVAL_PLLN_TESS",			"Type:REGULAR",
+    "Surfaces.Eval.Surface\nVisualization",			"IRT_MDLR_SRF_VISUALIZE",			"Type:REGULAR",
+    "Surfaces.Eval.Intersection",				"IRT_MDLR_SRF_EVAL_INTER",			"Type:REGULAR",
+    "Surfaces.Eval.Blend",					"IRT_MDLR_SRF_EVAL_BLEND",			"Type:REGULAR",
+
+    "Surfaces.Edit",						"",						"Type:MENU, Icon:IconIdMenuEditSurfaces, Size:32",
+    "Surfaces.Edit.Edit\nsurface",				"IRT_MDLR_SRF_EDIT_SRF",			"Type:REGULAR",
+    "Surfaces.Edit.MR Edit\nsurface",				"IRT_MDLR_MR_SRF_EDIT",				"Type:REGULAR",
+    "Surfaces.Edit.Edit\nctlpt",				"IRT_MDLR_SRF_EDIT_PT",				"Type:REGULAR",
+    "Surfaces.Edit.Divide\nsurface",				"IRT_MDLR_SRF_DIVIDE",				"Type:REGULAR",
+    "Surfaces.Edit.Raise\norder",				"IRT_MDLR_SRF_RAISE",				"Type:REGULAR",
+    "Surfaces.Edit.Reparam\nsurface",				"IRT_MDLR_SRF_REPARAM",				"Type:REGULAR",
+    "Surfaces.Edit.Extract\nregion",				"IRT_MDLR_SRF_REGION",				"Type:REGULAR",
+    "Surfaces.Edit.Refine\nsurface",				"IRT_MDLR_SRF_REFINE",				"Type:REGULAR",
+    "Surfaces.Edit.Reverse\nsurface",				"IRT_MDLR_SRF_REVERSE",				"Type:REGULAR",
+    "Surfaces.Edit.Offset\nsurface",				"IRT_MDLR_SRF_OFFSET",				"Type:REGULAR",
+    "Surfaces.Edit.Shell\nsurface",				"IRT_MDLR_SRF_SHELL",				"Type:REGULAR",
+
+    "Surfaces.Symblc",						"",						"Type:MENU, Icon:IconIdMenuSymbSurfaces, Size:32",
+    "Surfaces.Symblc.Derive",					"IRT_MDLR_SRF_DERIVE",				"Type:REGULAR",
+    "Surfaces.Symblc.Integrate",				"IRT_MDLR_SRF_INTEGRATE",			"Type:REGULAR",
+    "Surfaces.Symblc.Normal Field",				"IRT_MDLR_SRF_NRML_SRF",			"Type:REGULAR",
+    "Surfaces.Symblc.Gaussian\ncurvature\nfield",		"IRT_MDLR_SRF_GAUSS",				"Type:REGULAR",
+    "Surfaces.Symblc.ParabolicLines",				"IRT_MDLR_SRF_PARAB_LINES",			"Type:REGULAR",
+    "Surfaces.Symblc.Add",					"IRT_MDLR_SRF_ADD",				"Type:REGULAR",
+    "Surfaces.Symblc.Subtract",					"IRT_MDLR_SRF_SUB",				"Type:REGULAR",
+    "Surfaces.Symblc.Multiply",					"IRT_MDLR_SRF_MULT",				"Type:REGULAR",
+    "Surfaces.Symblc.Dot\nproduct",				"IRT_MDLR_SRF_DOT_PROD",			"Type:REGULAR",
+    "Surfaces.Symblc.Cross\nproduct",				"IRT_MDLR_SRF_CROSS_PROD",			"Type:REGULAR",
+
+    "Surfaces.Sketch",						"",						"Type:MENU, Icon:IconIdMenuSktchSurfaces, Size:32",
+    "Surfaces.Sketch.Sketch\nCurve",				"IRT_MDLR_CRV_SKTCH",				"Type:REGULAR",					
+    "Surfaces.Sketch.Project Crv\non Surface",			"IRT_MDLR_SRF_SKTCH_PROJ",			"Type:REGULAR",					
+    "Surfaces.Sketch.Transform Crv\non Surface",		"IRT_MDLR_SRF_SKTCH_CRV_TRANS",			"Type:REGULAR",		
+    "Surfaces.Sketch.Trim surface\nby sketch crv",		"IRT_MDLR_SRF_SKTCH_TRIM",			"Type:REGULAR",					
+
+    ;
+    ; TRIVAR PROCESSING
+    ;
+    "Trivars",							"",						"Type:TAB",
+    "Trivars.Extrusion",					"IRT_MDLR_TRIVAR_EXTRUDE",			"Type:REGULAR, Size:32",
+    "Trivars.Ruled\nTV",					"IRT_MDLR_TRIVAR_RULED",			"Type:REGULAR, Size:32",
+    "Trivars.TV of\nRevol\.",					"IRT_MDLR_TRIVAR_OF_REV",			"Type:REGULAR, Size:32",
+    "Trivars.TV from\nSrfs",					"IRT_MDLR_TRIVAR_FROM_SRFS",			"Type:REGULAR, Size:32",
+    "Trivars.Boolean\nSum",					"IRT_MDLR_TRIVAR_BOOL_SUM",			"Type:REGULAR, Size:32",
+    "Trivars.Boolean\nOne",					"IRT_MDLR_TRIVAR_BOOL_ONE",			"Type:REGULAR, Size:32",
+    "Trivars.Alg Sum/\nSwung",					"IRT_MDLR_TV_ALG_CRVSRF",			"Type:REGULAR, Size:32",
+    "Trivars.Blend\n2 TVs",					"IRT_MDLR_2TVMORPHING_TRIVAR",			"Type:REGULAR, Size:32",
+    "Trivars.TV From\nVolume",					"IRT_MDLR_LOAD_VOLUME_TRIVAR",			"Type:REGULAR, Size:32",
+    "Trivars.Separator1",					"",						"Type:SEPARATOR, BGRGB:200 0 0, Size:70",
+
+    "Trivars.Edit\nCtlpt",					"IRT_MDLR_TRIVAR_EDIT_PT",			"Type:REGULAR, BGRGB:210 230 215, Size:32",
+    "Trivars.Edit\nTrivar",					"IRT_MDLR_TRIVAR_EDIT_TV",			"Type:REGULAR, BGRGB:210 230 215, Size:32",
+    "Trivars.Divide",						"IRT_MDLR_TRIVAR_DIVIDE",			"Type:REGULAR, BGRGB:210 230 215, Size:32",
+    "Trivars.Raise",						"IRT_MDLR_TRIVAR_RAISE",			"Type:REGULAR, BGRGB:210 230 215, Size:32",
+    "Trivars.Reparam\nTrivar",					"IRT_MDLR_TRIVAR_REPARAM",			"Type:REGULAR, BGRGB:210 230 215, Size:32",
+    "Trivars.Extract\nregion",					"IRT_MDLR_TRIVAR_REGION",			"Type:REGULAR, BGRGB:210 230 215, Size:32",
+    "Trivars.Refine",						"IRT_MDLR_TRIVAR_REFINE",			"Type:REGULAR, BGRGB:210 230 215, Size:32",
+    "Trivars.Derive",						"IRT_MDLR_TRIVAR_DERIVE",			"Type:REGULAR, BGRGB:210 230 215, Size:32",
+    "Trivars.Surface\nfrom TV",					"IRT_MDLR_SRF_FROM_TRIVAR",			"Type:REGULAR, BGRGB:210 230 215, Size:32",
+    "Trivars.Surface from\nTV Mesh",				"IRT_MDLR_SRF_FROM_TVMESH",			"Type:REGULAR, BGRGB:210 230 215, Size:32",
+    "Trivars.Zero\nJacobian",					"IRT_MDLR_TRIVAR_ZERO_JACOB",			"Type:REGULAR, BGRGB:210 230 215, Size:32",
+    "Trivars.Separator2",					"",						"Type:SEPARATOR, BGRGB:200 0 0, Size:70",
+
+    "Trivars.Eval",						"",						"Type:MENU, Icon:IconIdMenuEvalTrivars, Size:32",
+    "Trivars.Eval.Domain",					"IRT_MDLR_TRIVAR_EVAL_DOMAIN",			"Type:REGULAR",
+    "Trivars.Eval.Position",					"IRT_MDLR_TRIVAR_EVAL",				"Type:REGULAR",
+    "Trivars.Eval.Gradient",					"IRT_MDLR_TRIVAR_EVAL_GRADIENT",		"Type:REGULAR",
+    "Trivars.Eval.Hessian",					"IRT_MDLR_TRIVAR_EVAL_HESSIAN",			"Type:REGULAR",
+    "Trivars.Eval.Curvature",					"IRT_MDLR_TRIVAR_EVAL_CRVTR",			"Type:REGULAR",
+    "Trivars.Separator3",					"",						"Type:SEPARATOR, BGRGB:200 0 0, Size:70",
+
+    "Trivars.IGA",						"IRT_MDLR_ISO_GEOM_ANALYSIS",			"Type:REGULAR, Size:32",
+    "Trivars.Visualize",					"IRT_MDLR_VOLUMETRIC_VISUAL",			"Type:REGULAR, Size:32",
+
+    ;
+    ; PANELS
+    ;
+    "Panels",							"",						"Type:TAB",
+    "Panels.Animation",						"IRT_DSP_ANIMATION_PANEL",			"Type:REGULAR, BGRGB:225 200 225, Size:32",
+    "Panels.Mouse\nSensitivity",				"IRT_DSP_MOUSE_SENS_PANEL",			"Type:REGULAR, Size:32",
+    "Panels.OGL Window\nProperies",				"IRT_DSP_WINDOW_OGL_PANEL",			"Type:REGULAR, BGRGB:225 200 225, Size:32",
+    "Panels.OGL Object\nDefaults",				"IRT_DSP_DEF_VAL_OBJ_OGL_PANEL",		"Type:REGULAR, Size:32",
+    "Panels.Snap to\nGrid/Shadows",				"IRT_DSP_GRID_SHADOWS_PANEL",			"Type:REGULAR, BGRGB:225 200 225, Size:32",
+    "Panels.Axes",						"IRT_DSP_AXES_PANEL",				"Type:REGULAR, Size:32",
+    "Panels.GuIrit\nConfiguration",				"IRT_DSP_CONFIG_PANEL",				"Type:REGULAR, BGRGB:225 200 225, Size:32",
+    "Panels.Dependency\nGraph",					"IRT_DSP_DEPENDENCY_GRAPH_PANEL",		"Type:REGULAR, Size:32",
+
+    ;
+    ; SYSTEM support
+    ;
+    "System",							"",						"Type:TAB",
+    "System.Spatial\nUI",					"IRT_MDLR_SPATIAL_UI",				"Type:REGULAR, Size:32",
+    "System.Sand Art",						"IRT_MDLR_SAND_ART",				"Type:REGULAR, Size:32",
+    "System.Sand Art 3D",					"IRT_MDLR_SAND_ART_3D",				"Type:REGULAR, Size:32",
+    "System.Leap\nMotion",					"IRT_MDLR_LEAP_MOTION_INPUT",			"Type:REGULAR, Size:32",
+    "System.Kinect\nInput",					"IRT_MDLR_KINECT_INPUT",			"Type:REGULAR, Size:32",
+    "System.Separator1",					"",						"Type:SEPARATOR, BGRGB:200 0 0, Size:70",
+    "System.Android\nInput",					"IRT_MDLR_ANDROID_HANDLER",			"Type:REGULAR, Size:32",
+    "System.Separator2",					"",						"Type:SEPARATOR, BGRGB:200 0 0, Size:70",
+    "System.NetCom",						"IRT_MDLR_NET_COM",				"Type:REGULAR, Size:32, FGRGB:0 0 100",
+    "System.Separator3",					"",						"Type:SEPARATOR, BGRGB:200 0 0, Size:70",
+    "System.Axes Icon",						"IRT_MDLR_AXES_ICON",				"Type:REGULAR, Size:32",
+    "System.Separator4",					"",						"Type:SEPARATOR, BGRGB:200 0 0, Size:70",
+    "System.GuIrit\nTesting",					"IRT_DSP_SYSTEM_TESTING_EXEC",			"Type:REGULAR, Size:32",
+
+    ;
+    ; HELP
+    ;
+    "Help",							"",						"Type:TAB",
+    "Help.Show built-in\nfuncs",				"IRT_DSP_HELP_SHOW_BUILTIN_FUNCS",		"Type:REGULAR, BGRGB:225 200 225, Size:32",
+    "Help.Show modeler\nfuncs",					"IRT_DSP_HELP_SHOW_MODELER_FUNCS",		"Type:REGULAR, Size:32",
+    "Help.Show key/mouse\nbindings",				"IRT_DSP_HELP_SHOW_BINDING",			"Type:REGULAR, BGRGB:225 200 225, Size:32",
+    "Help.Separator1",						"",						"Type:SEPARATOR, BGRGB:200 0 0, Size:70",
+    "Help.DLL Example\nBeep",					"IRT_MDLR_EXAMPLE_BEEP",			"Type:REGULAR, Size:32",
+    "Help.DLL Example\nOff Screen Render",			"IRT_MDLR_EXAMPLE_OFFSCRN_RNDR",		"Type:REGULAR, Size:32",
+    "Help.Separator2",						"",						"Type:SEPARATOR, BGRGB:200 0 0, Size:70",
+    "Help.GuIrit\nHome Page",					"IRT_DSP_HELP_GUIRIT_HOMEPAGE",			"Type:REGULAR, Size:32",
+    "Help.About",						"IRT_DSP_HELP_ABOUT",				"Type:REGULAR, BGRGB:225 200 225, Size:32"
+}
+
+; User defined toolbars' specification - See the GuIritConfigHelp.doc. 
+;
+ToolBarsBinding {	
+	"TOOLBAR Windows",				"BGRGB:210 210 235, Size:32, Layout:V",
+	"IRT_DSP_VIEW_WINDOW_ONE",			"",
+	"IRT_DSP_VIEW_WINDOW_TWO_HORIZONTAL",		"",
+	"IRT_DSP_VIEW_WINDOW_TWO_VERTICAL",		"",
+	"IRT_DSP_VIEW_WINDOW_FOUR",			"",
+
+	"TOOLBAR Views",				"BGRGB:210 210 235, Size:32, Layout:V",
+	"IRT_DSP_VIEW_FRONT",				"",
+	"IRT_DSP_VIEW_BACK",				"",
+	"IRT_DSP_VIEW_LEFT",				"",
+	"IRT_DSP_VIEW_RIGHT",				"",
+	"IRT_DSP_VIEW_UP",				"",
+	"IRT_DSP_VIEW_DOWN",				"",
+	"IRT_DSP_VIEW_ISOMETRIC",			"",
+	"IRT_DSP_VIEW_ORTHOGRAPHIC",			"",
+	"IRT_DSP_VIEW_PERSPECTIVE",			"",
+
+	"TOOLBAR Panels",				"Size:32, Layout:V",
+	"IRT_DSP_ANIMATION_PANEL",			"",
+	"IRT_DSP_AXES_PANEL",				"",
+	"IRT_DSP_CONFIG_PANEL",				"",
+	"IRT_DSP_GRID_SHADOWS_PANEL",			"",
+	"IRT_DSP_MOUSE_SENS_PANEL",			"",
+	"IRT_DSP_WINDOW_OGL_PANEL",			"",
+	"IRT_DSP_DEF_VAL_OBJ_OGL_PANEL",		"",
+	"IRT_DSP_DEPENDENCY_GRAPH_PANEL",		"",
+	
+	"TOOLBAR RecentlyUsedIcons",			"BGRGB:135 140 250, Size:32, Layout:V",
+}	
+	
+;
+; User defined icons' specification - See the GuIritConfigHelp.doc. 
+;
+IconBinding {
+	"IRT_DSP_HELP_SHOW_BUILTIN_FUNCS",	"IconHelpBuiltInFuncs.xpm",
+	"IRT_DSP_HELP_SHOW_MODELER_FUNCS",	"IconHelpModelerFuncs.xpm",
+	"IRT_DSP_HELP_SHOW_BINDING",		"IconHelpBinding.xpm",
+	"IRT_DSP_HELP_GUIRIT_HOMEPAGE",		"IconHelpHome.xpm",
+
+	"IRT_DSP_LOAD_GEOM_FILE",		"IconDataLoad.xpm",
+	"IRT_DSP_LOAD_GEOM_FILE_TO_NEW_SCENE",	"IconDataLoadNewScene.xpm",
+;	"IRT_DSP_SAVE_GEOM_FILE",		"IconDataSave.xpm",
+	"IRT_DSP_BACKUP_GEOM_LAST_SAVE",	"IconDataBackupSave.xpm",
+	"IRT_DSP_SAVE_CRNT_SCENE_FILE_AS",	"IconDataSaveCrntScene.xpm",
+	"IRT_DSP_SAVE_ALL_SCENES_FILE_AS",	"IconDataSaveAllScenes.xpm",
+
+	"IRT_DSP_LOAD_MATRIX",			"IconDataLoadMatrix.xpm",
+	"IRT_DSP_SAVE_MATRIX",			"IconDataSaveMatrix.xpm",
+	"IRT_DSP_SAVE_MATRIX_AS",		"IconDataSaveMatrixAs.xpm",
+	"IRT_DSP_SAVE_CRNT_WINDOW_AS_IMAGE",	"IconSaveImage.xpm",
+;	"IRT_DSP_NEW_SCRIPT_FILE",		"IconNewScriptFile.xpm",
+;	"IRT_DSP_LOAD_SCRIPT_FILE",		"IconLoadScriptFile.xpm",
+;	"IRT_DSP_SAVE_SCRIPT_FILE",		"IconSaveScriptFile.xpm",
+;	"IRT_DSP_SAVE_SCRIPT_FILE_AS",		"IconSaveScriptFileAs.xpm",
+	"IRT_DSP_PRINT_CRNT_WINDOW",		"IconPrintImage.xpm",
+	"IRT_DSP_SAVE_CONFIGURATION",		"IconSaveConfiguration.xpm",
+	"IRT_DSP_NEW_SCENE",			"IconNewScene.xpm",
+	"IRT_DSP_EXIT",				"IconGuIritExit.xpm",
+	"IRT_DSP_VIEW_WINDOW_ONE",		"IconWindowsOne.xpm",
+	"IRT_DSP_VIEW_WINDOW_TWO_HORIZONTAL",	"IconWindowsTwoHor.xpm",
+	"IRT_DSP_VIEW_WINDOW_TWO_VERTICAL",	"IconWindowsTwoVer.xpm",
+	"IRT_DSP_VIEW_WINDOW_FOUR",		"IconWindowsFour.xpm",
+	"IRT_DSP_VIEW_FRONT",			"IconViewFront.xpm",
+	"IRT_DSP_VIEW_BACK",			"IconViewBack.xpm",
+	"IRT_DSP_VIEW_LEFT",			"IconViewLeft.xpm",
+	"IRT_DSP_VIEW_RIGHT",			"IconViewRight.xpm",
+	"IRT_DSP_VIEW_UP",			"IconViewUp.xpm",
+	"IRT_DSP_VIEW_DOWN",			"IconViewDown.xpm",
+	"IRT_DSP_VIEW_ISOMETRIC",		"IconViewIsometry.xpm",
+	"IRT_DSP_VIEW_ORTHOGRAPHIC",		"IconViewOrthographic.xpm",
+	"IRT_DSP_VIEW_PERSPECTIVE",		"IconViewPerspective.xpm",
+	"IRT_DSP_VIEW_WINDOW_FULLSCREEN",	"IconGuiritFullScreen.xpm",
+	"IRT_DSP_VIEW_NEXT_IMMED",		"IconViewNext.xpm",
+	"IRT_DSP_VIEW_PREV_IMMED",		"IconViewPrev.xpm"
+	"IRT_DSP_VIEW_NEXT_DELAY",		"IconViewNext.xpm",
+	"IRT_DSP_VIEW_PREV_DELAY",		"IconViewPrev.xpm"
+	"IRT_DSP_VIEW_LAST_DELAY",		"IconViewPrev.xpm",
+	"IRT_DSP_VIEW_LAST_IMMED",		"IconViewPrev.xpm"
+	"IRT_DSP_NEW_CAMERA_CRNT_VIEW",		"IconGenSaveCameraView.xpm"
+	"IRT_DSP_ANIMATION_PANEL",		"IconPanelAnimation.xpm",
+	"IRT_DSP_AXES_PANEL",			"IconPanelAxes.xpm",
+	"IRT_DSP_CONFIG_PANEL",			"IconPanelConfiguration.xpm",
+	"IRT_DSP_GRID_SHADOWS_PANEL",		"IconPanelGridShadow.xpm",
+	"IRT_DSP_MOUSE_SENS_PANEL",		"IconPanelMouseSens.xpm",
+	"IRT_DSP_WINDOW_OGL_PANEL",		"IconPanelOGLWin.xpm",
+	"IRT_DSP_DEF_VAL_OBJ_OGL_PANEL",	"IconPanelOGLObj.xpm",
+	"IRT_DSP_DEPENDENCY_GRAPH_PANEL",	"IconGenDependency.xpm",
+
+	"IRT_DSP_SYSTEM_TESTING_EXEC",		"IconGenTesting.xpm",
+
+	"IRT_MDLR_CRV_BEZIER",			"IconCrvBezierCrv.xpm",
+	"IRT_MDLR_CRV_BSPLINE",			"IconCrvBsplineCrv.xpm",
+	"IRT_MDLR_CRV_INTERPOL",		"IconCrvInterpolCrv.xpm"
+}
+
+; Gesture Binding help - See the GuIritConfigHelp.doc.
+;
+
+GestureBinding {
+	"RL",		"IRT_DSP_VIEW_FRONT",
+	"RU",		"IRT_DSP_VIEW_UP",
+	"RD",		"IRT_DSP_VIEW_RIGHT",
+
+	"LR",		"IRT_DSP_VIEW_WINDOW_ONE",
+	"LD",		"IRT_DSP_VIEW_WINDOW_TWO_HORIZONTAL",
+	"LU",		"IRT_DSP_VIEW_WINDOW_FOUR",
+
+	"UD",		"IRT_DSP_WINDOW_OGL_PANEL",
+	"UDU",		"IRT_DSP_DEF_VAL_OBJ_OGL_PANEL",
+	"UR",		"IRT_DSP_GRID_SHADOWS_PANEL",
+	"UL",		"IRT_DSP_CONFIG_PANEL",
+
+	"DU",		"IRT_MDLR_NET_COM",
+	"DR",		"IRT_DSP_LOAD_GEOM_FILE",
+	"DL",		"IRT_DSP_SAVE_CRNT_SCENE_FILE_AS"
+}
+
+; Curve constructors help - See the GuIritConfigHelp.doc.
+;
+
+CurveConstructors {
+	"IRT_MDLR_CRV_START_END_RAD_ARC",	"ARC",
+	"IRT_MDLR_CRV_CNTR_RAD_CIRCLE",		"CIRCLE",
+	"IRT_MDLR_CRV_HERMITE",			"HERMITE",
+	"IRT_MDLR_CRV_BEZIER",			"BEZIER",
+	"IRT_MDLR_CRV_BSPLINE",			"BSPLINE",
+	"IRT_MDLR_CRV_INTERPOL",		"INTERPOLATE",
+	"IRT_MDLR_CRV_SKTCH",			"SKETCH"
+}
+
+
+; Surface constructors help - See the GuIritConfigHelp.doc.
+;
+
+SurfaceConstructors {
+	"IRT_MDLR_SRF_PLANE",			"PLANE",
+	"IRT_MDLR_SRF_SPHERE",			"SPHERE",
+	"IRT_MDLR_SRF_CYLIN",			"CYLINDER",
+	"IRT_MDLR_SRF_CONE",			"CONE",
+	"IRT_MDLR_SRF_TCONE",			"TRUNCATED CONE",
+	"IRT_MDLR_SRF_TORUS",			"TORUS",
+
+	"IRT_MDLR_SRF_BILINEAR",		"BI-LINEAR",
+	"IRT_MDLR_SRF_EXTRUDE",			"EXTRUDE",
+	"IRT_MDLR_SRF_RULED",			"RULED",
+	"IRT_MDLR_SRF_SREV",			"SURF REV.",
+}
+
+;
+; GuIrit Testing setup - See the GuIritConfigHelp.doc.
+;
+
+GuIritTestingPath	"C:\irit\extra\guirit\Src\Testing\GuIritTesting"
+

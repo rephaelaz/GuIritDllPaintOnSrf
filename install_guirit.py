@@ -33,11 +33,5 @@ if __name__ == "__main__":
     for old, new in zip(guirit_exts, irit_exts):
         print(f'Copying {old} to {new}')
         copyfile(old, new)
-
-    example_data = 'C:\irit\extra\GuIrit\Src\GuIritDllExample\Example'
-    example_irit = 'C:\irit\irit\\ntbin\GuIritData\Auxiliary\Example'
-    if not os.path.exists(example_irit):
-        print(f'\nCopying {example_data} to {example_irit}\n')
-        copytree(example_data, example_irit)
     
     print('\nDONE')
