@@ -28,13 +28,11 @@ using std::swap;
 
 #define IRT_MDLR_POS_DFLT_WIDTH 256
 #define IRT_MDLR_POS_DFLT_HEIGHT 256
+#define IRT_MDLR_POS_EPSILON 10e-5
 #define IRT_MDLR_POS_DFLT_SIZE (IRT_MDLR_POS_DFLT_WIDTH) * \
                                   (IRT_MDLR_POS_DFLT_HEIGHT)
-
 #define IRT_MDLR_POS_DIST(a, b) (fabs((double)(a) - (double)(b)))
 
-#define EXP5 10e-5
-#define INPUT_DOMAIN 1000000
 
 #ifdef __WINNT__
 #define GUIRIT_DLL_PAINT_ON_SRF_FILE_RELATIVE_PATH "\\SandArt\\Masks"
@@ -49,11 +47,11 @@ struct SrfPaintShapeStruct {
 };
 
 struct SrfPaintTextureStruct {
+    bool Saved;
     int Width;
     int Height;
     int Alpha;
     IrtImgPixelStruct *Texture;
-	bool textureChangedAfterSave;
 };
 
 static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass* FI);
@@ -260,12 +258,12 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass* FI)
 
         if (!IrtMdlrPoSInitShapes(FI)) {
 	    GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_ERROR,
-				"Failed to initialized cursors.\n");
+		        "Failed to initialized cursors.\n");
 	    return;
 	}
 
-        GuIritMdlrDllSetIntInputDomain(FI, 1, INPUT_DOMAIN, IRT_MDLR_POS_WIDTH);
-        GuIritMdlrDllSetIntInputDomain(FI, 1, INPUT_DOMAIN, IRT_MDLR_POS_HEIGHT);
+        GuIritMdlrDllSetIntInputDomain(FI, 1, IRIT_MAX_INT, IRT_MDLR_POS_WIDTH);
+        GuIritMdlrDllSetIntInputDomain(FI, 1, IRIT_MAX_INT, IRT_MDLR_POS_HEIGHT);
         GuIritMdlrDllSetRealInputDomain(FI, 0, 255, IRT_MDLR_POS_ALPHA);
         GuIritMdlrDllSetRealInputDomain(FI, 0.01, 100, IRT_MDLR_POS_X_FACTOR);
         GuIritMdlrDllSetRealInputDomain(FI, 0.01, 100, IRT_MDLR_POS_Y_FACTOR);
@@ -274,7 +272,7 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass* FI)
         IrtMdlrPoSSurface = NULL;
 
         GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO,
-			    "Surface Painter initialized\n");
+		        "Surface Painter initialized\n");
     }
 	 
 	GuIritMdlrDllGetInputParameter(FI, IRT_MDLR_POS_SURFACE, &Surface);
@@ -288,9 +286,9 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass* FI)
 		if (Surface != NULL) {
 			SrfPaintTextureStruct
 	        *Texture = IrtMdlrPoSTextures[Surface];
-			if (Texture -> textureChangedAfterSave) {
-					GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO,
-				          "The last changes (of the current object) weren't saved before leaving the DLL\n");
+			if (Texture -> Saved) {
+				GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_WARNING,
+				        "Last changes on the current surface weren't saved.\n");
 			}
 		}
 	
@@ -303,18 +301,27 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass* FI)
     if (Surface != NULL && !TextureUpdate) {
         TextureUpdate = true;
         if (IrtMdlrPoSTextures.find(Surface) == IrtMdlrPoSTextures.end()) {
-	    int i;
+	        int i, j;
             IRT_DSP_STATIC_DATA IrtImgPixelStruct 
-                DefaultTexture[1][1] = {{{255, 255, 255}}};
+                DefaultTexture[4][4] = {0};
             SrfPaintTextureStruct
 	        *Texture = (SrfPaintTextureStruct *)
 			           IritMalloc(sizeof(SrfPaintTextureStruct));
             IrtDspOGLObjPropsClass *OGLProps;
             
+            if (DefaultTexture[0][0].r == 0) {
+                for (i = 0; i < 4; i++) {
+                    for (j = 0; j < 4; j++) {
+                        DefaultTexture[i][j].r = 255;
+                        DefaultTexture[i][j].g = 255;
+                        DefaultTexture[i][j].b = 255;
+                    }
+                }
+            }
             Texture -> Width = IRT_MDLR_POS_DFLT_WIDTH;
             Texture -> Height = IRT_MDLR_POS_DFLT_HEIGHT;
             Texture -> Alpha = 0;
-			Texture -> textureChangedAfterSave = true;
+			Texture -> Saved = true;
             Texture -> Texture = (IrtImgPixelStruct *) 
                 IritMalloc(sizeof(IrtImgPixelStruct) * IRT_MDLR_POS_DFLT_SIZE);
             for (i = 0; i < IRT_MDLR_POS_DFLT_SIZE; i++) {
@@ -326,7 +333,7 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass* FI)
 
             /* Apply dummy white texture. This ensure UV mapping is correct.*/
             GuIritMdlrDllSetTextureFromImage(FI, Surface, DefaultTexture, 
-					     1, 1, FALSE, IrtMdlrPoSSpan);
+					     4, 4, FALSE, IrtMdlrPoSSpan);
             
             /* Set Object color to white (default is red) */
             AttrIDSetObjectRGBColor(Surface, 255, 255, 255);
@@ -385,7 +392,7 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass* FI)
 
             Width++, Height++;
             Texture -> Alpha = Alpha;
-			Texture -> textureChangedAfterSave = true;
+			Texture -> Saved = true;
             GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO, 
 			 "Texture loaded successfully from \"%s\" (%dx%d)\n",
 				Filename, Width, Height);
@@ -445,7 +452,7 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass* FI)
                 GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO, 
 				    "Texture saved successfully to \"%s\"\n", 
 				    Filename);
-				Texture -> textureChangedAfterSave = false;
+				Texture -> Saved = false;
             }
         }
     }
@@ -466,7 +473,7 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass* FI)
 
             IrtMdlrPoSResizeTexture(FI, IRT_MDLR_POS_DFLT_WIDTH, 
 				    IRT_MDLR_POS_DFLT_HEIGHT, true);
-			Texture -> textureChangedAfterSave = true;
+			Texture -> Saved = true;
             TextureUpdate = true;
             GuIritMdlrDllSetInputParameter(FI, IRT_MDLR_POS_WIDTH, &Width);
             GuIritMdlrDllSetInputParameter(FI, IRT_MDLR_POS_HEIGHT, &Height);
@@ -526,7 +533,7 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass* FI)
             if (Res) {
                 IrtMdlrPoSResizeTexture(FI, IrtMdlrPoSTextureWidth, 
 					IrtMdlrPoSTextureHeight, true);
-                Texture -> textureChangedAfterSave = true;
+                Texture -> Saved = true;
                 GuIritMdlrDllSetTextureFromImage(FI, IrtMdlrPoSSurface, 
 						 Texture -> Texture, 
 						 Texture -> Width, 
@@ -558,8 +565,8 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass* FI)
     GuIritMdlrDllGetInputParameter(FI, IRT_MDLR_POS_Y_FACTOR, &TmpYFactor);
 
     if (IrtMdlrPoSShapesFiles != NULL &&
-	(IRT_MDLR_POS_DIST(TmpXFactor, IrtMdlrPoSXFactor) > EXP5 ||
-         IRT_MDLR_POS_DIST(TmpYFactor, IrtMdlrPoSYFactor) > EXP5)) {
+	(IRT_MDLR_POS_DIST(TmpXFactor, IrtMdlrPoSXFactor) > IRT_MDLR_POS_EPSILON ||
+         IRT_MDLR_POS_DIST(TmpYFactor, IrtMdlrPoSYFactor) > IRT_MDLR_POS_EPSILON)) {
         IrtMdlrPoSXFactor = TmpXFactor;
         IrtMdlrPoSYFactor = TmpYFactor;
         IrtMdlrPoSLoadShape(FI, IrtMdlrPoSShapesFiles[TmpIndex]);
@@ -584,16 +591,15 @@ static void IrtMdlrPoSResizeTexture(IrtMdlrFuncInfoClass* FI,
                         int Height,
                         bool Reset)
 {
-    int Width3 = Width + 3;         /* Make sure 32 bits words are aligned. */
     IrtImgPixelStruct
         *Texture = (IrtImgPixelStruct *) 
-		      IritMalloc(sizeof(IrtImgPixelStruct) * Width3 * Height);
+		      IritMalloc(sizeof(IrtImgPixelStruct) * Width * Height);
     IrtImgPixelStruct
         *TextureAlpha = (IrtImgPixelStruct *)
-		      IritMalloc(sizeof(IrtImgPixelStruct) * Width3 * Height);
+		      IritMalloc(sizeof(IrtImgPixelStruct) * Width * Height);
     IrtImgPixelStruct
         *TextureBuffer = (IrtImgPixelStruct *)
-		      IritMalloc(sizeof(IrtImgPixelStruct) * Width3 * Height);
+		      IritMalloc(sizeof(IrtImgPixelStruct) * Width * Height);
 
     if (Reset) {
         int x, y;
@@ -841,7 +847,7 @@ static void IrtMdlrPoSRenderShape(IrtMdlrFuncInfoClass* FI,
         YMin = (YOff - IrtMdlrPoSShape -> Height / 2);
     SrfPaintTextureStruct* 
         Texture = IrtMdlrPoSTextures[IrtMdlrPoSSurface];
-    Texture -> textureChangedAfterSave = true;
+    Texture -> Saved = true;
     /* Modulo needs positive values to work as intended */
     while (XMin < 0) {
         XMin += Texture -> Width;
