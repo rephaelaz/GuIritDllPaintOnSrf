@@ -584,8 +584,8 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass* FI)
         IrtMdlrPoSLoadShape(FI, IrtMdlrPoSShapesFiles[TmpIndex]);
     }
 
-    //GuIritMdlrDllGetInputParameter(FI, IRT_MDLR_POS_X_FACTOR, &XFactor);
-    //GuIritMdlrDllGetInputParameter(FI, IRT_MDLR_POS_Y_FACTOR, &YFactor);
+    GuIritMdlrDllGetInputParameter(FI, IRT_MDLR_POS_X_FACTOR, &XFactor);
+    GuIritMdlrDllGetInputParameter(FI, IRT_MDLR_POS_Y_FACTOR, &YFactor);
 
     if (IrtMdlrPoSShapesFiles != NULL && 
         (IRT_MDLR_POS_DIST(XFactor, IrtMdlrPoSShape.XFactor) > 
