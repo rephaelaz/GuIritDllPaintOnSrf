@@ -33,6 +33,9 @@ using std::swap;
 
 #define IRT_MDLR_POS_DIST(a, b) (fabs((double)(a) - (double)(b)))
 
+#define EXP5 10e-5
+#define INPUT_DOMAIN 1000000
+
 #ifdef __WINNT__
 #define GUIRIT_DLL_PAINT_ON_SRF_FILE_RELATIVE_PATH "\\SandArt\\Masks"
 #else
@@ -260,8 +263,8 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass* FI)
 	    return;
 	}
 
-        GuIritMdlrDllSetIntInputDomain(FI, 1, 1000000, IRT_MDLR_POS_WIDTH);
-        GuIritMdlrDllSetIntInputDomain(FI, 1, 1000000, IRT_MDLR_POS_HEIGHT);
+        GuIritMdlrDllSetIntInputDomain(FI, 1, INPUT_DOMAIN, IRT_MDLR_POS_WIDTH);
+        GuIritMdlrDllSetIntInputDomain(FI, 1, INPUT_DOMAIN, IRT_MDLR_POS_HEIGHT);
         GuIritMdlrDllSetRealInputDomain(FI, 0, 255, IRT_MDLR_POS_ALPHA);
         GuIritMdlrDllSetRealInputDomain(FI, 0.01, 100, IRT_MDLR_POS_X_FACTOR);
         GuIritMdlrDllSetRealInputDomain(FI, 0.01, 100, IRT_MDLR_POS_Y_FACTOR);
@@ -538,8 +541,8 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass* FI)
     GuIritMdlrDllGetInputParameter(FI, IRT_MDLR_POS_Y_FACTOR, &TmpYFactor);
 
     if (IrtMdlrPoSShapesFiles != NULL &&
-	(IRT_MDLR_POS_DIST(TmpXFactor, IrtMdlrPoSXFactor) > 10e-5 ||
-         IRT_MDLR_POS_DIST(TmpYFactor, IrtMdlrPoSYFactor) > 10e-5)) {
+	(IRT_MDLR_POS_DIST(TmpXFactor, IrtMdlrPoSXFactor) > EXP5 ||
+         IRT_MDLR_POS_DIST(TmpYFactor, IrtMdlrPoSYFactor) > EXP5)) {
         IrtMdlrPoSXFactor = TmpXFactor;
         IrtMdlrPoSYFactor = TmpYFactor;
         IrtMdlrPoSLoadShape(FI, IrtMdlrPoSShapesFiles[TmpIndex]);
