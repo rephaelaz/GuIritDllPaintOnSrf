@@ -40,13 +40,13 @@ using std::swap;
 #define GUIRIT_DLL_PAINT__ON_SRF_FILE_RELATIVE_PATH "/SandArt/Masks"
 #endif /* __WINNT__ */
 
-struct SrfPaintShapeStruct {
+struct IrtMdlrPoSShapeStruct {
     int Width;
     int Height;
     float *Shape;
 };
 
-struct SrfPaintTextureStruct {
+struct IrtMdlrPoSTextureStruct {
     bool Saved;
     int Width;
     int Height;
@@ -88,7 +88,7 @@ IRT_DSP_STATIC_DATA IrtImgPixelStruct
     *IrtMdlrPoSTextureAlpha,
     *IrtMdlrPoSTextureBuffer;
 
-IRT_DSP_STATIC_DATA map<IPObjectStruct *, SrfPaintTextureStruct *> 
+IRT_DSP_STATIC_DATA map<IPObjectStruct *, IrtMdlrPoSTextureStruct *> 
     IrtMdlrPoSTextures;
 
 IRT_DSP_STATIC_DATA char 
@@ -97,7 +97,7 @@ IRT_DSP_STATIC_DATA char
 IRT_DSP_STATIC_DATA const char 
     **IrtMdlrPoSShapesFiles = NULL;
 
-IRT_DSP_STATIC_DATA SrfPaintShapeStruct 
+IRT_DSP_STATIC_DATA IrtMdlrPoSShapeStruct 
     *IrtMdlrPoSShape;
 
 IRT_DSP_STATIC_DATA IPObjectStruct
@@ -286,13 +286,19 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass* FI)
         GlobalFI = NULL;
 
 		if (Surface != NULL) {
-			SrfPaintTextureStruct
-	        *Texture = IrtMdlrPoSTextures[Surface];
-			if (Texture -> Saved) {
-				GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_WARNING,
-				        "Some surfaces had changes that were not saved.\n" \
-                        "Thoses changes were discarded.\n");
-			}
+            bool Saved = true;
+            map<IPObjectStruct *, IrtMdlrPoSTextureStruct *>::iterator it;
+     
+
+            for (it = IrtMdlrPoSTextures.begin(); 
+                it != IrtMdlrPoSTextures.end();
+                it++) {
+                if (!it -> second -> Saved) {
+                    GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_WARNING,
+                        "Surface %s had changes that were not saved.\n",
+                        it -> first -> ObjName);
+                }
+            }
 		}
 	
         GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO,
@@ -307,9 +313,9 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass* FI)
 	        int i, j;
             IRT_DSP_STATIC_DATA IrtImgPixelStruct 
                 DefaultTexture[4][4] = {0};
-            SrfPaintTextureStruct
-	        *Texture = (SrfPaintTextureStruct *)
-			           IritMalloc(sizeof(SrfPaintTextureStruct));
+            IrtMdlrPoSTextureStruct
+	        *Texture = (IrtMdlrPoSTextureStruct *)
+			           IritMalloc(sizeof(IrtMdlrPoSTextureStruct));
             IrtDspOGLObjPropsClass *OGLProps;
             
             if (DefaultTexture[0][0].r == 0) {
@@ -354,7 +360,7 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass* FI)
         }
         if (Surface != IrtMdlrPoSSurface) {
 	    int i;
-            SrfPaintTextureStruct
+            IrtMdlrPoSTextureStruct
 	        *Texture = IrtMdlrPoSTextures[Surface];
 
             GuIritMdlrDllSetInputParameter(FI, IRT_MDLR_POS_WIDTH, 
@@ -388,7 +394,7 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass* FI)
         if (Res) {
 	    int Width, Height, i,
                 Alpha = 0;
-            SrfPaintTextureStruct
+            IrtMdlrPoSTextureStruct
 	        *Texture = IrtMdlrPoSTextures[Surface];
             IrtImgPixelStruct
 	        *Image = IrtImgReadImage2(Filename, &Width, &Height, &Alpha);
@@ -432,7 +438,7 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass* FI)
 						     "Save Texture to....", 
 						     "*.png", &Filename);
         if (Res) {
-            SrfPaintTextureStruct
+            IrtMdlrPoSTextureStruct
 	        *Texture = IrtMdlrPoSTextures[Surface];
             MiscWriteGenInfoStructPtr
 	        GI = IrtImgWriteOpenFile(NULL, Filename, IRIT_IMAGE_PNG_TYPE, 
@@ -471,7 +477,7 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass* FI)
         if (Res) {
             int Width = IRT_MDLR_POS_DFLT_WIDTH, 
                 Height = IRT_MDLR_POS_DFLT_HEIGHT;
-            SrfPaintTextureStruct
+            IrtMdlrPoSTextureStruct
 	        *Texture = IrtMdlrPoSTextures[Surface];
 
             IrtMdlrPoSResizeTexture(FI, IRT_MDLR_POS_DFLT_WIDTH, 
@@ -510,7 +516,7 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass* FI)
     GuIritMdlrDllGetInputParameter(FI, IRT_MDLR_POS_HEIGHT, 
 				   &IrtMdlrPoSTextureHeight);
     if (IrtMdlrPoSSurface != NULL) {
-        SrfPaintTextureStruct
+        IrtMdlrPoSTextureStruct
 	    *Texture = IrtMdlrPoSTextures[Surface];
 
         if ((Texture -> Width != IrtMdlrPoSTextureWidth ||
@@ -736,8 +742,8 @@ static void IrtMdlrPoSLoadShape(IrtMdlrFuncInfoClass *FI,
         IritFree(IrtMdlrPoSShape -> Shape);
     }
     else {
-        IrtMdlrPoSShape = (SrfPaintShapeStruct *)
-			            IritMalloc(sizeof(SrfPaintShapeStruct));
+        IrtMdlrPoSShape = (IrtMdlrPoSShapeStruct *)
+			            IritMalloc(sizeof(IrtMdlrPoSShapeStruct));
         ShapeInit = true;
     }
 
@@ -848,7 +854,7 @@ static void IrtMdlrPoSRenderShape(IrtMdlrFuncInfoClass* FI,
     int u, v,
         XMin = XOff - IrtMdlrPoSShape -> Width / 2,
         YMin = (YOff - IrtMdlrPoSShape -> Height / 2);
-    SrfPaintTextureStruct* 
+    IrtMdlrPoSTextureStruct* 
         Texture = IrtMdlrPoSTextures[IrtMdlrPoSSurface];
     /* Modulo needs positive values to work as intended */
     while (XMin < 0) {
@@ -933,7 +939,7 @@ static int IrtMdlrPoSMouseCallBack(IrtMdlrMouseEventStruct* MouseEvent)
 		Clicking = FALSE;
 		if (IrtMdlrPoSSurface != NULL) {
 		    int x, y;
-		    SrfPaintTextureStruct
+		    IrtMdlrPoSTextureStruct
 		        *Texture = IrtMdlrPoSTextures[IrtMdlrPoSSurface];
 
 		    for (y = 0; y < Texture -> Height; y++) {
@@ -960,7 +966,7 @@ static int IrtMdlrPoSMouseCallBack(IrtMdlrMouseEventStruct* MouseEvent)
 	    PObj != NULL &&
             IP_IS_SRF_OBJ(PObj) &&
 	    PObj == IrtMdlrPoSSurface) {
-            SrfPaintTextureStruct 
+            IrtMdlrPoSTextureStruct 
                 *Texture = IrtMdlrPoSTextures[IrtMdlrPoSSurface];
             int XOff = (int) ((double) Texture -> Width *
 			                               MouseEvent -> UV[0]),
