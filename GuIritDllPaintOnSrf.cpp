@@ -318,6 +318,7 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass* FI)
             IrtMdlrPoSTextures.erase(LastSurface);
             LastSurface = NULL;
             IritFree(LastSurfaceName);
+            IrtMdlrPoSSurface = NULL;
         }
     }
     else {
