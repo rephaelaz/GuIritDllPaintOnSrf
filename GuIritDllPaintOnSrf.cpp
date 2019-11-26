@@ -238,6 +238,10 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass* FI)
         ShapeIndex = -1;
     IRT_DSP_STATIC_DATA IrtMdlrFuncInfoClass
         *GlobalFI = NULL;
+    IRT_DSP_STATIC_DATA char
+        *LastSurfaceName = NULL;
+    IRT_DSP_STATIC_DATA IPObjectStruct
+        *LastSurface = NULL;
     int TmpIndex;
     IrtRType TmpXFactor, TmpYFactor;
     char
@@ -273,39 +277,63 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass* FI)
         IrtMdlrPoSTextures.clear();
         IrtMdlrPoSSurface = NULL;
 
+        if (LastSurface != NULL) {
+            IritFree(LastSurfaceName);
+            LastSurface = NULL;
+            LastSurfaceName = NULL;
+        }
+
         GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO,
 		        "Surface Painter initialized\n");
     }
-	 
-	GuIritMdlrDllGetInputParameter(FI, IRT_MDLR_POS_SURFACE, &Surface);
 
     if (GlobalFI != NULL &&
 	(FI -> CnstrctState == IRT_MDLR_CNSTRCT_STATE_OK ||
 	 FI -> CnstrctState == IRT_MDLR_CNSTRCT_STATE_CANCEL)) {
+        bool Saved = true;
+        map<IPObjectStruct *, IrtMdlrPoSTextureStruct *>::iterator it;
+
         GuIritMdlrDllPopMouseEventFunc(FI);
         GlobalFI = NULL;
-
-		if (Surface != NULL) {
-            bool Saved = true;
-            map<IPObjectStruct *, IrtMdlrPoSTextureStruct *>::iterator it;
-     
-
-            for (it = IrtMdlrPoSTextures.begin(); 
-                it != IrtMdlrPoSTextures.end();
-                it++) {
-                if (!it -> second -> Saved) {
-                    GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_WARNING,
-                        "Surface %s had changes that were not saved.\n",
-                        it -> first -> ObjName);
-                }
+        for (it = IrtMdlrPoSTextures.begin(); 
+            it != IrtMdlrPoSTextures.end();
+            it++) {
+            if (!it -> second -> Saved) {
+                GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_WARNING,
+                    "Surface %s had changes that were not saved.\n",
+                    it -> first -> ObjName);
             }
-		}
-	
+        }
+
         GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO,
 			    "Surface Painter unloaded\n");
         return;
     }
 
+    GuIritMdlrDllGetInputParameter(FI, IRT_MDLR_POS_SURFACE, &Surface);
+
+    if (Surface == NULL) {
+        if (LastSurface != NULL) {
+            IritFree(IrtMdlrPoSTextures[LastSurface] -> Texture);
+            IrtMdlrPoSTextures.erase(LastSurface);
+            LastSurface = NULL;
+            IritFree(LastSurfaceName);
+        }
+    }
+    else {
+        if (LastSurface != NULL && LastSurface != Surface
+            && strcmp(LastSurfaceName, Surface -> ObjName) == 0) {
+            IritFree(IrtMdlrPoSTextures[LastSurface] -> Texture);
+            IrtMdlrPoSTextures.erase(LastSurface);
+        }
+        LastSurface = Surface;
+        if (LastSurfaceName != NULL) {
+            IritFree(LastSurfaceName);
+        }
+        LastSurfaceName = (char *) IritMalloc(strlen(Surface -> ObjName) + 1);
+        strcpy(LastSurfaceName, Surface -> ObjName);
+        
+    }
     
     if (Surface != NULL && !TextureUpdate) {
         TextureUpdate = true;
