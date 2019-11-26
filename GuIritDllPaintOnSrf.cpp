@@ -407,7 +407,7 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass* FI)
 						     "*.png", &Filename);
 
         if (Res) {
-	    int Width, Height, i,
+	    int Width, Height,
                 Alpha = 0;
             IrtMdlrPoSTextureStruct
 	        *Texture = IrtMdlrPoSTextures[Surface];
@@ -421,10 +421,17 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass* FI)
 			 "Texture loaded successfully from \"%s\" (%dx%d)\n",
 				Filename, Width, Height);
             IrtMdlrPoSResizeTexture(FI, Width, Height, false);
-            for (i = 0; i < Width * Height; i++) {
-                Texture -> Texture[i] = Image[i];
-                IrtMdlrPoSTextureAlpha[i] = Image[i];
-                IrtMdlrPoSTextureBuffer[i] = Image[i];
+
+			int offsetW = 0;
+			if (Width%4 != 0) {
+				offsetW = 4-Width%4;
+			}
+            for (int h = 0; h <  Height; h++) {
+				for (int w = 0; w < Width; w++) {
+					Texture -> Texture[h*Width+w+(h*offsetW)] = Image[h*Width+w];
+					IrtMdlrPoSTextureAlpha[h*Width+w+(h*offsetW)] = Image[h*Width+w];
+					IrtMdlrPoSTextureBuffer[h*Width+w+(h*offsetW)] = Image[h*Width+w];
+				}
             }
 
             GuIritMdlrDllSetTextureFromImage(FI, 
@@ -528,6 +535,18 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass* FI)
 
     GuIritMdlrDllGetInputParameter(FI, IRT_MDLR_POS_WIDTH, &TextureWidth);
     GuIritMdlrDllGetInputParameter(FI, IRT_MDLR_POS_HEIGHT, &TextureHeight);
+	int oldWidth = TextureWidth;
+	int oldHeight = TextureHeight;
+	if (TextureHeight%4 != 0) {
+		TextureHeight -= TextureHeight%4;
+		TextureHeight += 4;
+		
+	}
+	if (TextureWidth%4 != 0) {
+		TextureWidth -= TextureWidth%4;
+		TextureWidth += 4;
+	}
+
     if (IrtMdlrPoSSurface != NULL) {
         IrtMdlrPoSTextureStruct
 	    *Texture = IrtMdlrPoSTextures[Surface];
@@ -553,6 +572,12 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass* FI)
                 }
             }
             if (Res) {
+				if (oldHeight != TextureHeight) {
+					GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO, "Invalid Height (not a multiple of 4), changed to %d\n", TextureHeight);
+				}
+				if (oldWidth != TextureWidth) {
+					GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO, "Invalid Width (not a multiple of 4), changed to %d\n", TextureWidth);
+				}
                 IrtMdlrPoSResizeTexture(FI, TextureWidth, 
 					TextureHeight, true);
                 Texture -> Saved = false;
@@ -616,6 +641,17 @@ static void IrtMdlrPoSResizeTexture(IrtMdlrFuncInfoClass* FI,
                         int Height,
                         bool Reset)
 {
+	if (Height%4 != 0) {
+		Height -= Height%4;
+		Height += 4;
+		GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO, "Invalid Height (not a multiple of 4), changed to %d\n", Height);
+	}
+	if (Width%4 != 0) {
+		Width -= Width%4;
+		Width += 4;
+		GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO, "Invalid Width (not a multiple of 4), changed to %d\n", Width);
+	}
+
     IrtImgPixelStruct
         *Texture = (IrtImgPixelStruct *) 
 		      IritMalloc(sizeof(IrtImgPixelStruct) * Width * Height);
