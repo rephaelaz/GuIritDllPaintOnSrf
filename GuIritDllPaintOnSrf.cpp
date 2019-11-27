@@ -48,7 +48,7 @@ struct IrtMdlrPoSShapeStruct {
 };
 
 struct IrtMdlrPoSTextureStruct {
-    bool Saved;
+    bool Saved, popupTextureResize;
     int Width, Height, Alpha;
     IrtImgPixelStruct *Texture;
 };
@@ -346,6 +346,7 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass* FI)
             Texture -> Height = IRT_MDLR_POS_DFLT_HEIGHT;
             Texture -> Alpha = 0;
 			Texture -> Saved = false;
+			Texture -> popupTextureResize = false;
             Texture -> Texture = (IrtImgPixelStruct *) 
                 IritMalloc(sizeof(IrtImgPixelStruct) * IRT_MDLR_POS_DFLT_SIZE);
             for (i = 0; i < IRT_MDLR_POS_DFLT_SIZE; i++) {
@@ -417,6 +418,7 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass* FI)
             Width++, Height++;
             Texture -> Alpha = Alpha;
 			Texture -> Saved = false;
+			Texture -> popupTextureResize = false;
             GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO, 
 			 "Texture loaded successfully from \"%s\" (%dx%d)\n",
 				Filename, Width, Height);
@@ -559,15 +561,12 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass* FI)
 
             PanelUpdate = true;
             if (TextureInit) {
-                IRT_DSP_STATIC_DATA bool
-		    TimerInit = false;
-
-                if (!TimerInit) {
+                if (!Texture -> popupTextureResize) {
                     Res = GuIritMdlrDllGetAsyncInputConfirm(FI, "", 
                         "This will reset the texture.\n" \
                         "Are you sure you want to resize the texture ?");
                     if (Res) {
-                        TimerInit = true;
+                        Texture -> popupTextureResize = true;
                     }
                 }
             }
