@@ -1,9 +1,9 @@
 /******************************************************************************
-* GuiIritDllPaintOnSrf.cpp - painting textures over surfaces.		      *
+* GuiIritDllPaintOnSrf.cpp - painting textures over surfaces.		          *
 *******************************************************************************
 * (C) Gershon Elber, Technion, Israel Institute of Technology                 *
 *******************************************************************************
-* Written by Ilan Coronel and Raphael Azoulay, April 2019.		     *
+* Written by Ilan Coronel and Raphael Azoulay, 2019.		                  *
 ******************************************************************************/
 
 #include <ctype.h>
@@ -41,14 +41,16 @@ using std::swap;
 #endif /* __WINNT__ */
 
 struct IrtMdlrPoSShapeStruct {
-    int Width, Height;
+    int Width, Height, Index;
     IrtRType Alpha, XFactor, YFactor;
     unsigned char Color[3];
+    char Names[IRIT_LINE_LEN_XLONG];
+    const char **Files;
     float *Shape;
 };
 
 struct IrtMdlrPoSTextureStruct {
-    bool Saved, popupTextureResize;
+    bool Saved, Resize;
     int Width, Height, Alpha;
     IrtImgPixelStruct *Texture;
 };
@@ -76,14 +78,8 @@ IRT_DSP_STATIC_DATA IrtImgPixelStruct
 IRT_DSP_STATIC_DATA map<IPObjectStruct *, IrtMdlrPoSTextureStruct *> 
     IrtMdlrPoSTextures;
 
-IRT_DSP_STATIC_DATA char 
-    IrtMdlrPoSShapesNames[IRIT_LINE_LEN_XLONG];
-
-IRT_DSP_STATIC_DATA const char 
-    **IrtMdlrPoSShapesFiles = NULL;
-
 IRT_DSP_STATIC_DATA IrtMdlrPoSShapeStruct 
-    IrtMdlrPoSShape = {0, 0, 255, 1, 1, {0, 0, 0}, NULL};
+    IrtMdlrPoSShape = {0, 0, -1, 255, 1, 1, {0, 0, 0}, "", NULL, NULL};
 
 IRT_DSP_STATIC_DATA IPObjectStruct
     *IrtMdlrPoSSurface = NULL;
@@ -145,7 +141,7 @@ IRT_DSP_STATIC_DATA IrtMdlrFuncTableStruct SrfPainterFunctionTable[] =
             NULL,
             NULL,
             &IrtMdlrPoSShape.Alpha,
-            IrtMdlrPoSShapesNames,
+            IrtMdlrPoSShape.Names,
             &IrtMdlrPoSShape.XFactor,
             &IrtMdlrPoSShape.YFactor,
         },
@@ -217,21 +213,19 @@ extern "C" bool _IrtMdlrDllRegister(void)
 static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass* FI)
 {
     IRT_DSP_STATIC_DATA bool 
-        PanelUpdate = false, 
-        TextureInit = false;
-    IRT_DSP_STATIC_DATA int 
-        ShapeIndex = -1;
+        PanelUpdate = false;
     IRT_DSP_STATIC_DATA IrtMdlrFuncInfoClass
         *GlobalFI = NULL;
     IRT_DSP_STATIC_DATA char
         *LastSurfaceName = NULL;
     IRT_DSP_STATIC_DATA IPObjectStruct
         *LastSurface = NULL;
-    int TmpIndex, TextureWidth, TextureHeight;
-    IrtRType XFactor = 1, YFactor = 1;
+    int ShapeIndex, TextureWidth, TextureHeight, PrevWidth, PrevHeight;
+    IrtRType XFactor = 1, 
+        YFactor = 1;
     IrtRType Span[2] = {1.0, 1.0};
     char
-        *TmpPtr = IrtMdlrPoSShapesNames;
+        *TmpPtr = IrtMdlrPoSShape.Names;
     IPObjectStruct
         *Surface = NULL;
     
@@ -326,27 +320,25 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass* FI)
         PanelUpdate = true;
         if (IrtMdlrPoSTextures.find(Surface) == IrtMdlrPoSTextures.end()) {
 	        int i, j;
-            IRT_DSP_STATIC_DATA IrtImgPixelStruct 
-                DefaultTexture[4][4] = {0};
+            IrtImgPixelStruct DefaultTexture[4][4];
             IrtMdlrPoSTextureStruct
-	        *Texture = (IrtMdlrPoSTextureStruct *)
-			           IritMalloc(sizeof(IrtMdlrPoSTextureStruct));
+	            *Texture = (IrtMdlrPoSTextureStruct *)
+                    IritMalloc(sizeof(IrtMdlrPoSTextureStruct));
             IrtDspOGLObjPropsClass *OGLProps;
             
-            if (DefaultTexture[0][0].r == 0) {
-                for (i = 0; i < 4; i++) {
-                    for (j = 0; j < 4; j++) {
-                        DefaultTexture[i][j].r = 255;
-                        DefaultTexture[i][j].g = 255;
-                        DefaultTexture[i][j].b = 255;
-                    }
+            for (i = 0; i < 4; i++) {
+                for (j = 0; j < 4; j++) {
+                    DefaultTexture[i][j].r = 255;
+                    DefaultTexture[i][j].g = 255;
+                    DefaultTexture[i][j].b = 255;
                 }
             }
+
             Texture -> Width = IRT_MDLR_POS_DFLT_WIDTH;
             Texture -> Height = IRT_MDLR_POS_DFLT_HEIGHT;
             Texture -> Alpha = 0;
 			Texture -> Saved = false;
-			Texture -> popupTextureResize = false;
+			Texture -> Resize = false;
             Texture -> Texture = (IrtImgPixelStruct *) 
                 IritMalloc(sizeof(IrtImgPixelStruct) * IRT_MDLR_POS_DFLT_SIZE);
             for (i = 0; i < IRT_MDLR_POS_DFLT_SIZE; i++) {
@@ -392,7 +384,6 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass* FI)
                 IrtMdlrPoSTextureAlpha[i] = Texture -> Texture[i];
                 IrtMdlrPoSTextureBuffer[i] = Texture -> Texture[i];
             }
-            TextureInit = true;
         }
         PanelUpdate = false;
     }
@@ -418,7 +409,7 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass* FI)
             Width++, Height++;
             Texture -> Alpha = Alpha;
 			Texture -> Saved = false;
-			Texture -> popupTextureResize = false;
+			Texture -> Resize = false;
             GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO, 
 			 "Texture loaded successfully from \"%s\" (%dx%d)\n",
 				Filename, Width, Height);
@@ -537,8 +528,8 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass* FI)
 
     GuIritMdlrDllGetInputParameter(FI, IRT_MDLR_POS_WIDTH, &TextureWidth);
     GuIritMdlrDllGetInputParameter(FI, IRT_MDLR_POS_HEIGHT, &TextureHeight);
-	int oldWidth = TextureWidth;
-	int oldHeight = TextureHeight;
+	PrevWidth = TextureWidth;
+	PrevHeight = TextureHeight;
 	if (TextureHeight%4 != 0) {
 		TextureHeight -= TextureHeight%4;
 		TextureHeight += 4;
@@ -560,22 +551,25 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass* FI)
 	        Res = true;
 
             PanelUpdate = true;
-            if (TextureInit) {
-                if (!Texture -> popupTextureResize) {
-                    Res = GuIritMdlrDllGetAsyncInputConfirm(FI, "", 
-                        "This will reset the texture.\n" \
-                        "Are you sure you want to resize the texture ?");
-                    if (Res) {
-                        Texture -> popupTextureResize = true;
-                    }
+            if (!Texture -> Resize) {
+                Res = GuIritMdlrDllGetAsyncInputConfirm(FI, "", 
+                    "This will reset the texture.\n" \
+                    "Are you sure you want to resize the texture ?");
+                if (Res) {
+                    Texture -> Resize = true;
                 }
             }
+
             if (Res) {
-				if (oldHeight != TextureHeight) {
-					GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO, "Invalid Height (not a multiple of 4), changed to %d\n", TextureHeight);
+				if (PrevHeight != TextureHeight) {
+					GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_WARNING, 
+                        "Invalid Height (not a multiple of 4), changed to %d\n", 
+                        TextureHeight);
 				}
-				if (oldWidth != TextureWidth) {
-					GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO, "Invalid Width (not a multiple of 4), changed to %d\n", TextureWidth);
+				if (PrevWidth != TextureWidth) {
+					GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_WARNING,
+                        "Invalid Width (not a multiple of 4), changed to %d\n", 
+                        TextureWidth);
 				}
                 IrtMdlrPoSResizeTexture(FI, TextureWidth, 
 					TextureHeight, true);
@@ -602,23 +596,23 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass* FI)
     /* Brush fields. */
     GuIritMdlrDllGetInputParameter(FI, IRT_MDLR_POS_ALPHA, 
         &IrtMdlrPoSShape.Alpha);
-    GuIritMdlrDllGetInputParameter(FI, IRT_MDLR_POS_SHAPE, &TmpIndex, &TmpPtr);
-    if (TmpIndex != ShapeIndex && IrtMdlrPoSShapesFiles != NULL) {
-        ShapeIndex = TmpIndex;
-        IrtMdlrPoSLoadShape(FI, IrtMdlrPoSShapesFiles[TmpIndex]);
+    GuIritMdlrDllGetInputParameter(FI, IRT_MDLR_POS_SHAPE, &ShapeIndex, &TmpPtr);
+    if (ShapeIndex != IrtMdlrPoSShape.Index && IrtMdlrPoSShape.Files != NULL) {
+        IrtMdlrPoSShape.Index = ShapeIndex;
+        IrtMdlrPoSLoadShape(FI, IrtMdlrPoSShape.Files[ShapeIndex]);
     }
 
     GuIritMdlrDllGetInputParameter(FI, IRT_MDLR_POS_X_FACTOR, &XFactor);
     GuIritMdlrDllGetInputParameter(FI, IRT_MDLR_POS_Y_FACTOR, &YFactor);
 
-    if (IrtMdlrPoSShapesFiles != NULL && 
+    if (IrtMdlrPoSShape.Files != NULL && 
         (IRT_MDLR_POS_DIST(XFactor, IrtMdlrPoSShape.XFactor) > 
         IRT_MDLR_POS_EPSILON ||
         IRT_MDLR_POS_DIST(YFactor, IrtMdlrPoSShape.YFactor) > 
         IRT_MDLR_POS_EPSILON)) {
         IrtMdlrPoSShape.XFactor = XFactor;
         IrtMdlrPoSShape.YFactor = YFactor;
-        IrtMdlrPoSLoadShape(FI, IrtMdlrPoSShapesFiles[TmpIndex]);
+        IrtMdlrPoSLoadShape(FI, IrtMdlrPoSShape.Files[ShapeIndex]);
     }
 }
 
@@ -640,17 +634,6 @@ static void IrtMdlrPoSResizeTexture(IrtMdlrFuncInfoClass* FI,
                         int Height,
                         bool Reset)
 {
-	if (Height%4 != 0) {
-		Height -= Height%4;
-		Height += 4;
-		GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO, "Invalid Height (not a multiple of 4), changed to %d\n", Height);
-	}
-	if (Width%4 != 0) {
-		Width -= Width%4;
-		Width += 4;
-		GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO, "Invalid Width (not a multiple of 4), changed to %d\n", Width);
-	}
-
     IrtImgPixelStruct
         *Texture = (IrtImgPixelStruct *) 
 		      IritMalloc(sizeof(IrtImgPixelStruct) * Width * Height);
@@ -714,22 +697,22 @@ static int IrtMdlrPoSInitShapes(IrtMdlrFuncInfoClass *FI)
 	    searchpath(SysFileNames -> AuxiliaryDataName, Base),
 	    GUIRIT_DLL_PAINT_ON_SRF_FILE_RELATIVE_PATH);
 
-    if (IrtMdlrPoSShapesFiles == NULL) {
-        IrtMdlrPoSShapesFiles = 
+    if (IrtMdlrPoSShape.Files == NULL) {
+        IrtMdlrPoSShape.Files = 
             GuIritMdlrDllGetAllFilesNamesInDirectory(FI, FilePath,
 				            "*.rle|*.ppm|*.gif|*.jpeg|*.png");
     }
 
-    if (IrtMdlrPoSShapesFiles == NULL) {
+    if (IrtMdlrPoSShape.Files == NULL) {
 	GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_ERROR,
 		    "Masks files were not found. Check directory: \"%s\"\n",
 		    FilePath);
 	return FALSE;
     }
 
-    strcpy(IrtMdlrPoSShapesNames, "");
-    for (i = 0; IrtMdlrPoSShapesFiles[i] != NULL; ++i) {
-        p = strstr(IrtMdlrPoSShapesFiles[i], 
+    strcpy(IrtMdlrPoSShape.Names, "");
+    for (i = 0; IrtMdlrPoSShape.Files[i] != NULL; ++i) {
+        p = strstr(IrtMdlrPoSShape.Files[i], 
             GUIRIT_DLL_PAINT_ON_SRF_FILE_RELATIVE_PATH);
         if (p != NULL) {
             p += strlen(GUIRIT_DLL_PAINT_ON_SRF_FILE_RELATIVE_PATH) + 1;
@@ -743,17 +726,16 @@ static int IrtMdlrPoSInitShapes(IrtMdlrFuncInfoClass *FI)
             if (strstr(Name, "GaussianFull25") != NULL) {
                 Index = i;
             }
-            sprintf(IrtMdlrPoSShapesNames, "%s%s;", 
-		    IrtMdlrPoSShapesNames, Name);
+            sprintf(IrtMdlrPoSShape.Names, "%s%s;", 
+		    IrtMdlrPoSShape.Names, Name);
         }
     }
 
-    if (IrtMdlrPoSShapesFiles[0] != NULL) {
+    if (IrtMdlrPoSShape.Files[0] != NULL) {
         GuIritMdlrDllSetInputSelectionStruct
-	    Files(IrtMdlrPoSShapesNames);
+	    Files(IrtMdlrPoSShape.Names);
 
-        sprintf(IrtMdlrPoSShapesNames, "%s:%d", IrtMdlrPoSShapesNames, 
-		Index);
+        sprintf(IrtMdlrPoSShape.Names, "%s:%d", IrtMdlrPoSShape.Names, Index);
         GuIritMdlrDllSetInputParameter(FI, IRT_MDLR_POS_SHAPE, &Files);
     }
     else {
