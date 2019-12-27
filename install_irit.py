@@ -1,10 +1,12 @@
 import os
+import time
 from shutil import copyfile
 
-irit_vs12_lib = 'C:\irit\irit\windowsVC2012\lib'
-irit_vs12_ntbin = 'C:\irit\irit\windowsVC2012\\ntbin'
-irit_lib = 'C:\irit\irit\lib'
-irit_ntbin = 'C:\irit\irit\\ntbin'
+irit_vs12_lib = 'C:\\irit\\irit\\windowsVC2012\\lib'
+irit_vs12_ntbin = 'C:\\irit\\irit\\windowsVC2012\\ntbin'
+irit_lib = 'C:\\irit\\irit\\lib'
+irit_ntbin = 'C:\\irit\\irit\\ntbin'
+
 
 def copy_dir(old_path, new_path):
     files_old = [os.path.join(old_path, lib) for lib in os.listdir(old_path)]
@@ -14,9 +16,11 @@ def copy_dir(old_path, new_path):
         copyfile(old, new)  # Delete already existing file at new path if there is 
     print('')
 
+
 if __name__ == "__main__":
     copy_dir(irit_vs12_lib, irit_lib)
     if not os.path.exists(irit_ntbin):
         os.makedirs(irit_ntbin)
     copy_dir(irit_vs12_ntbin, irit_ntbin)
     print('DONE')
+    time.sleep(2)
