@@ -1,9 +1,12 @@
 import os
+import sys
 import time
 from shutil import copyfile
 
 irit_vs12_lib = 'C:\\irit\\irit\\windowsVC2012\\lib'
 irit_vs12_ntbin = 'C:\\irit\\irit\\windowsVC2012\\ntbin'
+irit_vs19_lib = 'C:\\irit\\irit\\windowsVC2019\\lib'
+irit_vs19_ntbin = 'C:\\irit\\irit\\windowsVC2019\\ntbin'
 irit_lib = 'C:\\irit\\irit\\lib'
 irit_ntbin = 'C:\\irit\\irit\\ntbin'
 
@@ -18,9 +21,15 @@ def copy_dir(old_path, new_path):
 
 
 if __name__ == "__main__":
-    copy_dir(irit_vs12_lib, irit_lib)
+    irit_vs_lib = irit_vs19_lib
+    irit_vs_ntbin = irit_vs19_ntbin
+    if len(sys.argv) == 2:
+        if sys.argv[1] == '2012':
+            irit_vs_lib = irit_vs12_lib
+            irit_vs_ntbin = irit_vs12_ntbin
+    copy_dir(irit_vs_lib, irit_lib)
     if not os.path.exists(irit_ntbin):
         os.makedirs(irit_ntbin)
-    copy_dir(irit_vs12_ntbin, irit_ntbin)
+    copy_dir(irit_vs_ntbin, irit_ntbin)
     print('DONE')
     time.sleep(2)
