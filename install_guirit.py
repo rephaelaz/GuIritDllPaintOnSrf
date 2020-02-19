@@ -1,19 +1,12 @@
 import os
-import sys
 import time
 from shutil import copyfile, copytree
 
-guirit_vs12_ntbin = 'C:\\irit\\extra\\GuIrit\\Src\\WindowsVC2012\\ntbin'
-guirit_vs19_ntbin = 'C:\\irit\\extra\\GuIrit\\Src\\WindowsVC2019\\ntbin'
+guirit_ntbin = 'C:\\irit\\extra\\GuIrit\\Src\\WindowsVC2012\\ntbin'
 irit_ntbin = 'C:\\irit\\irit\\ntbin'
 irit_ext = 'C:\\irit\\irit\\ntbin\\GuIritData\\Extensions'
 
 if __name__ == "__main__":
-    guirit_ntbin = guirit_vs19_ntbin
-    if len(sys.argv) == 2:
-        if sys.argv[1] == '2012':
-            irit_vs_lib = guirit_vs12_ntbin
-    
     guirit_exe = os.path.join(guirit_ntbin, 'GuIritD.exe')
     irit_exe = os.path.join(irit_ntbin, 'GuIritD.exe')
     copyfile(guirit_exe, irit_exe)
