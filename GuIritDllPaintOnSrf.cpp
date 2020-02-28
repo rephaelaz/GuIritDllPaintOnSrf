@@ -117,7 +117,7 @@ class IrtMdlrPaintOnSrfLclClass : public IrtMdlrLclDataClass {
 	    ParamVals[5] = (void *) &TextureHeight;
 	    ParamVals[6] = NULL;
 	    ParamVals[7] = (void *) &Shape.Alpha;
-            ParamVals[8] = (void *) &Names;
+        ParamVals[8] = (void *) &Names;
 	    ParamVals[9] = (void *) &Shape.XFactor;
 	    ParamVals[10] = (void *) &Shape.YFactor;
 	}
@@ -162,7 +162,8 @@ IRT_DSP_STATIC_DATA IrtMdlrFuncTableStruct SrfPainterFunctionTable[] =
         IrtMdlrPaintOnSrf,
         NULL,
         IRT_MDLR_PARAM_VIEW_CHANGES_UDPATE
-        | IRT_MDLR_PARAM_INTERMEDIATE_UPDATE_DFLT_ON,
+        | IRT_MDLR_PARAM_INTERMEDIATE_UPDATE_DFLT_ON
+		| IRT_MDLR_PARAM_NO_APPLY,
         IRT_MDLR_NUMERIC_EXPR,
         11,
         IRT_MDLR_PARAM_EXACT,
@@ -338,6 +339,7 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
 			       "Surface %s had changes that were not saved.\n",
 			       it -> first -> ObjName);
             }
+
         }
 
         GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO,
@@ -360,11 +362,11 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
 	LastSurfaceName = NULL;
     }
     else {
-	if (GuIritMdlrDllGetObjectMatrix(FI, LclData -> SrfExpr.GetIPObj()) != NULL) {
-	    GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_WARNING, 
-		"Paint on surfaces not supported for a surface with transformation - \"Apply Transform\" to the surface first.\n");
-	    return;
-	}
+	    if (GuIritMdlrDllGetObjectMatrix(FI, LclData -> SrfExpr.GetIPObj()) != NULL) {
+	        GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_WARNING, 
+		    "Paint on surfaces not supported for a surface with transformation - \"Apply Transform\" to the surface first.\n");
+	        return;
+	    }
 
         if (LastSurface != NULL &&
 	    LastSurface != LclData -> SrfExpr.GetIPObj() &&
@@ -480,7 +482,17 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
             GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO, 
 			 "Texture loaded successfully from \"%s\" (%dx%d)\n",
 				Filename, Width, Height);
-            IrtMdlrPoSResizeTexture(FI, Width, Height, false);
+
+            if (Width % 4 != 0) {
+                Width -= Width % 4;
+                Width += 4;
+            }
+            if (Height % 4 != 0) {
+                Height -= Height % 4;
+                Height += 4;
+            }
+
+            IrtMdlrPoSResizeTexture(FI, Width, Height, true);
 
 			int offsetW = 0;
 			if (Width%4 != 0) {
@@ -969,7 +981,7 @@ static void IrtMdlrPoSRenderShape(IrtMdlrFuncInfoClass *FI,
         YMin = (YOff - LclData -> Shape.Height / 2);
     IrtMdlrPoSTextureStruct
         *Texture = LclData -> Textures[LclData -> Surface];
-     
+
     /* Modulo needs positive values to work as intended */
     while (XMin < 0) {
         XMin += Texture -> Width;
