@@ -20,6 +20,7 @@
 
 #include <vector>
 #include <map>
+#include <sstream>
 
 using std::vector;
 using std::map;
@@ -339,7 +340,74 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
 			       "Surface %s had changes that were not saved.\n",
 			       it -> first -> ObjName);
             }
+            const char* tpath = AttrIDGetObjectStrAttrib(it->first, IRIT_ATTR_CREATE_ID(ptexture));
+            if (tpath != NULL) {
+                std::string relat(tpath);
+                std::istringstream ss(relat);
+                getline(ss, relat, ',');
 
+                int Width, Height,
+                    Alpha = 0;
+                IrtMdlrPoSTextureStruct
+                    * Texture = LclData->Textures[LclData->SrfExpr.GetIPObj()];
+                IrtImgPixelStruct
+                    * Image = IrtImgReadImage2(relat.c_str(), &Width, &Height, &Alpha);
+
+                Width++, Height++;
+                Texture->Alpha = Alpha;
+                Texture->Saved = false;
+                Texture->Resize = false;
+                GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO,
+                    "Texture loaded successfully from \"%s\" (%dx%d)\n",
+                    relat.c_str(), Width, Height);
+
+                if (Width % 4 != 0) {
+                    Width -= Width % 4;
+                    Width += 4;
+                }
+                if (Height % 4 != 0) {
+                    Height -= Height % 4;
+                    Height += 4;
+                }
+                IrtMdlrPoSResizeTexture(FI, Width, Height, true);
+
+                int offsetW = 0;
+                if (Width % 4 != 0) {
+                    offsetW = 4 - Width % 4;
+                }
+                for (int h = 0; h < Height; h++) {
+                    for (int w = 0; w < Width; w++) {
+                        Texture->Texture[h * Width + w + (h * offsetW)] =
+                            Image[h * Width + w];
+                        LclData->TextureAlpha[h * Width + w + (h * offsetW)] =
+                            Image[h * Width + w];
+                        LclData->TextureBuffer[h * Width + w + (h * offsetW)] =
+                            Image[h * Width + w];
+                    }
+                }
+                GuIritMdlrDllSetTextureFromImage(FI,
+                    it->first,
+                    Texture->Texture,
+                    Texture->Width,
+                    Texture->Height,
+                    Texture->Alpha,
+                    Span);
+            }
+            else {
+               // Here put a 4x4 empty texture.
+                IrtImgPixelStruct DefaultTexture[4][4];
+                for (int i = 0; i < 4; i++) {
+                    for (int j = 0; j < 4; j++) {
+                        DefaultTexture[i][j].r = 255;
+                        DefaultTexture[i][j].g = 255;
+                        DefaultTexture[i][j].b = 255;
+                    }
+                }
+                GuIritMdlrDllSetTextureFromImage(FI, it->first,
+                    DefaultTexture,
+                    4, 4, FALSE, Span);
+
+            }
         }
 
         GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO,
@@ -403,8 +471,8 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
             Texture -> Width = IRT_MDLR_POS_DFLT_WIDTH;
             Texture -> Height = IRT_MDLR_POS_DFLT_HEIGHT;
             Texture -> Alpha = 0;
-	    Texture -> Saved = false;
-	    Texture -> Resize = false;
+	        Texture -> Saved = false;
+	        Texture -> Resize = false;
             Texture -> Texture = (IrtImgPixelStruct *) 
                 IritMalloc(sizeof(IrtImgPixelStruct) * IRT_MDLR_POS_DFLT_SIZE);
             for (i = 0; i < IRT_MDLR_POS_DFLT_SIZE; i++) {
@@ -735,7 +803,6 @@ static void IrtMdlrPoSResizeTexture(IrtMdlrFuncInfoClass *FI,
 						    (FI -> LocalFuncData());
     if (Reset) {
         int x, y;
-
         for (y = 0; y < Height; y++) {
             for (x = 0; x < Width; x++) {
                 Texture[y * Width + x].r = 255;
@@ -750,12 +817,12 @@ static void IrtMdlrPoSResizeTexture(IrtMdlrFuncInfoClass *FI,
             }
         }
     }
-    IritFree(LclData -> Textures[LclData -> Surface] -> Texture);
+    IritFree(LclData->Textures[LclData->Surface]-> Texture);
     IritFree(LclData -> TextureAlpha);
     IritFree(LclData -> TextureBuffer);
-    LclData -> Textures[LclData -> Surface] -> Width = Width;
-    LclData -> Textures[LclData -> Surface] -> Height = Height;
-    LclData -> Textures[LclData -> Surface] -> Texture = Texture;
+    LclData->Textures[LclData->Surface]-> Width = Width;
+    LclData->Textures[LclData->Surface]-> Height = Height;
+    LclData->Textures[LclData->Surface]-> Texture = Texture;
     LclData -> TextureAlpha = TextureAlpha;
     LclData -> TextureBuffer = TextureBuffer;
 
