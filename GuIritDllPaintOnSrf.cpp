@@ -124,14 +124,14 @@ class IrtMdlrPaintOnSrfLclClass : public IrtMdlrLclDataClass {
 	}
 	
 	IrtMdlrObjectExprClass SrfExpr;
-        int TextureWidth;
+    int TextureWidth;
 	int TextureHeight;
-        IrtMdlrPoSShapeStruct Shape;
-        IrtMdlrSelectExprClass Names;
-        IrtImgPixelStruct *TextureAlpha;
-        IrtImgPixelStruct *TextureBuffer;
-        map<IPObjectStruct *, IrtMdlrPoSTextureStruct *> Textures;
-        IPObjectStruct *Surface;
+    IrtMdlrPoSShapeStruct Shape;
+    IrtMdlrSelectExprClass Names;
+    IrtImgPixelStruct *TextureAlpha;
+    IrtImgPixelStruct *TextureBuffer;
+    map<IPObjectStruct *, IrtMdlrPoSTextureStruct *> Textures;
+    IPObjectStruct *Surface;
  };
 
 
@@ -328,8 +328,7 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
 		        "Surface Painter initialized\n");
     }
 
-    if (FI -> CnstrctState == IRT_MDLR_CNSTRCT_STATE_OK ||
-	FI -> CnstrctState == IRT_MDLR_CNSTRCT_STATE_CANCEL) {
+    if (FI -> CnstrctState == IRT_MDLR_CNSTRCT_STATE_CANCEL) {
         map<IPObjectStruct *, IrtMdlrPoSTextureStruct *>::iterator it;
 
         for (it = LclData -> Textures.begin(); 
@@ -412,6 +411,50 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
 
         GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO,
 			    "Surface Painter unloaded\n");
+        return;
+    }
+
+    if (FI->CnstrctState == IRT_MDLR_CNSTRCT_STATE_OK) {
+        map<IPObjectStruct*, IrtMdlrPoSTextureStruct*>::iterator it;
+        for (it = LclData->Textures.begin();
+            it != LclData->Textures.end();
+            it++) {
+            
+            char* Filename;
+            bool Res = GuIritMdlrDllGetAsyncInputFileName(FI,
+                    "Save Texture to....",
+                    "*.png", &Filename);
+            if (Res) {
+                IrtMdlrPoSTextureStruct* Texture = it->second;
+                MiscWriteGenInfoStructPtr
+                    GI = IrtImgWriteOpenFile(NULL, Filename, IRIT_IMAGE_PNG_TYPE,
+                        Texture->Alpha, Texture->Width,
+                        Texture->Height);
+                if (GI == NULL) {
+                    GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_ERROR,
+                        "Error saving texture to \"%s\"\n",
+                        Filename);
+                }
+                else {
+                    int y;
+                    for (y = 0; y < Texture->Height; y++) {
+                        IrtImgWritePutLine(GI, NULL,
+                            &Texture->Texture[y * Texture->Width]);
+                    }
+                    IrtImgWriteCloseFile(GI);
+                    GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO,
+                        "Texture saved successfully to \"%s\"\n",
+                        Filename);
+                    Texture->Saved = true;
+    
+                    AttrIDSetObjectStrAttrib(it->first, IRIT_ATTR_CREATE_ID(ptexture), Filename);
+                    //GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_ERROR, "\"%s\"\n", AttrIDGetObjectStrAttrib(it->first, IRIT_ATTR_CREATE_ID(ptexture)));
+                }
+            }
+        }
+
+        GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO,
+            "Surface Painter unloaded\n");
         return;
     }
 
@@ -616,7 +659,7 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
 				    Filename);
             }
             else {
-	        int y;
+	            int y;
 
                 for (y = 0; y < Texture -> Height; y++) {
                     IrtImgWritePutLine(GI, NULL, 
@@ -626,7 +669,7 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
                 GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO, 
 				    "Texture saved successfully to \"%s\"\n", 
 				    Filename);
-		Texture -> Saved = true;
+		        Texture -> Saved = true;
             }
         }
     }
