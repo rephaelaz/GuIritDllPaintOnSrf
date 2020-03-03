@@ -62,7 +62,7 @@ struct IrtMdlrPoSShapeStruct {
 			  char *_Color, const char *_Names,
 			  const char **_Files, float *_Shape):
 
-        Width(_Width),
+    Width(_Width),
 	Height(_Height),
 	Index(_Index),
 	Alpha(_Alpha),
@@ -102,7 +102,7 @@ struct IrtMdlrPoSTextureStruct {
 class IrtMdlrPaintOnSrfLclClass : public IrtMdlrLclDataClass {
     public:
 	IrtMdlrPaintOnSrfLclClass(const IrtMdlrFuncTableStruct *FuncTbl):
-	    IrtMdlrLclDataClass(NULL),
+	        IrtMdlrLclDataClass(NULL),
             SrfExpr(),
             TextureWidth(4),
             TextureHeight(4),
@@ -142,14 +142,20 @@ static void IrtMdlrPoSResizeTexture(IrtMdlrFuncInfoClass *FI,
 				    bool Reset);
 static int IrtMdlrPoSInitShapes(IrtMdlrFuncInfoClass *FI);
 static void IrtMdlrPoSLoadShape(IrtMdlrFuncInfoClass *FI,
-				const char* Filename);
+				    const char* Filename,
+                    bool printLog = true);
 static void IrtMdlrPoSBresenham(const pair<int, int>& a,
-				const pair<int, int>& b,
-				vector<pair<int, int>>& Points);
+				    const pair<int, int>& b,
+				    vector<pair<int, int>>& Points);
 static void IrtMdlrPoSRenderShape(IrtMdlrFuncInfoClass *FI,
-				  int XOff,
-				  int YOff);
+				    int XOff,
+				    int YOff);
 static int IrtMdlrPoSMouseCallBack(IrtMdlrMouseEventStruct *MouseEvent);
+static int IrtMdlrPoSShapeUpdate(IrtMdlrFuncInfoClass* FI,
+                    double u,
+                    double v);
+static void IrtMdlrPoSShearXShape(IrtMdlrFuncInfoClass* FI,
+                    double param);
 
 IRT_DSP_STATIC_DATA IrtMdlrFuncTableStruct SrfPainterFunctionTable[] =
 {
@@ -170,7 +176,9 @@ IRT_DSP_STATIC_DATA IrtMdlrFuncTableStruct SrfPainterFunctionTable[] =
         IRT_MDLR_PARAM_EXACT,
         {
             /* Surface selection. */
-            IRT_MDLR_SURFACE_EXPR,
+            //IRT_MDLR_SURFACE_EXPR,
+            //IRT_MDLR_SRF_TSRF_MODEL_EXPR,
+            IRT_MDLR_SRF_TSRF_EXPR,
 
             /* Texture fields. */
             IRT_MDLR_BUTTON_EXPR,			  /* Load Texture. */
@@ -324,6 +332,10 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
             LastSurfaceName = NULL;
         }
 
+        ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        //void** titi = LclData->SrfExpr.GetObjAddr();
+        // *titi = NULL;
+
         GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO,
 		        "Surface Painter initialized\n");
     }
@@ -457,9 +469,16 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
             "Surface Painter unloaded\n");
         return;
     }
+    
 
-    GuIritMdlrDllGetInputParameter(FI, IRT_MDLR_POS_SURFACE, 
-                                   LclData -> SrfExpr.GetObjAddr());
+    GuIritMdlrDllGetInputParameter(FI, IRT_MDLR_POS_SURFACE,
+        LclData->SrfExpr.GetObjAddr());
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    //void** ptt = &((IPObjectStruct*)(new IPObjectStruct));
+    //GuIritMdlrDllGetInputParameter(FI, IRT_MDLR_POS_SURFACE, ptt);
+    //if (ptt != LclData->SrfExpr.GetObjAddr()) {
+    //    GuIritMdlrDllSetInputParameter(FI, IRT_MDLR_POS_SURFACE, LclData->SrfExpr.GetObjAddr());
+    //}
 
     if (LclData -> SrfExpr.GetIPObj() == NULL) {
         if (LastSurface != NULL) {
@@ -960,7 +979,7 @@ static int IrtMdlrPoSInitShapes(IrtMdlrFuncInfoClass *FI)
 *   void                                                                     *
 *****************************************************************************/
 static void IrtMdlrPoSLoadShape(IrtMdlrFuncInfoClass *FI,
-				const char *Filename)
+				const char *Filename, bool printLog)
 {
     int Width, Height, Size, x, y,
         Alpha = 0;
@@ -997,9 +1016,11 @@ static void IrtMdlrPoSLoadShape(IrtMdlrFuncInfoClass *FI,
             LclData -> Shape.Shape[Off] = (float)(gray / 255.0);
         }
     }
-    GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO, "Loaded shape of size %dx%d\n",
-			LclData -> Shape.Width, 
-			LclData -> Shape.Height);
+    if (printLog) {
+        GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO, "Loaded shape of size %dx%d\n",
+            LclData->Shape.Width,
+            LclData->Shape.Height);
+    }
 }
 
 /*****************************************************************************
@@ -1086,6 +1107,7 @@ static void IrtMdlrPoSRenderShape(IrtMdlrFuncInfoClass *FI,
     IrtMdlrPaintOnSrfLclClass
 	*LclData = dynamic_cast<IrtMdlrPaintOnSrfLclClass *>
 						    (FI -> LocalFuncData());
+
     int u, v,
         XMin = XOff - LclData -> Shape.Width / 2,
         YMin = (YOff - LclData -> Shape.Height / 2);
@@ -1136,6 +1158,8 @@ static void IrtMdlrPoSRenderShape(IrtMdlrFuncInfoClass *FI,
                 + (LclData -> TextureAlpha[TextureOff].b 
                 - LclData -> TextureBuffer[TextureOff].b) 
                 * (LclData -> Shape.Alpha / 255.0));
+
+            
         }
     }
     Texture -> Saved = false;
@@ -1172,26 +1196,25 @@ static int IrtMdlrPoSMouseCallBack(IrtMdlrMouseEventStruct *MouseEvent)
         switch (MouseEvent -> Type) {
             case IRT_DSP_MOUSE_EVENT_LEFT_DOWN:
 	        GuIritMdlrDllCaptureCursorFocus(FI, MouseEvent, true);
-		Clicking = TRUE;
-		break;
+		    Clicking = TRUE;
+		    break;
 
             case IRT_DSP_MOUSE_EVENT_LEFT_UP:
 	        GuIritMdlrDllCaptureCursorFocus(FI, MouseEvent, false);
-		Clicking = FALSE;
-		if (LclData -> Surface != NULL) {
-		    int x, y;
-		    IrtMdlrPoSTextureStruct
-		        *Texture = LclData -> Textures[LclData -> Surface];
+	       	Clicking = FALSE;
+	    	if (LclData -> Surface != NULL) {
+		        int x, y;
+		        IrtMdlrPoSTextureStruct
+	    	        *Texture = LclData -> Textures[LclData -> Surface];
 
 		    for (y = 0; y < Texture -> Height; y++) {
 		        for (x = 0; x < Texture -> Width; x++) {
-			    int offset = y * Texture -> Width + x;
-
-			    LclData -> TextureAlpha[offset] = 
+			       int offset = y * Texture -> Width + x;
+			       LclData -> TextureAlpha[offset] = 
 			                          Texture -> Texture[offset];
-			    LclData -> TextureBuffer[offset] = 
+			        LclData -> TextureBuffer[offset] = 
 			                          Texture -> Texture[offset];
-			}
+		    	}
 		    }
 		}
 		PrevXOff = -1;
@@ -1203,17 +1226,19 @@ static int IrtMdlrPoSMouseCallBack(IrtMdlrMouseEventStruct *MouseEvent)
         }
 
         if (Clicking &&
-	    MouseEvent -> UVW != NULL &&
-	    PObj != NULL &&
-            IP_IS_SRF_OBJ(PObj) &&
-	    PObj == LclData -> Surface) {
+	        MouseEvent -> UVW != NULL &&
+	        PObj != NULL &&
+            (IP_IS_SRF_OBJ(PObj) || IP_IS_TRIMSRF_OBJ(PObj) || IP_IS_MODEL_OBJ(PObj)) &&
+	        PObj == LclData -> Surface) {
+
+            IrtMdlrPoSShapeUpdate(FI, MouseEvent->UVW[0], MouseEvent->UVW[1]);
+
             IrtMdlrPoSTextureStruct 
                 *Texture = LclData -> Textures[LclData -> Surface];
             int XOff = (int) ((double) Texture -> Width *
 			                               MouseEvent -> UVW[0]),
                 YOff = (int) ((double) Texture -> Height *
 			                               MouseEvent -> UVW[1]);
-
             if (PrefYOff == -1) {
                 IrtMdlrPoSRenderShape(FI, XOff, YOff);
                 PrevXOff = XOff;
@@ -1262,5 +1287,168 @@ static int IrtMdlrPoSMouseCallBack(IrtMdlrMouseEventStruct *MouseEvent)
             GuIritMdlrDllRequestIntermediateUpdate(FI, false);
         }
     }
+    
+    ///*Test*/
+    //void** ptest = LclData->SrfExpr.GetObjAddr();
+    //*ptest = PObj;
     return TRUE;
+}
+
+static int IrtMdlrPoSShapeUpdate(IrtMdlrFuncInfoClass* FI, double u, double v) {
+    IrtMdlrPaintOnSrfLclClass
+        * LclData = dynamic_cast<IrtMdlrPaintOnSrfLclClass*> (FI->LocalFuncData());
+    
+    /* Evaluate the partial derivative surfaces */
+    CagdSrfStruct* Su = CagdSrfDerive(LclData->SrfExpr.GetIPObj()->U.Srfs, CAGD_CONST_U_DIR);
+    CagdSrfStruct* Sv = CagdSrfDerive(LclData->SrfExpr.GetIPObj()->U.Srfs, CAGD_CONST_V_DIR);
+    
+    CagdRType UMin, UMax, VMin, VMax;
+    CagdSrfDomain(LclData->SrfExpr.GetIPObj()->U.Srfs, &UMin, &UMax, &VMin, &VMax);
+
+    /* Remember that we get uv coordinates scaled in [0, 1] domain, so we scale them 
+       to the actual domain */
+    u = ((UMax - UMin) * u) + UMin;
+    v = ((VMax - VMin) * v) + VMin;
+
+    /* Evaluate the average magnitude of the partial derivatives */
+    CagdVType SuVec, SvVec;
+    CagdVType SUMSuVec = { 0, 0, 0 }, SUMSvVec = { 0, 0, 0 };
+    int counter = 0, N = 10;
+    CagdRType dSduAvgMag = 0, dSdvAvgMag = 0;
+    for (CagdRType i = UMin; i <= UMax; i += (UMax - UMin)/N) {
+        for (CagdRType j = VMin; j <= VMax; j += (VMax - VMin)/N) {
+            CAGD_SRF_EVAL_E3(Su, i, j, SuVec);
+            CAGD_SRF_EVAL_E3(Sv, i, j, SvVec);
+
+            dSduAvgMag += sqrt(SuVec[0] * SuVec[0] + SuVec[1] * SuVec[1] + SuVec[2] * SuVec[2]);
+            dSdvAvgMag += sqrt(SvVec[0] * SvVec[0] + SvVec[1] * SvVec[1] + SvVec[2] * SvVec[2]);
+
+            counter++;
+        }
+    }
+
+    dSduAvgMag /= counter;
+    dSdvAvgMag /= counter;
+
+    /* Evaluate the partial derivatives at the input position */
+    CAGD_SRF_EVAL_E3(Su, u, v, SuVec);
+    CAGD_SRF_EVAL_E3(Sv, u, v, SvVec);
+    //GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO, "u: %f  v: %f\n", u, v);
+    //GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO,
+    //    "%f %f %f\n", SuVec[0], SuVec[1], SuVec[2]);
+    //GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO,
+    //    "%f %f %f\n", SvVec[0], SvVec[1], SvVec[2]);
+    
+    for (int i = 0; i < 3; i++) {
+        SuVec[i] /= dSduAvgMag;
+        SvVec[i] /= dSdvAvgMag;
+    }
+
+    /* Evaluate the norms of the partial vectors */
+    double normU = sqrt(SuVec[0] * SuVec[0] + SuVec[1] * SuVec[1] + SuVec[2] * SuVec[2]);
+    double normV = sqrt(SvVec[0] * SvVec[0] + SvVec[1] * SvVec[1] + SvVec[2] * SvVec[2]);
+    
+    //double cosAngle = (SuVec[0] * SvVec[0] + SuVec[1] * SvVec[1] + SuVec[2] * SvVec[2])/(normU*normV);
+    //double pidiv2 = 1.57079632679;
+    //double shearParam = cos(acos(cosAngle)) / sin(acos(cosAngle));
+    
+
+    //GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO,
+    //   "Ortho: %f\n", SuVec[0] * SvVec[0] + SuVec[1] * SvVec[1] + SuVec[2] * SvVec[2]);
+    //
+    //GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO,
+    //    "PARAM: %f\n", cos(pidiv2 - acos(cosAngle)));
+    //GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO,
+    //    "ACOSANGLE: %f\n", acos(cosAngle));
+    //GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO,
+    //    "COSANGLE: %f\n", cosAngle);
+
+    /* Set the scaling factors on the shape */
+    IrtRType XFactor, YFactor;
+    GuIritMdlrDllGetInputParameter(FI, IRT_MDLR_POS_X_FACTOR, &XFactor);
+    GuIritMdlrDllGetInputParameter(FI, IRT_MDLR_POS_Y_FACTOR, &YFactor);
+    LclData->Shape.XFactor = abs(1 / normU)*XFactor;
+    LclData->Shape.YFactor = abs(1 / normV)*YFactor;
+
+    //GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO,
+    //   "Factor: %f %f\n", LclData->Shape.XFactor, LclData->Shape.YFactor);
+
+    /* Update the shape */
+    IrtMdlrPoSLoadShape(FI, LclData->Shape.Files[LclData->Names.GetIndex()], false);
+    //IrtMdlrPoSShearXShape(FI, -0.5);
+
+    /* Restore the scaling factors */
+    LclData->Shape.XFactor = XFactor;
+    LclData->Shape.YFactor = YFactor;
+
+	return 0;
+}
+
+static void IrtMdlrPoSShearXShape(IrtMdlrFuncInfoClass* FI, double param) {
+    //x' = x + param*y
+    //y' = y
+
+    IrtMdlrPaintOnSrfLclClass
+        * LclData = dynamic_cast<IrtMdlrPaintOnSrfLclClass*> (FI->LocalFuncData());
+
+    /* If the shearing parameter is negative, mirror the shape so we can apply
+       a positive shearing */
+    if (param < 0) {
+        for (int y = 0; y < LclData->Shape.Height; y++) {
+            for (int x = 0; x < LclData->Shape.Width; x++) {
+                int offset = x + y * LclData->Shape.Width;
+
+                if (offset < 0 || offset - x + (LclData->Shape.Width -1 - x) < 0 ||
+                    offset >= LclData->Shape.Width * LclData->Shape.Height ||
+                    offset - x + (LclData->Shape.Width - 1 - x) >= LclData->Shape.Width * LclData->Shape.Height) {
+                    GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_ERROR,
+                        "ERRORYrr \n");
+                }
+                else {
+                    float swap = LclData->Shape.Shape[offset];
+                    LclData->Shape.Shape[offset] = LclData->Shape.Shape[offset - x + (LclData->Shape.Width - 1 - x)];
+                    LclData->Shape.Shape[offset - x + (LclData->Shape.Width - x)] = swap;
+                }
+            }
+        }
+    }
+
+    int oldWidth = LclData->Shape.Width;
+    int oldHeight = LclData->Shape.Height;
+    float* oldTexture = LclData->Shape.Shape;
+
+    LclData->Shape.Width = (int)ceil(LclData->Shape.Width + LclData->Shape.Height * abs(param));
+    LclData->Shape.Height = LclData->Shape.Height;
+
+    LclData->Shape.Shape = (float*)IritMalloc(sizeof(float) * LclData->Shape.Height
+                                                            * LclData->Shape.Width);
+    for (int y = 0; y < oldHeight; y++) {
+        for (int x = 0; x < oldWidth; x++) {
+            int newX = (int)ceil(x + abs(param) * y);
+            int OffOld = y * oldWidth + x;
+            int OffNew = y * LclData->Shape.Width + (newX % LclData->Shape.Width);
+    
+
+            if (OffOld < 0 || OffNew < 0) {
+                GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_ERROR,
+                    "NEG \n");
+            }
+            else if (OffOld >= oldHeight * oldWidth) {
+                GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_ERROR,
+                    "SIZE1 \n");
+            } 
+            else if ( OffNew >= LclData->Shape.Width * LclData->Shape.Height) {
+                GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_ERROR,
+                    "SIZE2 \n");
+            }
+            else {
+                LclData->Shape.Shape[OffNew] = oldTexture[OffOld];
+            }
+        }
+    }
+
+
+
+    /* Free the old texture */
+    IritFree(oldTexture);
 }
