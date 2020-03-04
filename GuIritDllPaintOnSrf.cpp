@@ -21,6 +21,7 @@
 #include <vector>
 #include <map>
 #include <sstream>
+#include <algorithm> 
 
 using std::vector;
 using std::map;
@@ -177,8 +178,8 @@ IRT_DSP_STATIC_DATA IrtMdlrFuncTableStruct SrfPainterFunctionTable[] =
         {
             /* Surface selection. */
             //IRT_MDLR_SURFACE_EXPR,
-            //IRT_MDLR_SRF_TSRF_MODEL_EXPR,
-            IRT_MDLR_SRF_TSRF_EXPR,
+            IRT_MDLR_SRF_TSRF_MODEL_EXPR,
+            //IRT_MDLR_SRF_TSRF_EXPR,
 
             /* Texture fields. */
             IRT_MDLR_BUTTON_EXPR,			  /* Load Texture. */
@@ -1298,6 +1299,10 @@ static int IrtMdlrPoSShapeUpdate(IrtMdlrFuncInfoClass* FI, double u, double v) {
     IrtMdlrPaintOnSrfLclClass
         * LclData = dynamic_cast<IrtMdlrPaintOnSrfLclClass*> (FI->LocalFuncData());
     
+    /* First, restore the original shape */
+    IrtMdlrPoSLoadShape(FI, LclData->Shape.Files[LclData->Names.GetIndex()], false);
+
+
     /* Evaluate the partial derivative surfaces */
     CagdSrfStruct* Su = CagdSrfDerive(LclData->SrfExpr.GetIPObj()->U.Srfs, CAGD_CONST_U_DIR);
     CagdSrfStruct* Sv = CagdSrfDerive(LclData->SrfExpr.GetIPObj()->U.Srfs, CAGD_CONST_V_DIR);
@@ -1348,10 +1353,24 @@ static int IrtMdlrPoSShapeUpdate(IrtMdlrFuncInfoClass* FI, double u, double v) {
     double normU = sqrt(SuVec[0] * SuVec[0] + SuVec[1] * SuVec[1] + SuVec[2] * SuVec[2]);
     double normV = sqrt(SvVec[0] * SvVec[0] + SvVec[1] * SvVec[1] + SvVec[2] * SvVec[2]);
     
-    //double cosAngle = (SuVec[0] * SvVec[0] + SuVec[1] * SvVec[1] + SuVec[2] * SvVec[2])/(normU*normV);
-    //double pidiv2 = 1.57079632679;
-    //double shearParam = cos(acos(cosAngle)) / sin(acos(cosAngle));
-    
+    double cosAngle = (SuVec[0] * SvVec[0] + SuVec[1] * SvVec[1] + SuVec[2] * SvVec[2])/(normU*normV);
+
+    double shearTan;
+    double teta;
+    if (abs(cosAngle) < IRT_MDLR_POS_EPSILON) {
+        teta = 0;
+        shearTan = 0;
+    }
+    else if (cosAngle >= 0) {
+        teta = 1.5708 - acos(cosAngle);
+        shearTan = tan(teta);
+    }
+    else {
+        teta = 3.14159 - acos(cosAngle);
+        shearTan = -tan(teta);
+    }
+    //GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_ERROR,
+    //    "teta: %f\n", teta);
 
     //GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO,
     //   "Ortho: %f\n", SuVec[0] * SvVec[0] + SuVec[1] * SvVec[1] + SuVec[2] * SvVec[2]);
@@ -1365,7 +1384,7 @@ static int IrtMdlrPoSShapeUpdate(IrtMdlrFuncInfoClass* FI, double u, double v) {
 
     /* Set the scaling factors on the shape */
     IrtRType XFactor, YFactor;
-    GuIritMdlrDllGetInputParameter(FI, IRT_MDLR_POS_X_FACTOR, &XFactor);
+    GuIritMdlrDllGetInputParameter(FI, IRT_MDLR_POS_X_FACTOR, &XFactor);    //fectch in local data TODO
     GuIritMdlrDllGetInputParameter(FI, IRT_MDLR_POS_Y_FACTOR, &YFactor);
     LclData->Shape.XFactor = abs(1 / normU)*XFactor;
     LclData->Shape.YFactor = abs(1 / normV)*YFactor;
@@ -1374,8 +1393,31 @@ static int IrtMdlrPoSShapeUpdate(IrtMdlrFuncInfoClass* FI, double u, double v) {
     //   "Factor: %f %f\n", LclData->Shape.XFactor, LclData->Shape.YFactor);
 
     /* Update the shape */
-    IrtMdlrPoSLoadShape(FI, LclData->Shape.Files[LclData->Names.GetIndex()], false);
-    //IrtMdlrPoSShearXShape(FI, -0.5);
+    /* Apply shearing due to non orthogonal axis */
+    IrtMdlrPoSShearXShape(FI, shearTan);
+
+    /* Apply factors */
+    int oldWidth = LclData->Shape.Width;
+    int oldHeight = LclData->Shape.Height;
+    float* oldShape = LclData->Shape.Shape;
+    
+    LclData->Shape.Width = (int)(LclData->Shape.Width * LclData->Shape.XFactor);
+    LclData->Shape.Height = (int)(LclData->Shape.Height * LclData->Shape.YFactor);
+    int Size = LclData->Shape.Height * LclData->Shape.Width;
+    LclData->Shape.Shape = (float*)IritMalloc(sizeof(float) * Size);
+    
+    float XRatio = (float)oldWidth / (float)LclData->Shape.Width;
+    float YRatio = (float)oldHeight / (float)LclData->Shape.Height;
+
+    for (int y = 0; y < LclData->Shape.Height; y++) {
+        for (int x = 0; x < LclData->Shape.Width; x++) {
+            int Off = y * LclData->Shape.Width + x;
+            LclData->Shape.Shape[Off] = oldShape[(int)((int)(y * YRatio) * oldWidth + x * XRatio)];
+        }
+    }
+    IritFree(oldShape);
+
+    
 
     /* Restore the scaling factors */
     LclData->Shape.XFactor = XFactor;
@@ -1384,71 +1426,68 @@ static int IrtMdlrPoSShapeUpdate(IrtMdlrFuncInfoClass* FI, double u, double v) {
 	return 0;
 }
 
-static void IrtMdlrPoSShearXShape(IrtMdlrFuncInfoClass* FI, double param) {
+static void IrtMdlrPoSShearXShape(IrtMdlrFuncInfoClass* FI, double shearTan) {
     //x' = x + param*y
     //y' = y
+  
+    if (abs(shearTan) < IRT_MDLR_POS_EPSILON) {
+        return;
+    }
 
     IrtMdlrPaintOnSrfLclClass
         * LclData = dynamic_cast<IrtMdlrPaintOnSrfLclClass*> (FI->LocalFuncData());
 
-    /* If the shearing parameter is negative, mirror the shape so we can apply
-       a positive shearing */
-    if (param < 0) {
-        for (int y = 0; y < LclData->Shape.Height; y++) {
-            for (int x = 0; x < LclData->Shape.Width; x++) {
-                int offset = x + y * LclData->Shape.Width;
 
-                if (offset < 0 || offset - x + (LclData->Shape.Width -1 - x) < 0 ||
-                    offset >= LclData->Shape.Width * LclData->Shape.Height ||
-                    offset - x + (LclData->Shape.Width - 1 - x) >= LclData->Shape.Width * LclData->Shape.Height) {
-                    GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_ERROR,
-                        "ERRORYrr \n");
-                }
-                else {
-                    float swap = LclData->Shape.Shape[offset];
-                    LclData->Shape.Shape[offset] = LclData->Shape.Shape[offset - x + (LclData->Shape.Width - 1 - x)];
-                    LclData->Shape.Shape[offset - x + (LclData->Shape.Width - x)] = swap;
-                }
-            }
-        }
-    }
+    bool needsMirroring = (shearTan<0);
+    shearTan = abs(shearTan);
 
     int oldWidth = LclData->Shape.Width;
     int oldHeight = LclData->Shape.Height;
     float* oldTexture = LclData->Shape.Shape;
 
-    LclData->Shape.Width = (int)ceil(LclData->Shape.Width + LclData->Shape.Height * abs(param));
-    LclData->Shape.Height = LclData->Shape.Height;
+    int shearD = (int)ceil(oldHeight * shearTan);     //tan(angle)*height = dist from orth
 
-    LclData->Shape.Shape = (float*)IritMalloc(sizeof(float) * LclData->Shape.Height
+    LclData->Shape.Width = (oldWidth + shearD);
+
+    LclData->Shape.Shape = (float*)IritMalloc(sizeof(float) * LclData->Shape.Height 
                                                             * LclData->Shape.Width);
+    for (int i = 0; i < LclData->Shape.Height * LclData->Shape.Width; i++) {
+        LclData->Shape.Shape[i] = 0;
+    }
+
     for (int y = 0; y < oldHeight; y++) {
         for (int x = 0; x < oldWidth; x++) {
-            int newX = (int)ceil(x + abs(param) * y);
-            int OffOld = y * oldWidth + x;
-            int OffNew = y * LclData->Shape.Width + (newX % LclData->Shape.Width);
-    
+            int newx = (int)(x - shearTan * y + shearD);
+            int offold = std::min(std::max(y * oldWidth + x, 0), oldHeight*oldWidth-1);
+            int offnew = std::min(std::max(y * LclData->Shape.Width + newx, 0), LclData->Shape.Width * LclData->Shape.Height-1);
 
-            if (OffOld < 0 || OffNew < 0) {
-                GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_ERROR,
-                    "NEG \n");
-            }
-            else if (OffOld >= oldHeight * oldWidth) {
-                GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_ERROR,
-                    "SIZE1 \n");
-            } 
-            else if ( OffNew >= LclData->Shape.Width * LclData->Shape.Height) {
-                GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_ERROR,
-                    "SIZE2 \n");
-            }
-            else {
-                LclData->Shape.Shape[OffNew] = oldTexture[OffOld];
+            LclData->Shape.Shape[offnew] = oldTexture[offold];
+        }
+    }
+
+    /* If the shearing parameter is negative, mirror the shape so we can apply
+   a positive shearing */
+    if (needsMirroring) {
+        for (int y = 0; y < LclData->Shape.Height; y++) {
+            for (int x = 0; x < LclData->Shape.Width / 2; x++) {
+                int offset = x + y * LclData->Shape.Width;
+                int offsetOpposite = offset - x + (LclData->Shape.Width - 1 - x);
+
+                if (offset < 0 || offsetOpposite < 0 ||
+                    offset >= LclData->Shape.Width * LclData->Shape.Height ||
+                    offsetOpposite >= LclData->Shape.Width * LclData->Shape.Height) {
+                    GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_ERROR,
+                        "Wrong offsets while mirroring the shape!\n");
+                }
+                else {
+                    float swap = LclData->Shape.Shape[offset];
+                    LclData->Shape.Shape[offset] = LclData->Shape.Shape[offsetOpposite];
+                    LclData->Shape.Shape[offsetOpposite] = swap;
+                }
             }
         }
     }
 
-
-
-    /* Free the old texture */
+    /* free the old texture */
     IritFree(oldTexture);
 }
