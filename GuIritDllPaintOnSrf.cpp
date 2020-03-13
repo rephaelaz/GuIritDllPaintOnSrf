@@ -58,39 +58,18 @@ enum {
 #endif /* __WINNT__ */
 
 struct IrtMdlrPoSShapeStruct {
-    IrtMdlrPoSShapeStruct(int _Width, int _Height, int _Index,
-		          IrtRType _Alpha, IrtRType _XFactor, IrtRType _YFactor,
-			  char *_Color, const char *_Names,
-			  const char **_Files, float *_Shape):
+    IrtMdlrPoSShapeStruct(int Width, int Height, IrtRType Alpha, 
+                IrtRType XFactor, IrtRType YFactor, float *Shape):
 
-    Width(_Width),
-	Height(_Height),
-	Index(_Index),
-	Alpha(_Alpha),
-	XFactor(_XFactor),
-	YFactor(_YFactor),
-	Files(_Files),
-	Shape(_Shape)
-    {
-        if (_Color != NULL) {
-	    Color[0] = _Color[0];
-	    Color[1] = _Color[1];
-	    Color[2] = _Color[2];
-	}
-	else {
-	    Color[0] = Color[1] = Color[2] = 0;
-	}
-	if (_Names != NULL)
-	    strcpy(Names, _Names);
-	else
-	    Names[0] = 0;
-    }
+    Width(Width),
+	Height(Height),
+	Alpha(Alpha),
+	XFactor(XFactor),
+	YFactor(YFactor),
+	Shape(Shape) {}
 
-    int Width, Height, Index;
+    int Width, Height;
     IrtRType Alpha, XFactor, YFactor;
-    unsigned char Color[3];
-    char Names[IRIT_LINE_LEN_XLONG];
-    const char **Files;
     float *Shape;
 };
 
@@ -107,8 +86,10 @@ class IrtMdlrPaintOnSrfLclClass : public IrtMdlrLclDataClass {
             SrfExpr(),
             TextureWidth(4),
             TextureHeight(4),
-            Shape(0, 0, -1, 255, 1, 1, NULL, "", NULL, NULL),
-            Names(IrtMdlrSelectExprClass(Shape.Names, 0)),
+            ShapeIndex(-1),
+            ShapeFiles(NULL),
+            Shape(0, 0, 255, 1, 1, NULL),
+            Names(IrtMdlrSelectExprClass(ShapeNames, 0)),
             Surface(NULL)
 	{
 	    ParamVals[0] = (void *) &SrfExpr;
@@ -122,11 +103,21 @@ class IrtMdlrPaintOnSrfLclClass : public IrtMdlrLclDataClass {
         ParamVals[8] = (void *) &Names;
 	    ParamVals[9] = (void *) &Shape.XFactor;
 	    ParamVals[10] = (void *) &Shape.YFactor;
+
+        Color[0] = 0;
+        Color[1] = 0;
+        Color[2] = 0;
+
+        strcpy(ShapeNames, "");
 	}
 	
 	IrtMdlrObjectExprClass SrfExpr;
     int TextureWidth;
 	int TextureHeight;
+    int ShapeIndex;
+    unsigned char Color[3];
+    char ShapeNames[IRIT_LINE_LEN_XLONG];
+    const char **ShapeFiles;
     IrtMdlrPoSShapeStruct Shape;
     IrtMdlrSelectExprClass Names;
     IrtImgPixelStruct *TextureAlpha;
@@ -177,9 +168,7 @@ IRT_DSP_STATIC_DATA IrtMdlrFuncTableStruct SrfPainterFunctionTable[] =
         IRT_MDLR_PARAM_EXACT,
         {
             /* Surface selection. */
-            //IRT_MDLR_SURFACE_EXPR,
-            IRT_MDLR_SRF_TSRF_MODEL_EXPR,
-            //IRT_MDLR_SRF_TSRF_EXPR,
+            IRT_MDLR_SRF_TSRF_EXPR,
 
             /* Texture fields. */
             IRT_MDLR_BUTTON_EXPR,			  /* Load Texture. */
@@ -733,9 +722,9 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
             GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO,
 				"Color selection: %u, %u, %u.\n",
 				Red, Green, Blue);
-            LclData -> Shape.Color[0] = Red;
-            LclData -> Shape.Color[1] = Green;
-            LclData -> Shape.Color[2] = Blue;
+            LclData -> Color[0] = Red;
+            LclData -> Color[1] = Green;
+            LclData -> Color[2] = Blue;
         }
     }
 
@@ -813,24 +802,24 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
 				   &LclData -> Shape.Alpha);
     GuIritMdlrDllGetInputParameter(FI, IRT_MDLR_POS_SHAPE, &LclData -> Names);
   
-    if (LclData -> Names.GetIndex() != LclData -> Shape.Index && 
-        LclData -> Shape.Files != NULL) {
-        LclData -> Shape.Index = LclData -> Names.GetIndex();
+    if (LclData -> Names.GetIndex() != LclData -> ShapeIndex && 
+        LclData -> ShapeFiles != NULL) {
+        LclData -> ShapeIndex = LclData -> Names.GetIndex();
         IrtMdlrPoSLoadShape(FI, 
-                        LclData -> Shape.Files[LclData -> Names.GetIndex()]);
+                        LclData -> ShapeFiles[LclData -> Names.GetIndex()]);
     }
 
     GuIritMdlrDllGetInputParameter(FI, IRT_MDLR_POS_X_FACTOR, &XFactor);
     GuIritMdlrDllGetInputParameter(FI, IRT_MDLR_POS_Y_FACTOR, &YFactor);
 
-    if (LclData -> Shape.Files != NULL && 
+    if (LclData -> ShapeFiles != NULL && 
         (IRT_MDLR_POS_DIST(XFactor, LclData -> Shape.XFactor) > 
 	                                              IRT_MDLR_POS_EPSILON ||
 	 IRT_MDLR_POS_DIST(YFactor, LclData -> Shape.YFactor) > 
 	                                              IRT_MDLR_POS_EPSILON)) {
         LclData -> Shape.XFactor = XFactor;
         LclData -> Shape.YFactor = YFactor;
-        IrtMdlrPoSLoadShape(FI, LclData -> Shape.Files[LclData -> Names.GetIndex()]);
+        IrtMdlrPoSLoadShape(FI, LclData -> ShapeFiles[LclData -> Names.GetIndex()]);
     }
 }
 
@@ -918,22 +907,22 @@ static int IrtMdlrPoSInitShapes(IrtMdlrFuncInfoClass *FI)
 	    searchpath(SysFileNames -> AuxiliaryDataName, Base),
 	    GUIRIT_DLL_PAINT_ON_SRF_FILE_RELATIVE_PATH);
 
-    if (LclData -> Shape.Files == NULL) {
-        LclData -> Shape.Files = 
+    if (LclData -> ShapeFiles == NULL) {
+        LclData -> ShapeFiles = 
             GuIritMdlrDllGetAllFilesNamesInDirectory(FI, FilePath,
 				            "*.rle|*.ppm|*.gif|*.jpeg|*.png");
     }
 
-    if (LclData -> Shape.Files == NULL) {
+    if (LclData -> ShapeFiles == NULL) {
 	GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_ERROR,
 		    "Masks files were not found. Check directory: \"%s\"\n",
 		    FilePath);
 	return FALSE;
     }
 
-    strcpy(LclData -> Shape.Names, "");
-    for (i = 0; LclData -> Shape.Files[i] != NULL; ++i) {
-        p = strstr(LclData -> Shape.Files[i], 
+    strcpy(LclData -> ShapeNames, "");
+    for (i = 0; LclData -> ShapeFiles[i] != NULL; ++i) {
+        p = strstr(LclData -> ShapeFiles[i], 
 		   GUIRIT_DLL_PAINT_ON_SRF_FILE_RELATIVE_PATH);
         if (p != NULL) {
             p += strlen(GUIRIT_DLL_PAINT_ON_SRF_FILE_RELATIVE_PATH) + 1;
@@ -947,12 +936,12 @@ static int IrtMdlrPoSInitShapes(IrtMdlrFuncInfoClass *FI)
             if (strstr(Name, "GaussianFull25") != NULL) {
                 Index = i;
             }
-            sprintf(LclData -> Shape.Names, "%s%s;", 
-		    LclData -> Shape.Names, Name);
+            sprintf(LclData -> ShapeNames, "%s%s;", 
+		    LclData -> ShapeNames, Name);
         }
     }
 
-    if (LclData -> Shape.Files[0] != NULL) {
+    if (LclData -> ShapeFiles[0] != NULL) {
 	LclData -> Names.SetUpdateSelectionsParams(TRUE);
 	sprintf(LclData -> Names.GetStr(), "%s:%d", LclData -> Names.GetStr(), Index);
         GuIritMdlrDllSetInputParameter(FI, IRT_MDLR_POS_SHAPE, &LclData -> Names);
@@ -1133,15 +1122,15 @@ static void IrtMdlrPoSRenderShape(IrtMdlrFuncInfoClass *FI,
                 ShapeOff = u + LclData -> Shape.Width * v;
 
             LclData -> TextureAlpha[TextureOff].r += 
-                (IrtBType)((LclData -> Shape.Color[0]
+                (IrtBType)((LclData -> Color[0]
                 - LclData -> TextureAlpha[TextureOff].r) 
                 * LclData -> Shape.Shape[ShapeOff]);
             LclData -> TextureAlpha[TextureOff].g += 
-                (IrtBType)((LclData -> Shape.Color[1]
+                (IrtBType)((LclData -> Color[1]
                 - LclData -> TextureAlpha[TextureOff].g) 
                 * LclData -> Shape.Shape[ShapeOff]);
             LclData -> TextureAlpha[TextureOff].b +=
-                (IrtBType)((LclData -> Shape.Color[2]
+                (IrtBType)((LclData -> Color[2]
                 - LclData -> TextureAlpha[TextureOff].b) 
                 * LclData -> Shape.Shape[ShapeOff]);
             Texture -> Texture[TextureOff].r = 
@@ -1300,7 +1289,7 @@ static int IrtMdlrPoSShapeUpdate(IrtMdlrFuncInfoClass* FI, double u, double v) {
         * LclData = dynamic_cast<IrtMdlrPaintOnSrfLclClass*> (FI->LocalFuncData());
     
     /* First, restore the original shape */
-    IrtMdlrPoSLoadShape(FI, LclData->Shape.Files[LclData->Names.GetIndex()], false);
+    IrtMdlrPoSLoadShape(FI, LclData->ShapeFiles[LclData->Names.GetIndex()], false);
 
 
     /* Evaluate the partial derivative surfaces */
