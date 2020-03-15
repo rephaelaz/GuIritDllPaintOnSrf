@@ -157,8 +157,8 @@ static int IrtMdlrPoSMouseCallBack(IrtMdlrMouseEventStruct *MouseEvent);
 static void IrtMdlrPoSShapeUpdate(IrtMdlrFuncInfoClass* FI,
                     double u,
                     double v);
-static void IrtMdlrPoSShearXShape(IrtMdlrFuncInfoClass* FI,
-                    double param);
+static void IrtMdlrPoSApplyResize(IrtMdlrFuncInfoClass *FI, CagdVType SuVec, CagdVType SvVec);
+static void IrtMdlrPoSApplyShear(IrtMdlrFuncInfoClass* FI, CagdVType SuVec, CagdVType SvVec);
 
 IRT_DSP_STATIC_DATA IrtMdlrFuncTableStruct SrfPainterFunctionTable[] =
 {
@@ -1298,80 +1298,96 @@ static void IrtMdlrPoSShapeUpdate(IrtMdlrFuncInfoClass* FI, double u, double v) 
     CagdVType SuVec, SvVec;
     IrtMdlrPaintOnSrfLclClass
         * LclData = dynamic_cast<IrtMdlrPaintOnSrfLclClass*> (FI->LocalFuncData());
-    
-    CagdSrfDomain(LclData->SrfExpr.GetIPObj()->U.Srfs, &UMin, &UMax, &VMin, &VMax);
 
-    /* Remember that we get uv coordinates scaled in [0, 1] domain, so we scale them 
-       to the actual domain */
+    // Copy base shape
+    IritFree(LclData -> Updated.Shape);
+    
+    LclData->Updated.XFactor = LclData->Base.XFactor;
+    LclData->Updated.YFactor = LclData->Base.YFactor;
+
+    LclData->Updated.Width = LclData->Base.Width;
+    LclData->Updated.Height = LclData->Base.Height;
+    int Size = LclData->Updated.Height * LclData->Updated.Width;
+    LclData->Updated.Shape = (float *) IritMalloc(sizeof(float) * Size);
+
+    for (int y = 0; y < LclData->Updated.Height; y++) {
+        for (int x = 0; x < LclData->Updated.Width; x++) {
+            int Offset = y * LclData->Updated.Width + x;
+            LclData->Updated.Shape[Offset] = LclData->Base.Shape[Offset];
+        }
+    }
+
+    CagdSrfDomain(LclData->SrfExpr.GetIPObj()->U.Srfs, &UMin, &UMax, &VMin, &VMax);
     u = ((UMax - UMin) * u) + UMin;
     v = ((VMax - VMin) * v) + VMin;
 
-    /* Evaluate the partial derivatives at the input position */
     CAGD_SRF_EVAL_E3(LclData -> SrfDu, u, v, SuVec);
     CAGD_SRF_EVAL_E3(LclData -> SrfDv, u, v, SvVec);
-    
+
+    IrtMdlrPoSApplyShear(FI, SuVec, SvVec);
+
     for (int i = 0; i < 3; i++) {
         SuVec[i] /= LclData -> AgvMgnU;
         SvVec[i] /= LclData -> AgvMgnV;
     }
 
-    /* Evaluate the norms of the partial vectors */
+    IrtMdlrPoSApplyResize(FI, SuVec, SvVec);
+}
+
+static void IrtMdlrPoSApplyResize(IrtMdlrFuncInfoClass *FI, CagdVType SuVec, CagdVType SvVec) {
     double normU = sqrt(SuVec[0] * SuVec[0] + SuVec[1] * SuVec[1] + SuVec[2] * SuVec[2]);
     double normV = sqrt(SvVec[0] * SvVec[0] + SvVec[1] * SvVec[1] + SvVec[2] * SvVec[2]);
 
-    IritFree(LclData -> Updated.Shape);
+    IrtMdlrPaintOnSrfLclClass
+        *LclData = dynamic_cast<IrtMdlrPaintOnSrfLclClass *> (FI->LocalFuncData());
 
-    /* Set the scaling factors on the shape */
-    LclData->Updated.XFactor = abs(1 / normU)* LclData->Base.XFactor;
-    LclData->Updated.YFactor = abs(1 / normV)* LclData->Base.YFactor;
-    
-    LclData->Updated.Width = (int)(LclData->Base.Width * LclData->Updated.XFactor);
-    LclData->Updated.Height = (int)(LclData->Base.Height * LclData->Updated.YFactor);
+    LclData->Updated.XFactor = abs(1 / normU) * LclData->Updated.XFactor;
+    LclData->Updated.YFactor = abs(1 / normV) * LclData->Updated.YFactor;
+
+    int oldWidth = LclData->Updated.Width;
+    int oldHeight = LclData->Updated.Height;
+    float* oldShape = LclData->Updated.Shape;
+
+    LclData->Updated.Width = (int) (LclData->Updated.Width * LclData->Updated.XFactor);
+    LclData->Updated.Height = (int) (LclData->Updated.Height * LclData->Updated.YFactor);
     int Size = LclData->Updated.Height * LclData->Updated.Width;
-    LclData->Updated.Shape = (float*)IritMalloc(sizeof(float) * Size);
-    
-    float XRatio = (float) LclData->Base.Width / (float)LclData->Updated.Width;
-    float YRatio = (float) LclData->Base.Height / (float)LclData->Updated.Height;
+    LclData->Updated.Shape = (float *) IritMalloc(sizeof(float) * Size);
+
+    float XRatio = (float) oldWidth / (float) LclData->Updated.Width;
+    float YRatio = (float) oldHeight / (float) LclData->Updated.Height;
 
     for (int y = 0; y < LclData->Updated.Height; y++) {
         for (int x = 0; x < LclData->Updated.Width; x++) {
-            int Off = y * LclData->Updated.Width + x;
-            LclData->Updated.Shape[Off] = LclData->Base.Shape[(int)((int)(y * YRatio) * LclData->Base.Width + x * XRatio)];
+            int UpdatedOff = y * LclData->Updated.Width + x;
+            int BaseOff = (int) ((int) (y * YRatio) * oldWidth + x * XRatio);
+            LclData->Updated.Shape[UpdatedOff] = oldShape[BaseOff];
         }
     }
-    
-    /* Apply shearing due to non orthogonal axis */
-    double cosAngle = (SuVec[0] * SvVec[0] + SuVec[1] * SvVec[1] + SuVec[2] * SvVec[2]) / (normU * normV);
 
-    double shearTan;
-    double teta;
-    if (abs(cosAngle) < IRT_MDLR_POS_EPSILON) {
-        teta = 0;
-        shearTan = 0;
-    }
-    else if (cosAngle >= 0) {
-        teta = 1.5708 - acos(cosAngle);
-        shearTan = tan(teta);
-    }
-    else {
-        teta = 3.14159 - acos(cosAngle);
-        shearTan = -tan(teta);
-    }
-
-    IrtMdlrPoSShearXShape(FI, shearTan);
+    IritFree(oldShape);
 }
 
-static void IrtMdlrPoSShearXShape(IrtMdlrFuncInfoClass* FI, double shearTan) {
-    //x' = x + param*y
-    //y' = y
-  
+static void IrtMdlrPoSApplyShear(IrtMdlrFuncInfoClass* FI, CagdVType SuVec, CagdVType SvVec) {
+    double shearTan;
+    double normU = sqrt(SuVec[0] * SuVec[0] + SuVec[1] * SuVec[1] + SuVec[2] * SuVec[2]);
+    double normV = sqrt(SvVec[0] * SvVec[0] + SvVec[1] * SvVec[1] + SvVec[2] * SvVec[2]);
+    double cosAngle = (SuVec[0] * SvVec[0] + SuVec[1] * SvVec[1] + SuVec[2] * SvVec[2]) / (normU * normV);
+
+    IrtMdlrPaintOnSrfLclClass
+        *LclData = dynamic_cast<IrtMdlrPaintOnSrfLclClass *> (FI->LocalFuncData());
+    
+    if (abs(cosAngle) < IRT_MDLR_POS_EPSILON) {
+        return;
+    }
+    else if (cosAngle >= 0) {
+        shearTan = tan(1.5708 - acos(cosAngle));
+    }
+    else {
+        shearTan = -tan(3.14159 - acos(cosAngle));
+    }
     if (abs(shearTan) < IRT_MDLR_POS_EPSILON) {
         return;
     }
-
-    IrtMdlrPaintOnSrfLclClass
-        * LclData = dynamic_cast<IrtMdlrPaintOnSrfLclClass*> (FI->LocalFuncData());
-
 
     bool needsMirroring = (shearTan<0);
     shearTan = abs(shearTan);
@@ -1400,7 +1416,7 @@ static void IrtMdlrPoSShearXShape(IrtMdlrFuncInfoClass* FI, double shearTan) {
     }
 
     /* If the shearing parameter is negative, mirror the shape so we can apply
-   a positive shearing */
+    a positive shearing */
     if (needsMirroring) {
         for (int y = 0; y < LclData->Updated.Height; y++) {
             for (int x = 0; x < LclData->Updated.Width / 2; x++) {
