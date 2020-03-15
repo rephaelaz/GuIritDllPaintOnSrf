@@ -88,7 +88,8 @@ class IrtMdlrPaintOnSrfLclClass : public IrtMdlrLclDataClass {
             TextureHeight(4),
             ShapeIndex(-1),
             ShapeFiles(NULL),
-            Shape(0, 0, 255, 1, 1, NULL),
+            Base(0, 0, 255, 1, 1, NULL),
+            Updated(0, 0, 255, 1, 1, NULL),
             Names(IrtMdlrSelectExprClass(ShapeNames, 0)),
             Surface(NULL)
 	{
@@ -99,10 +100,10 @@ class IrtMdlrPaintOnSrfLclClass : public IrtMdlrLclDataClass {
 	    ParamVals[4] = (void *) &TextureWidth;
 	    ParamVals[5] = (void *) &TextureHeight;
 	    ParamVals[6] = NULL;
-	    ParamVals[7] = (void *) &Shape.Alpha;
+	    ParamVals[7] = (void *) &Base.Alpha;
         ParamVals[8] = (void *) &Names;
-	    ParamVals[9] = (void *) &Shape.XFactor;
-	    ParamVals[10] = (void *) &Shape.YFactor;
+	    ParamVals[9] = (void *) &Base.XFactor;
+	    ParamVals[10] = (void *) &Base.YFactor;
 
         Color[0] = 0;
         Color[1] = 0;
@@ -118,7 +119,8 @@ class IrtMdlrPaintOnSrfLclClass : public IrtMdlrLclDataClass {
     unsigned char Color[3];
     char ShapeNames[IRIT_LINE_LEN_XLONG];
     const char **ShapeFiles;
-    IrtMdlrPoSShapeStruct Shape;
+    IrtMdlrPoSShapeStruct Base;
+    IrtMdlrPoSShapeStruct Updated;
     IrtMdlrSelectExprClass Names;
     IrtImgPixelStruct *TextureAlpha;
     IrtImgPixelStruct *TextureBuffer;
@@ -799,7 +801,7 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
 
     /* Brush fields. */
     GuIritMdlrDllGetInputParameter(FI, IRT_MDLR_POS_ALPHA, 
-				   &LclData -> Shape.Alpha);
+				   &LclData -> Base.Alpha);
     GuIritMdlrDllGetInputParameter(FI, IRT_MDLR_POS_SHAPE, &LclData -> Names);
   
     if (LclData -> Names.GetIndex() != LclData -> ShapeIndex && 
@@ -813,12 +815,12 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
     GuIritMdlrDllGetInputParameter(FI, IRT_MDLR_POS_Y_FACTOR, &YFactor);
 
     if (LclData -> ShapeFiles != NULL && 
-        (IRT_MDLR_POS_DIST(XFactor, LclData -> Shape.XFactor) > 
+        (IRT_MDLR_POS_DIST(XFactor, LclData -> Base.XFactor) > 
 	                                              IRT_MDLR_POS_EPSILON ||
-	 IRT_MDLR_POS_DIST(YFactor, LclData -> Shape.YFactor) > 
+	 IRT_MDLR_POS_DIST(YFactor, LclData -> Base.YFactor) > 
 	                                              IRT_MDLR_POS_EPSILON)) {
-        LclData -> Shape.XFactor = XFactor;
-        LclData -> Shape.YFactor = YFactor;
+        LclData -> Base.XFactor = XFactor;
+        LclData -> Base.YFactor = YFactor;
         IrtMdlrPoSLoadShape(FI, LclData -> ShapeFiles[LclData -> Names.GetIndex()]);
     }
 }
@@ -986,30 +988,30 @@ static void IrtMdlrPoSLoadShape(IrtMdlrFuncInfoClass *FI,
     }
 
     Width++, Height++;
-    IritFree(LclData -> Shape.Shape);
+    IritFree(LclData -> Base.Shape);
 
-    LclData -> Shape.Width = (int) (Width * LclData -> Shape.XFactor);
-    LclData -> Shape.Height = (int) (Height * LclData -> Shape.YFactor);
-    Size = LclData -> Shape.Height * LclData -> Shape.Width;
-    LclData -> Shape.Shape = (float *) IritMalloc(sizeof(float) * Size);
-    XRatio = (float) Width / (float) LclData -> Shape.Width;
-    YRatio = (float) Height / (float) LclData -> Shape.Height;
+    LclData -> Base.Width = (int) (Width * LclData -> Base.XFactor);
+    LclData -> Base.Height = (int) (Height * LclData -> Base.YFactor);
+    Size = LclData -> Base.Height * LclData -> Base.Width;
+    LclData -> Base.Shape = (float *) IritMalloc(sizeof(float) * Size);
+    XRatio = (float) Width / (float) LclData -> Base.Width;
+    YRatio = (float) Height / (float) LclData -> Base.Height;
 
-    for (y = 0; y < LclData -> Shape.Height; y++) {
-        for (x = 0; x < LclData -> Shape.Width; x++) {
-            int Off = y * LclData -> Shape.Width + x;
+    for (y = 0; y < LclData -> Base.Height; y++) {
+        for (x = 0; x < LclData -> Base.Width; x++) {
+            int Off = y * LclData -> Base.Width + x;
             float gray;
             IrtImgPixelStruct
 	        *ptr = Image + (int) ((int) (y * YRatio) * Width + x * XRatio);
 
             IRT_DSP_RGB2GREY(ptr, gray);
-            LclData -> Shape.Shape[Off] = (float)(gray / 255.0);
+            LclData -> Base.Shape[Off] = (float)(gray / 255.0);
         }
     }
     if (printLog) {
         GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO, "Loaded shape of size %dx%d\n",
-            LclData->Shape.Width,
-            LclData->Shape.Height);
+            LclData->Base.Width,
+            LclData->Base.Height);
     }
 }
 
@@ -1099,8 +1101,8 @@ static void IrtMdlrPoSRenderShape(IrtMdlrFuncInfoClass *FI,
 						    (FI -> LocalFuncData());
 
     int u, v,
-        XMin = XOff - LclData -> Shape.Width / 2,
-        YMin = (YOff - LclData -> Shape.Height / 2);
+        XMin = XOff - LclData -> Base.Width / 2,
+        YMin = (YOff - LclData -> Base.Height / 2);
     IrtMdlrPoSTextureStruct
         *Texture = LclData -> Textures[LclData -> Surface];
 
@@ -1114,40 +1116,40 @@ static void IrtMdlrPoSRenderShape(IrtMdlrFuncInfoClass *FI,
     XMin %= Texture -> Width;
     YMin %= Texture -> Height;
 
-    for (v = 0; v < LclData -> Shape.Height; v++) {
-        for (u = 0; u < LclData -> Shape.Width; u++) {
+    for (v = 0; v < LclData -> Base.Height; v++) {
+        for (u = 0; u < LclData -> Base.Width; u++) {
             int x = (XMin + u) % Texture -> Width,
                 y = (YMin + v) % Texture -> Height,
                 TextureOff = x + Texture -> Width * y,
-                ShapeOff = u + LclData -> Shape.Width * v;
+                ShapeOff = u + LclData -> Base.Width * v;
 
             LclData -> TextureAlpha[TextureOff].r += 
                 (IrtBType)((LclData -> Color[0]
                 - LclData -> TextureAlpha[TextureOff].r) 
-                * LclData -> Shape.Shape[ShapeOff]);
+                * LclData -> Base.Shape[ShapeOff]);
             LclData -> TextureAlpha[TextureOff].g += 
                 (IrtBType)((LclData -> Color[1]
                 - LclData -> TextureAlpha[TextureOff].g) 
-                * LclData -> Shape.Shape[ShapeOff]);
+                * LclData -> Base.Shape[ShapeOff]);
             LclData -> TextureAlpha[TextureOff].b +=
                 (IrtBType)((LclData -> Color[2]
                 - LclData -> TextureAlpha[TextureOff].b) 
-                * LclData -> Shape.Shape[ShapeOff]);
+                * LclData -> Base.Shape[ShapeOff]);
             Texture -> Texture[TextureOff].r = 
                 (IrtBType)(LclData -> TextureBuffer[TextureOff].r 
                 + (LclData -> TextureAlpha[TextureOff].r 
                 - LclData -> TextureBuffer[TextureOff].r) 
-                * (LclData -> Shape.Alpha / 255.0));
+                * (LclData -> Base.Alpha / 255.0));
             Texture -> Texture[TextureOff].g = 
                 (IrtBType)(LclData -> TextureBuffer[TextureOff].g 
                 + (LclData -> TextureAlpha[TextureOff].g 
                 - LclData -> TextureBuffer[TextureOff].g)
-                * (LclData -> Shape.Alpha / 255.0));
+                * (LclData -> Base.Alpha / 255.0));
             Texture -> Texture[TextureOff].b = 
                 (IrtBType)(LclData -> TextureBuffer[TextureOff].b 
                 + (LclData -> TextureAlpha[TextureOff].b 
                 - LclData -> TextureBuffer[TextureOff].b) 
-                * (LclData -> Shape.Alpha / 255.0));
+                * (LclData -> Base.Alpha / 255.0));
 
             
         }
@@ -1375,8 +1377,8 @@ static int IrtMdlrPoSShapeUpdate(IrtMdlrFuncInfoClass* FI, double u, double v) {
     IrtRType XFactor, YFactor;
     GuIritMdlrDllGetInputParameter(FI, IRT_MDLR_POS_X_FACTOR, &XFactor);    //fectch in local data TODO
     GuIritMdlrDllGetInputParameter(FI, IRT_MDLR_POS_Y_FACTOR, &YFactor);
-    LclData->Shape.XFactor = abs(1 / normU)*XFactor;
-    LclData->Shape.YFactor = abs(1 / normV)*YFactor;
+    LclData->Base.XFactor = abs(1 / normU)*XFactor;
+    LclData->Base.YFactor = abs(1 / normV)*YFactor;
 
     //GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO,
     //   "Factor: %f %f\n", LclData->Shape.XFactor, LclData->Shape.YFactor);
@@ -1386,22 +1388,22 @@ static int IrtMdlrPoSShapeUpdate(IrtMdlrFuncInfoClass* FI, double u, double v) {
     IrtMdlrPoSShearXShape(FI, shearTan);
 
     /* Apply factors */
-    int oldWidth = LclData->Shape.Width;
-    int oldHeight = LclData->Shape.Height;
-    float* oldShape = LclData->Shape.Shape;
+    int oldWidth = LclData->Base.Width;
+    int oldHeight = LclData->Base.Height;
+    float* oldShape = LclData->Base.Shape;
     
-    LclData->Shape.Width = (int)(LclData->Shape.Width * LclData->Shape.XFactor);
-    LclData->Shape.Height = (int)(LclData->Shape.Height * LclData->Shape.YFactor);
-    int Size = LclData->Shape.Height * LclData->Shape.Width;
-    LclData->Shape.Shape = (float*)IritMalloc(sizeof(float) * Size);
+    LclData->Base.Width = (int)(LclData->Base.Width * LclData->Base.XFactor);
+    LclData->Base.Height = (int)(LclData->Base.Height * LclData->Base.YFactor);
+    int Size = LclData->Base.Height * LclData->Base.Width;
+    LclData->Base.Shape = (float*)IritMalloc(sizeof(float) * Size);
     
-    float XRatio = (float)oldWidth / (float)LclData->Shape.Width;
-    float YRatio = (float)oldHeight / (float)LclData->Shape.Height;
+    float XRatio = (float)oldWidth / (float)LclData->Base.Width;
+    float YRatio = (float)oldHeight / (float)LclData->Base.Height;
 
-    for (int y = 0; y < LclData->Shape.Height; y++) {
-        for (int x = 0; x < LclData->Shape.Width; x++) {
-            int Off = y * LclData->Shape.Width + x;
-            LclData->Shape.Shape[Off] = oldShape[(int)((int)(y * YRatio) * oldWidth + x * XRatio)];
+    for (int y = 0; y < LclData->Base.Height; y++) {
+        for (int x = 0; x < LclData->Base.Width; x++) {
+            int Off = y * LclData->Base.Width + x;
+            LclData->Base.Shape[Off] = oldShape[(int)((int)(y * YRatio) * oldWidth + x * XRatio)];
         }
     }
     IritFree(oldShape);
@@ -1409,8 +1411,8 @@ static int IrtMdlrPoSShapeUpdate(IrtMdlrFuncInfoClass* FI, double u, double v) {
     
 
     /* Restore the scaling factors */
-    LclData->Shape.XFactor = XFactor;
-    LclData->Shape.YFactor = YFactor;
+    LclData->Base.XFactor = XFactor;
+    LclData->Base.YFactor = YFactor;
 
 	return 0;
 }
@@ -1430,48 +1432,48 @@ static void IrtMdlrPoSShearXShape(IrtMdlrFuncInfoClass* FI, double shearTan) {
     bool needsMirroring = (shearTan<0);
     shearTan = abs(shearTan);
 
-    int oldWidth = LclData->Shape.Width;
-    int oldHeight = LclData->Shape.Height;
-    float* oldTexture = LclData->Shape.Shape;
+    int oldWidth = LclData->Base.Width;
+    int oldHeight = LclData->Base.Height;
+    float* oldTexture = LclData->Base.Shape;
 
     int shearD = (int)ceil(oldHeight * shearTan);     //tan(angle)*height = dist from orth
 
-    LclData->Shape.Width = (oldWidth + shearD);
+    LclData->Base.Width = (oldWidth + shearD);
 
-    LclData->Shape.Shape = (float*)IritMalloc(sizeof(float) * LclData->Shape.Height 
-                                                            * LclData->Shape.Width);
-    for (int i = 0; i < LclData->Shape.Height * LclData->Shape.Width; i++) {
-        LclData->Shape.Shape[i] = 0;
+    LclData->Base.Shape = (float*)IritMalloc(sizeof(float) * LclData->Base.Height 
+                                                            * LclData->Base.Width);
+    for (int i = 0; i < LclData->Base.Height * LclData->Base.Width; i++) {
+        LclData->Base.Shape[i] = 0;
     }
 
     for (int y = 0; y < oldHeight; y++) {
         for (int x = 0; x < oldWidth; x++) {
             int newx = (int)(x - shearTan * y + shearD);
             int offold = std::min(std::max(y * oldWidth + x, 0), oldHeight*oldWidth-1);
-            int offnew = std::min(std::max(y * LclData->Shape.Width + newx, 0), LclData->Shape.Width * LclData->Shape.Height-1);
+            int offnew = std::min(std::max(y * LclData->Base.Width + newx, 0), LclData->Base.Width * LclData->Base.Height-1);
 
-            LclData->Shape.Shape[offnew] = oldTexture[offold];
+            LclData->Base.Shape[offnew] = oldTexture[offold];
         }
     }
 
     /* If the shearing parameter is negative, mirror the shape so we can apply
    a positive shearing */
     if (needsMirroring) {
-        for (int y = 0; y < LclData->Shape.Height; y++) {
-            for (int x = 0; x < LclData->Shape.Width / 2; x++) {
-                int offset = x + y * LclData->Shape.Width;
-                int offsetOpposite = offset - x + (LclData->Shape.Width - 1 - x);
+        for (int y = 0; y < LclData->Base.Height; y++) {
+            for (int x = 0; x < LclData->Base.Width / 2; x++) {
+                int offset = x + y * LclData->Base.Width;
+                int offsetOpposite = offset - x + (LclData->Base.Width - 1 - x);
 
                 if (offset < 0 || offsetOpposite < 0 ||
-                    offset >= LclData->Shape.Width * LclData->Shape.Height ||
-                    offsetOpposite >= LclData->Shape.Width * LclData->Shape.Height) {
+                    offset >= LclData->Base.Width * LclData->Base.Height ||
+                    offsetOpposite >= LclData->Base.Width * LclData->Base.Height) {
                     GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_ERROR,
                         "Wrong offsets while mirroring the shape!\n");
                 }
                 else {
-                    float swap = LclData->Shape.Shape[offset];
-                    LclData->Shape.Shape[offset] = LclData->Shape.Shape[offsetOpposite];
-                    LclData->Shape.Shape[offsetOpposite] = swap;
+                    float swap = LclData->Base.Shape[offset];
+                    LclData->Base.Shape[offset] = LclData->Base.Shape[offsetOpposite];
+                    LclData->Base.Shape[offsetOpposite] = swap;
                 }
             }
         }
