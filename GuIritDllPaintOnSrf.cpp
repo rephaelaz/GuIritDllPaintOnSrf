@@ -136,8 +136,7 @@ static void IrtMdlrPoSResizeTexture(IrtMdlrFuncInfoClass *FI,
 				    bool Reset);
 static int IrtMdlrPoSInitShapes(IrtMdlrFuncInfoClass *FI);
 static void IrtMdlrPoSLoadShape(IrtMdlrFuncInfoClass *FI,
-				    const char* Filename,
-                    bool printLog = true);
+				    const char* Filename);
 static void IrtMdlrPoSBresenham(const pair<int, int>& a,
 				    const pair<int, int>& b,
 				    vector<pair<int, int>>& Points);
@@ -811,18 +810,8 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
                         LclData -> ShapeFiles[LclData -> Names.GetIndex()]);
     }
 
-    GuIritMdlrDllGetInputParameter(FI, IRT_MDLR_POS_X_FACTOR, &XFactor);
-    GuIritMdlrDllGetInputParameter(FI, IRT_MDLR_POS_Y_FACTOR, &YFactor);
-
-    if (LclData -> ShapeFiles != NULL && 
-        (IRT_MDLR_POS_DIST(XFactor, LclData -> Base.XFactor) > 
-	                                              IRT_MDLR_POS_EPSILON ||
-	 IRT_MDLR_POS_DIST(YFactor, LclData -> Base.YFactor) > 
-	                                              IRT_MDLR_POS_EPSILON)) {
-        LclData -> Base.XFactor = XFactor;
-        LclData -> Base.YFactor = YFactor;
-        IrtMdlrPoSLoadShape(FI, LclData -> ShapeFiles[LclData -> Names.GetIndex()]);
-    }
+    GuIritMdlrDllGetInputParameter(FI, IRT_MDLR_POS_X_FACTOR, &LclData -> Base.XFactor);
+    GuIritMdlrDllGetInputParameter(FI, IRT_MDLR_POS_Y_FACTOR, &LclData -> Base.YFactor);
 }
 
 /*****************************************************************************
@@ -971,7 +960,7 @@ static int IrtMdlrPoSInitShapes(IrtMdlrFuncInfoClass *FI)
 *   void                                                                     *
 *****************************************************************************/
 static void IrtMdlrPoSLoadShape(IrtMdlrFuncInfoClass *FI,
-				const char *Filename, bool printLog)
+				const char *Filename)
 {
     int Width, Height, Size, x, y,
         Alpha = 0;
@@ -990,8 +979,8 @@ static void IrtMdlrPoSLoadShape(IrtMdlrFuncInfoClass *FI,
     Width++, Height++;
     IritFree(LclData -> Base.Shape);
 
-    LclData -> Base.Width = (int) (Width * LclData -> Base.XFactor);
-    LclData -> Base.Height = (int) (Height * LclData -> Base.YFactor);
+    LclData -> Base.Width = Width;
+    LclData -> Base.Height = Height;
     Size = LclData -> Base.Height * LclData -> Base.Width;
     LclData -> Base.Shape = (float *) IritMalloc(sizeof(float) * Size);
     XRatio = (float) Width / (float) LclData -> Base.Width;
@@ -1007,11 +996,6 @@ static void IrtMdlrPoSLoadShape(IrtMdlrFuncInfoClass *FI,
             IRT_DSP_RGB2GREY(ptr, gray);
             LclData -> Base.Shape[Off] = (float)(gray / 255.0);
         }
-    }
-    if (printLog) {
-        GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO, "Loaded shape of size %dx%d\n",
-            LclData->Base.Width,
-            LclData->Base.Height);
     }
 }
 
