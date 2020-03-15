@@ -88,10 +88,14 @@ class IrtMdlrPaintOnSrfLclClass : public IrtMdlrLclDataClass {
             TextureHeight(4),
             ShapeIndex(-1),
             ShapeFiles(NULL),
+            AgvMgnU(1),
+            AgvMgnV(1),
             Base(0, 0, 255, 1, 1, NULL),
             Updated(0, 0, 255, 1, 1, NULL),
             Names(IrtMdlrSelectExprClass(ShapeNames, 0)),
-            Surface(NULL)
+            Surface(NULL),
+            SrfDu(NULL),
+            SrfDv(NULL)
 	{
 	    ParamVals[0] = (void *) &SrfExpr;
 	    ParamVals[1] = NULL;
@@ -119,6 +123,8 @@ class IrtMdlrPaintOnSrfLclClass : public IrtMdlrLclDataClass {
     unsigned char Color[3];
     char ShapeNames[IRIT_LINE_LEN_XLONG];
     const char **ShapeFiles;
+    CagdRType AgvMgnU;
+    CagdRType AgvMgnV;
     IrtMdlrPoSShapeStruct Base;
     IrtMdlrPoSShapeStruct Updated;
     IrtMdlrSelectExprClass Names;
@@ -126,6 +132,8 @@ class IrtMdlrPaintOnSrfLclClass : public IrtMdlrLclDataClass {
     IrtImgPixelStruct *TextureBuffer;
     map<IPObjectStruct *, IrtMdlrPoSTextureStruct *> Textures;
     IPObjectStruct *Surface;
+    CagdSrfStruct *SrfDu;
+    CagdSrfStruct *SrfDv;
  };
 
 
@@ -277,8 +285,6 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
     IRT_DSP_STATIC_DATA IPObjectStruct
         *LastSurface = NULL;
     int PrevWidth, PrevHeight;
-    IrtRType XFactor = 1, 
-        YFactor = 1;
     IrtRType
         Span[2] = { 1.0, 1.0 };
     IrtMdlrPaintOnSrfLclClass
@@ -322,10 +328,6 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
 	        IritFree(LastSurfaceName);
             LastSurfaceName = NULL;
         }
-
-        ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-        //void** titi = LclData->SrfExpr.GetObjAddr();
-        // *titi = NULL;
 
         GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO,
 		        "Surface Painter initialized\n");
@@ -464,12 +466,6 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
 
     GuIritMdlrDllGetInputParameter(FI, IRT_MDLR_POS_SURFACE,
         LclData->SrfExpr.GetObjAddr());
-    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    //void** ptt = &((IPObjectStruct*)(new IPObjectStruct));
-    //GuIritMdlrDllGetInputParameter(FI, IRT_MDLR_POS_SURFACE, ptt);
-    //if (ptt != LclData->SrfExpr.GetObjAddr()) {
-    //    GuIritMdlrDllSetInputParameter(FI, IRT_MDLR_POS_SURFACE, LclData->SrfExpr.GetObjAddr());
-    //}
 
     if (LclData -> SrfExpr.GetIPObj() == NULL) {
         if (LastSurface != NULL) {
@@ -557,9 +553,13 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
             }
         }
         if (LclData -> SrfExpr.GetIPObj() != LclData -> Surface) {
-	    int i;
+	        int i;
+            CagdRType UMin, UMax, VMin, VMax, j, k;
+            CagdVType SuVec, SvVec, 
+                SUMSuVec = {0, 0, 0}, 
+                SUMSvVec = {0, 0, 0};
             IrtMdlrPoSTextureStruct
-	        *Texture = LclData -> Textures[LclData -> SrfExpr.GetIPObj()];
+	            *Texture = LclData -> Textures[LclData -> SrfExpr.GetIPObj()];
 
             GuIritMdlrDllSetInputParameter(FI, IRT_MDLR_POS_WIDTH, 
 					   &Texture -> Width);
@@ -574,6 +574,28 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
                 LclData -> TextureAlpha[i] = Texture -> Texture[i];
                 LclData -> TextureBuffer[i] = Texture -> Texture[i];
             }
+
+            LclData -> SrfDu = CagdSrfDerive(LclData->Surface->U.Srfs, CAGD_CONST_U_DIR);
+            LclData -> SrfDv = CagdSrfDerive(LclData->Surface->U.Srfs, CAGD_CONST_V_DIR);
+
+            CagdSrfDomain(LclData->Surface->U.Srfs, &UMin, &UMax, &VMin, &VMax);
+
+            LclData -> AgvMgnU = 0;
+            LclData -> AgvMgnV = 0;
+
+            for (j = UMin; j <= UMax; j += (UMax - UMin) / 10) {
+                for (k = VMin; k <= VMax; k += (VMax - VMin) / 10) {
+                    CAGD_SRF_EVAL_E3(LclData -> SrfDu, j, k, SuVec);
+                    CAGD_SRF_EVAL_E3(LclData -> SrfDv, j, k, SvVec);
+
+                    LclData -> AgvMgnU += sqrt(SuVec[0] * SuVec[0] + SuVec[1] * SuVec[1] + SuVec[2] * SuVec[2]);
+                    LclData -> AgvMgnV += sqrt(SvVec[0] * SvVec[0] + SvVec[1] * SvVec[1] + SvVec[2] * SvVec[2]);
+
+                }
+            }
+
+            LclData -> AgvMgnU /= 100;
+            LclData -> AgvMgnV /= 100;
         }
         PanelUpdate = false;
     }
@@ -1207,8 +1229,6 @@ static int IrtMdlrPoSMouseCallBack(IrtMdlrMouseEventStruct *MouseEvent)
             (IP_IS_SRF_OBJ(PObj) || IP_IS_TRIMSRF_OBJ(PObj) || IP_IS_MODEL_OBJ(PObj)) &&
 	        PObj == LclData -> Surface) {
 
-            IrtMdlrPoSShapeUpdate(FI, MouseEvent->UVW[0], MouseEvent->UVW[1]);
-
             IrtMdlrPoSTextureStruct 
                 *Texture = LclData -> Textures[LclData -> Surface];
             int XOff = (int) ((double) Texture -> Width *
@@ -1216,6 +1236,7 @@ static int IrtMdlrPoSMouseCallBack(IrtMdlrMouseEventStruct *MouseEvent)
                 YOff = (int) ((double) Texture -> Height *
 			                               MouseEvent -> UVW[1]);
             if (PrefYOff == -1) {
+                IrtMdlrPoSShapeUpdate(FI, MouseEvent->UVW[0], MouseEvent->UVW[1]);
                 IrtMdlrPoSRenderShape(FI, XOff, YOff);
                 PrevXOff = XOff;
                 PrefYOff = YOff;
@@ -1243,6 +1264,9 @@ static int IrtMdlrPoSMouseCallBack(IrtMdlrMouseEventStruct *MouseEvent)
                 IrtMdlrPoSBresenham(Start, End, Points);
 
                 for (size_t i = 0; i < Points.size(); i++) {
+                    IrtMdlrPoSShapeUpdate(FI, 
+                        (float) Points[i].first / (float) Texture -> Width,
+                        (float) Points[i].second / (float) Texture -> Height);
                     IrtMdlrPoSRenderShape(FI,
                         Points[i].first % Texture -> Width,
                         Points[i].second % Texture -> Height);
@@ -1264,25 +1288,15 @@ static int IrtMdlrPoSMouseCallBack(IrtMdlrMouseEventStruct *MouseEvent)
         }
     }
     
-    ///*Test*/
-    //void** ptest = LclData->SrfExpr.GetObjAddr();
-    //*ptest = PObj;
     return TRUE;
 }
 
 static int IrtMdlrPoSShapeUpdate(IrtMdlrFuncInfoClass* FI, double u, double v) {
+    CagdRType UMin, UMax, VMin, VMax;
+    CagdVType SuVec, SvVec;
     IrtMdlrPaintOnSrfLclClass
         * LclData = dynamic_cast<IrtMdlrPaintOnSrfLclClass*> (FI->LocalFuncData());
     
-    /* First, restore the original shape */
-    //IrtMdlrPoSLoadShape(FI, LclData->ShapeFiles[LclData->Names.GetIndex()], false);
-
-
-    /* Evaluate the partial derivative surfaces */
-    CagdSrfStruct* Su = CagdSrfDerive(LclData->SrfExpr.GetIPObj()->U.Srfs, CAGD_CONST_U_DIR);
-    CagdSrfStruct* Sv = CagdSrfDerive(LclData->SrfExpr.GetIPObj()->U.Srfs, CAGD_CONST_V_DIR);
-    
-    CagdRType UMin, UMax, VMin, VMax;
     CagdSrfDomain(LclData->SrfExpr.GetIPObj()->U.Srfs, &UMin, &UMax, &VMin, &VMax);
 
     /* Remember that we get uv coordinates scaled in [0, 1] domain, so we scale them 
@@ -1290,38 +1304,13 @@ static int IrtMdlrPoSShapeUpdate(IrtMdlrFuncInfoClass* FI, double u, double v) {
     u = ((UMax - UMin) * u) + UMin;
     v = ((VMax - VMin) * v) + VMin;
 
-    /* Evaluate the average magnitude of the partial derivatives */
-    CagdVType SuVec, SvVec;
-    CagdVType SUMSuVec = { 0, 0, 0 }, SUMSvVec = { 0, 0, 0 };
-    int counter = 0, N = 10;
-    CagdRType dSduAvgMag = 0, dSdvAvgMag = 0;
-    for (CagdRType i = UMin; i <= UMax; i += (UMax - UMin)/N) {
-        for (CagdRType j = VMin; j <= VMax; j += (VMax - VMin)/N) {
-            CAGD_SRF_EVAL_E3(Su, i, j, SuVec);
-            CAGD_SRF_EVAL_E3(Sv, i, j, SvVec);
-
-            dSduAvgMag += sqrt(SuVec[0] * SuVec[0] + SuVec[1] * SuVec[1] + SuVec[2] * SuVec[2]);
-            dSdvAvgMag += sqrt(SvVec[0] * SvVec[0] + SvVec[1] * SvVec[1] + SvVec[2] * SvVec[2]);
-
-            counter++;
-        }
-    }
-
-    dSduAvgMag /= counter;
-    dSdvAvgMag /= counter;
-
     /* Evaluate the partial derivatives at the input position */
-    CAGD_SRF_EVAL_E3(Su, u, v, SuVec);
-    CAGD_SRF_EVAL_E3(Sv, u, v, SvVec);
-    //GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO, "u: %f  v: %f\n", u, v);
-    //GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO,
-    //    "%f %f %f\n", SuVec[0], SuVec[1], SuVec[2]);
-    //GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO,
-    //    "%f %f %f\n", SvVec[0], SvVec[1], SvVec[2]);
+    CAGD_SRF_EVAL_E3(LclData -> SrfDu, u, v, SuVec);
+    CAGD_SRF_EVAL_E3(LclData -> SrfDv, u, v, SvVec);
     
     for (int i = 0; i < 3; i++) {
-        SuVec[i] /= dSduAvgMag;
-        SvVec[i] /= dSdvAvgMag;
+        SuVec[i] /= LclData -> AgvMgnU;
+        SvVec[i] /= LclData -> AgvMgnV;
     }
 
     /* Evaluate the norms of the partial vectors */
@@ -1344,41 +1333,15 @@ static int IrtMdlrPoSShapeUpdate(IrtMdlrFuncInfoClass* FI, double u, double v) {
         teta = 3.14159 - acos(cosAngle);
         shearTan = -tan(teta);
     }
-    //GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_ERROR,
-    //    "teta: %f\n", teta);
 
-    //GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO,
-    //   "Ortho: %f\n", SuVec[0] * SvVec[0] + SuVec[1] * SvVec[1] + SuVec[2] * SvVec[2]);
-    //
-    //GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO,
-    //    "PARAM: %f\n", cos(pidiv2 - acos(cosAngle)));
-    //GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO,
-    //    "ACOSANGLE: %f\n", acos(cosAngle));
-    //GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO,
-    //    "COSANGLE: %f\n", cosAngle);
+    IritFree(LclData -> Updated.Shape);
 
     /* Set the scaling factors on the shape */
-    //IrtRType 
-    //    XFactor = LclData->Base.XFactor,
-    //    YFactor = LclData->Base.YFactor;
     LclData->Updated.XFactor = abs(1 / normU)* LclData->Base.XFactor;
     LclData->Updated.YFactor = abs(1 / normV)* LclData->Base.YFactor;
 
-    //GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO,
-    //   "Factor: %f %f\n", LclData->Shape.XFactor, LclData->Shape.YFactor);
-
-    /* Update the shape */
     /* Apply shearing due to non orthogonal axis */
     //IrtMdlrPoSShearXShape(FI, shearTan);
-
-    /* Apply factors */
-    //int oldWidth = LclData->Base.Width;
-    //int oldHeight = LclData->Base.Height;
-    //float* oldShape = LclData->Base.Shape;
-
-    if (LclData -> Updated.Shape != NULL) {
-        IritFree(LclData -> Updated.Shape);
-    }
     
     LclData->Updated.Width = (int)(LclData->Base.Width * LclData->Updated.XFactor);
     LclData->Updated.Height = (int)(LclData->Base.Height * LclData->Updated.YFactor);
@@ -1394,13 +1357,6 @@ static int IrtMdlrPoSShapeUpdate(IrtMdlrFuncInfoClass* FI, double u, double v) {
             LclData->Updated.Shape[Off] = LclData->Base.Shape[(int)((int)(y * YRatio) * LclData->Base.Width + x * XRatio)];
         }
     }
-    
-
-    
-
-    /* Restore the scaling factors */
-    //LclData->Base.XFactor = XFactor;
-    //LclData->Base.YFactor = YFactor;
 
 	return 0;
 }
