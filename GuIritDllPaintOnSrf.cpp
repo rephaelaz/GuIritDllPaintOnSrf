@@ -453,7 +453,6 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
                     Texture->Saved = true;
     
                     AttrIDSetObjectStrAttrib(it->first, IRIT_ATTR_CREATE_ID(ptexture), Filename);
-                    //GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_ERROR, "\"%s\"\n", AttrIDGetObjectStrAttrib(it->first, IRIT_ATTR_CREATE_ID(ptexture)));
                 }
             }
         }
@@ -479,12 +478,6 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
 	LastSurfaceName = NULL;
     }
     else {
-	    if (GuIritMdlrDllGetObjectMatrix(FI, LclData -> SrfExpr.GetIPObj()) != NULL) {
-	        GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_WARNING, 
-		    "Paint on surfaces not supported for a surface with transformation - \"Apply Transform\" to the surface first.\n");
-	        return;
-	    }
-
         if (LastSurface != NULL &&
 	    LastSurface != LclData -> SrfExpr.GetIPObj() &&
             strcmp(LastSurfaceName, LclData -> SrfExpr.GetIPObj() -> ObjName) 
@@ -496,6 +489,13 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
         if (LastSurfaceName != NULL)
             IritFree(LastSurfaceName);
         LastSurfaceName = IritStrdup(LclData -> SrfExpr.GetIPObj() -> ObjName);        
+    }
+
+    if (LclData -> SrfExpr.GetIPObj() != NULL &&
+        GuIritMdlrDllGetObjectMatrix(FI, LclData -> SrfExpr.GetIPObj()) != NULL) {
+        GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_WARNING,
+            "Paint on surfaces not supported for a surface with transformation - \"Apply Transform\" to the surface first.\n");
+            return;
     }
     
     if (LclData -> SrfExpr.GetIPObj() != NULL && !PanelUpdate) {
