@@ -1,0 +1,20 @@
+[OBJECT CROSS
+    [OBJECT [rgb "255,0,0"] [GeomType 13] S1
+	[SURFACE BEZIER 2 2 E3
+	    [-1 2 0]
+	    [1 2 0]
+
+	    [-1 -2 0]
+	    [1 -2 0]
+	]
+    ]
+    [OBJECT [rgb "0,255,0"] [GeomType 13] S2
+	[SURFACE BEZIER 2 2 E3
+	    [-1 0 2]
+	    [1 0 2]
+
+	    [-1 0 -2]
+	    [1 0 -2]
+	]
+    ]
+]

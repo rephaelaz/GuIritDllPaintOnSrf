@@ -179,7 +179,7 @@ IRT_DSP_STATIC_DATA IrtMdlrFuncTableStruct SrfPainterFunctionTable[] =
         IRT_MDLR_PARAM_EXACT,
         {
             /* Surface selection. */
-            IRT_MDLR_SRF_TSRF_EXPR,
+            IRT_MDLR_SRF_TSRF_MODEL_EXPR,
 
             /* Texture fields. */
             IRT_MDLR_BUTTON_EXPR,			  /* Load Texture. */
