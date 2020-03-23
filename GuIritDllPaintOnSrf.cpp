@@ -76,9 +76,10 @@ struct IrtMdlrPoSShapeStruct {
 };
 
 struct IrtMdlrPoSTextureStruct {
-    bool Saved, Resize;
+    bool Saved, Resize, Model;
     int Width, Height, Alpha;
     IrtImgPixelStruct *Texture;
+    map<CagdSrfStruct *, IrtImgPixelStruct *> TextureMap;
 };
 
 struct IrtMdlrPoSPartialDerivStruct {
@@ -96,7 +97,7 @@ class IrtMdlrPaintOnSrfLclClass : public IrtMdlrLclDataClass {
     public:
 	IrtMdlrPaintOnSrfLclClass(const IrtMdlrFuncTableStruct *FuncTbl):
 	        IrtMdlrLclDataClass(NULL),
-            SrfExpr(),
+            ObjExpr(),
             TextureWidth(4),
             TextureHeight(4),
             ShapeIndex(-1),
@@ -104,9 +105,9 @@ class IrtMdlrPaintOnSrfLclClass : public IrtMdlrLclDataClass {
             Base(0, 0, 255, 1, 1, NULL),
             Updated(0, 0, 255, 1, 1, NULL),
             Names(IrtMdlrSelectExprClass(ShapeNames, 0)),
-            Surface(NULL)
+            Object(NULL)
 	{
-	    ParamVals[0] = (void *) &SrfExpr;
+	    ParamVals[0] = (void *) &ObjExpr;
 	    ParamVals[1] = NULL;
 	    ParamVals[2] = NULL;
 	    ParamVals[3] = NULL;
@@ -125,7 +126,7 @@ class IrtMdlrPaintOnSrfLclClass : public IrtMdlrLclDataClass {
         strcpy(ShapeNames, "");
 	}
 	
-	IrtMdlrObjectExprClass SrfExpr;
+	IrtMdlrObjectExprClass ObjExpr;
     int TextureWidth;
 	int TextureHeight;
     int ShapeIndex;
@@ -138,8 +139,9 @@ class IrtMdlrPaintOnSrfLclClass : public IrtMdlrLclDataClass {
     IrtImgPixelStruct *TextureAlpha;
     IrtImgPixelStruct *TextureBuffer;
     map<IPObjectStruct *, IrtMdlrPoSTextureStruct *> Textures;
-    IPObjectStruct *Surface;
+    IPObjectStruct *Object;
     IrtMdlrPoSDerivDataStruct Deriv;
+    map<CagdSrfStruct *, IrtMdlrPoSDerivDataStruct> DerivMap;
  };
 
 
@@ -287,9 +289,9 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
     IRT_DSP_STATIC_DATA bool 
         PanelUpdate = false;
     IRT_DSP_STATIC_DATA char
-        *LastSurfaceName = NULL;
+        *LastObjName = NULL;
     IRT_DSP_STATIC_DATA IPObjectStruct
-        *LastSurface = NULL;
+        *LastObj = NULL;
     int PrevWidth, PrevHeight;
     IrtRType
         Span[2] = { 1.0, 1.0 };
@@ -326,13 +328,13 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
         GuIritMdlrDllSetRealInputDomain(FI, 0.01, 100, IRT_MDLR_POS_Y_FACTOR);
 
         LclData -> Textures.clear();
-        LclData -> Surface = NULL;
+        LclData -> Object = NULL;
 
-        if (LastSurface != NULL) {
-            LastSurface = NULL;
-	    if (LastSurfaceName != NULL)
-	        IritFree(LastSurfaceName);
-            LastSurfaceName = NULL;
+        if (LastObj != NULL) {
+            LastObj = NULL;
+	    if (LastObjName != NULL)
+	        IritFree(LastObjName);
+            LastObjName = NULL;
         }
 
         GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO,
@@ -345,83 +347,85 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
         for (it = LclData -> Textures.begin(); 
             it != LclData -> Textures.end();
             it++) {
-            if (!it -> second -> Saved) {
-                GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_WARNING,
-			       "Surface %s had changes that were not saved.\n",
-			       it -> first -> ObjName);
-            }
-            const char* tpath = AttrIDGetObjectStrAttrib(it->first, IRIT_ATTR_CREATE_ID(ptexture));
-            if (tpath != NULL) {
-                std::string relat(tpath);
-                std::istringstream ss(relat);
-                getline(ss, relat, ',');
-
-                int Width, Height,
-                    Alpha = 0;
-                IrtMdlrPoSTextureStruct
-                    * Texture = LclData->Textures[LclData->SrfExpr.GetIPObj()];
-                IrtImgPixelStruct
-                    * Image = IrtImgReadImage2(relat.c_str(), &Width, &Height, &Alpha);
-
-                Width++, Height++;
-                Texture->Alpha = Alpha;
-                Texture->Saved = false;
-                Texture->Resize = false;
-                GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO,
-                    "Texture loaded successfully from \"%s\" (%dx%d)\n",
-                    relat.c_str(), Width, Height);
-
-                if (Width % 4 != 0) {
-                    Width -= Width % 4;
-                    Width += 4;
-                }
-                if (Height % 4 != 0) {
-                    Height -= Height % 4;
-                    Height += 4;
-                }
-                IrtMdlrPoSResizeTexture(FI, Width, Height, true);
-
-                int offsetW = 0;
-                if (Width % 4 != 0) {
-                    offsetW = 4 - Width % 4;
-                }
-                for (int h = 0; h < Height; h++) {
-                    for (int w = 0; w < Width; w++) {
-                        Texture->Texture[h * Width + w + (h * offsetW)] =
-                            Image[h * Width + w];
-                        LclData->TextureAlpha[h * Width + w + (h * offsetW)] =
-                            Image[h * Width + w];
-                        LclData->TextureBuffer[h * Width + w + (h * offsetW)] =
-                            Image[h * Width + w];
-                    }
-                }
-                GuIritMdlrDllSetTextureFromImage(FI,
-                    it->first,
-                    Texture->Texture,
-                    Texture->Width,
-                    Texture->Height,
-                    Texture->Alpha,
-                    Span);
+            if (IP_IS_MODEL_OBJ(it -> first)) {
+                GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_ERROR, "TODO Model Cancel restore\n");
             }
             else {
-               // Here put a 4x4 empty texture.
-                IrtImgPixelStruct DefaultTexture[4][4];
-                for (int i = 0; i < 4; i++) {
-                    for (int j = 0; j < 4; j++) {
-                        DefaultTexture[i][j].r = 255;
-                        DefaultTexture[i][j].g = 255;
-                        DefaultTexture[i][j].b = 255;
-                    }
+                if (!it -> second -> Saved) {
+                    GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_WARNING,
+                        "Surface %s had changes that were not saved.\n",
+                        it -> first -> ObjName);
                 }
-                GuIritMdlrDllSetTextureFromImage(FI, it->first,
-                    DefaultTexture,
-                    4, 4, FALSE, Span);
+                const char *tpath = AttrIDGetObjectStrAttrib(it->first, IRIT_ATTR_CREATE_ID(ptexture));
+                if (tpath != NULL) {
+                    std::string relat(tpath);
+                    std::istringstream ss(relat);
+                    getline(ss, relat, ',');
 
+                    int Width, Height,
+                        Alpha = 0;
+                    IrtMdlrPoSTextureStruct
+                        *Texture = LclData->Textures[LclData->ObjExpr.GetIPObj()];
+                    IrtImgPixelStruct
+                        *Image = IrtImgReadImage2(relat.c_str(), &Width, &Height, &Alpha);
+
+                    Width++, Height++;
+                    Texture->Alpha = Alpha;
+                    Texture->Saved = false;
+                    Texture->Resize = false;
+                    GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO,
+                        "Texture loaded successfully from \"%s\" (%dx%d)\n",
+                        relat.c_str(), Width, Height);
+
+                    if (Width % 4 != 0) {
+                        Width -= Width % 4;
+                        Width += 4;
+                    }
+                    if (Height % 4 != 0) {
+                        Height -= Height % 4;
+                        Height += 4;
+                    }
+                    IrtMdlrPoSResizeTexture(FI, Width, Height, true);
+
+                    int offsetW = 0;
+                    if (Width % 4 != 0) {
+                        offsetW = 4 - Width % 4;
+                    }
+                    for (int h = 0; h < Height; h++) {
+                        for (int w = 0; w < Width; w++) {
+                            Texture->Texture[h * Width + w + (h * offsetW)] =
+                                Image[h * Width + w];
+                            LclData->TextureAlpha[h * Width + w + (h * offsetW)] =
+                                Image[h * Width + w];
+                            LclData->TextureBuffer[h * Width + w + (h * offsetW)] =
+                                Image[h * Width + w];
+                        }
+                    }
+                    GuIritMdlrDllSetTextureFromImage(FI,
+                        it->first,
+                        Texture->Texture,
+                        Texture->Width,
+                        Texture->Height,
+                        Texture->Alpha,
+                        Span);
+                }
+                else {
+                    // Here put a 4x4 empty texture.
+                    IrtImgPixelStruct DefaultTexture[4][4];
+                    for (int i = 0; i < 4; i++) {
+                        for (int j = 0; j < 4; j++) {
+                            DefaultTexture[i][j].r = 255;
+                            DefaultTexture[i][j].g = 255;
+                            DefaultTexture[i][j].b = 255;
+                        }
+                    }
+                    GuIritMdlrDllSetTextureFromImage(FI, it->first,
+                        DefaultTexture,
+                        4, 4, FALSE, Span);
+
+                }
             }
         }
-
-        GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO,
-			    "Surface Painter unloaded\n");
         return;
     }
 
@@ -430,186 +434,197 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
         for (it = LclData->Textures.begin();
             it != LclData->Textures.end();
             it++) {
-            
-            char* Filename;
-            bool Res = GuIritMdlrDllGetAsyncInputFileName(FI,
+            if (IP_IS_MODEL_OBJ(it -> first)) {
+                GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_ERROR, "TODO Model Ok save\n");
+            }
+            else {
+                char *Filename;
+                bool Res = GuIritMdlrDllGetAsyncInputFileName(FI,
                     "Save Texture to....",
                     "*.png", &Filename);
-            if (Res) {
-                IrtMdlrPoSTextureStruct* Texture = it->second;
-                MiscWriteGenInfoStructPtr
-                    GI = IrtImgWriteOpenFile(NULL, Filename, IRIT_IMAGE_PNG_TYPE,
+                if (Res) {
+                    IrtMdlrPoSTextureStruct *Texture = it->second;
+                    MiscWriteGenInfoStructPtr
+                        GI = IrtImgWriteOpenFile(NULL, Filename, IRIT_IMAGE_PNG_TYPE,
                         Texture->Alpha, Texture->Width,
                         Texture->Height);
-                if (GI == NULL) {
-                    GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_ERROR,
-                        "Error saving texture to \"%s\"\n",
-                        Filename);
-                }
-                else {
-                    int y;
-                    for (y = 0; y < Texture->Height; y++) {
-                        IrtImgWritePutLine(GI, NULL,
-                            &Texture->Texture[y * Texture->Width]);
+                    if (GI == NULL) {
+                        GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_ERROR,
+                            "Error saving texture to \"%s\"\n",
+                            Filename);
                     }
-                    IrtImgWriteCloseFile(GI);
-                    GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO,
-                        "Texture saved successfully to \"%s\"\n",
-                        Filename);
-                    Texture->Saved = true;
-    
-                    AttrIDSetObjectStrAttrib(it->first, IRIT_ATTR_CREATE_ID(ptexture), Filename);
+                    else {
+                        int y;
+                        for (y = 0; y < Texture->Height; y++) {
+                            IrtImgWritePutLine(GI, NULL,
+                                &Texture->Texture[y * Texture->Width]);
+                        }
+                        IrtImgWriteCloseFile(GI);
+                        GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO,
+                            "Texture saved successfully to \"%s\"\n",
+                            Filename);
+                        Texture->Saved = true;
+
+                        AttrIDSetObjectStrAttrib(it->first, IRIT_ATTR_CREATE_ID(ptexture), Filename);
+                    }
                 }
             }
         }
-
-        GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO,
-            "Surface Painter unloaded\n");
         return;
     }
     
 
     GuIritMdlrDllGetInputParameter(FI, IRT_MDLR_POS_SURFACE,
-        LclData->SrfExpr.GetObjAddr());
+        LclData->ObjExpr.GetObjAddr());
 
-    if (LclData -> SrfExpr.GetIPObj() == NULL) {
-        if (LastSurface != NULL) {
-            IritFree(LclData -> Textures[LastSurface] -> Texture);
-            LclData -> Textures.erase(LastSurface);
-            LastSurface = NULL;
-            LclData -> Surface = NULL;
+    if (LclData -> ObjExpr.GetIPObj() == NULL) {
+        if (LastObj != NULL) {
+            IritFree(LclData -> Textures[LastObj] -> Texture);
+            LclData -> Textures.erase(LastObj);
+            LastObj = NULL;
+            LclData -> Object = NULL;
         }
-	if (LastSurfaceName != NULL)
-            IritFree(LastSurfaceName);
-	LastSurfaceName = NULL;
+	if (LastObjName != NULL)
+            IritFree(LastObjName);
+	LastObjName = NULL;
     }
     else {
-        if (LastSurface != NULL &&
-	    LastSurface != LclData -> SrfExpr.GetIPObj() &&
-            strcmp(LastSurfaceName, LclData -> SrfExpr.GetIPObj() -> ObjName) 
+        if (LastObj != NULL &&
+	    LastObj != LclData -> ObjExpr.GetIPObj() &&
+            strcmp(LastObjName, LclData -> ObjExpr.GetIPObj() -> ObjName) 
                                                                         == 0) {
-            IritFree(LclData -> Textures[LastSurface] -> Texture);
-            LclData -> Textures.erase(LastSurface);
+            IritFree(LclData -> Textures[LastObj] -> Texture);
+            LclData -> Textures.erase(LastObj);
         }
-        LastSurface = LclData -> SrfExpr.GetIPObj();
-        if (LastSurfaceName != NULL)
-            IritFree(LastSurfaceName);
-        LastSurfaceName = IritStrdup(LclData -> SrfExpr.GetIPObj() -> ObjName);        
+        LastObj = LclData -> ObjExpr.GetIPObj();
+        if (LastObjName != NULL)
+            IritFree(LastObjName);
+        LastObjName = IritStrdup(LclData -> ObjExpr.GetIPObj() -> ObjName);        
     }
 
-    if (LclData -> SrfExpr.GetIPObj() != NULL &&
-        GuIritMdlrDllGetObjectMatrix(FI, LclData -> SrfExpr.GetIPObj()) != NULL) {
+    if (LclData -> ObjExpr.GetIPObj() != NULL &&
+        GuIritMdlrDllGetObjectMatrix(FI, LclData -> ObjExpr.GetIPObj()) != NULL) {
         GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_WARNING,
-            "Paint on surfaces not supported for a surface with transformation - \"Apply Transform\" to the surface first.\n");
+            "Paint on surface not supported for objects with transformation - \"Apply Transform\" to the object first.\n");
             return;
     }
     
-    if (LclData -> SrfExpr.GetIPObj() != NULL && !PanelUpdate) {
+    if (LclData -> ObjExpr.GetIPObj() != NULL && !PanelUpdate) {
         PanelUpdate = true;
-        if (LclData -> Textures.find(LclData -> SrfExpr.GetIPObj()) == 
+        if (LclData -> Textures.find(LclData -> ObjExpr.GetIPObj()) == 
             LclData -> Textures.end()) {
-	    int i, j;
-            IrtImgPixelStruct DefaultTexture[4][4];
-            IrtMdlrPoSTextureStruct
-	        *Texture = (IrtMdlrPoSTextureStruct *)
-		                  IritMalloc(sizeof(IrtMdlrPoSTextureStruct));
-            IrtDspOGLObjPropsClass *OGLProps;
-            
-            for (i = 0; i < 4; i++) {
-                for (j = 0; j < 4; j++) {
-                    DefaultTexture[i][j].r = 255;
-                    DefaultTexture[i][j].g = 255;
-                    DefaultTexture[i][j].b = 255;
+            if (IP_IS_MODEL_OBJ(LclData -> ObjExpr.GetIPObj())) {
+                GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_ERROR, "TODO Model init textures\n");
+            }
+            else {
+                int i, j;
+                IrtImgPixelStruct DefaultTexture[4][4];
+                IrtMdlrPoSTextureStruct
+                    *Texture = (IrtMdlrPoSTextureStruct *)
+                    IritMalloc(sizeof(IrtMdlrPoSTextureStruct));
+                IrtDspOGLObjPropsClass *OGLProps;
+
+                for (i = 0; i < 4; i++) {
+                    for (j = 0; j < 4; j++) {
+                        DefaultTexture[i][j].r = 255;
+                        DefaultTexture[i][j].g = 255;
+                        DefaultTexture[i][j].b = 255;
+                    }
                 }
-            }
 
-            Texture -> Width = IRT_MDLR_POS_DFLT_WIDTH;
-            Texture -> Height = IRT_MDLR_POS_DFLT_HEIGHT;
-            Texture -> Alpha = 0;
-	        Texture -> Saved = false;
-	        Texture -> Resize = false;
-            Texture -> Texture = (IrtImgPixelStruct *) 
-                IritMalloc(sizeof(IrtImgPixelStruct) * IRT_MDLR_POS_DFLT_SIZE);
-            for (i = 0; i < IRT_MDLR_POS_DFLT_SIZE; i++) {
-                Texture -> Texture[i].r = 255;
-                Texture -> Texture[i].g = 255;
-                Texture -> Texture[i].b = 255;
-            }
-            LclData -> Textures[LclData -> SrfExpr.GetIPObj()] = Texture;
+                Texture -> Width = IRT_MDLR_POS_DFLT_WIDTH;
+                Texture -> Height = IRT_MDLR_POS_DFLT_HEIGHT;
+                Texture -> Alpha = 0;
+                Texture -> Saved = false;
+                Texture -> Resize = false;
+                Texture -> Texture = (IrtImgPixelStruct *)
+                    IritMalloc(sizeof(IrtImgPixelStruct) * IRT_MDLR_POS_DFLT_SIZE);
+                for (i = 0; i < IRT_MDLR_POS_DFLT_SIZE; i++) {
+                    Texture -> Texture[i].r = 255;
+                    Texture -> Texture[i].g = 255;
+                    Texture -> Texture[i].b = 255;
+                }
+                LclData -> Textures[LclData -> ObjExpr.GetIPObj()] = Texture;
 
-            /* Apply dummy white texture. This ensure UV mapping is correct.*/
-            GuIritMdlrDllSetTextureFromImage(FI, LclData -> SrfExpr.GetIPObj(), 
-                                             DefaultTexture, 
-					     4, 4, FALSE, Span);
-            
-            /* Set Object color to white (default is red) */
-            AttrIDSetObjectRGBColor(LclData -> SrfExpr.GetIPObj(), 
-                                    255, 255, 255);
-            OGLProps = GuIritMdlrDllGetObjectOGLProps(FI, 
-                                                LclData -> SrfExpr.GetIPObj());
+                /* Apply dummy white texture. This ensure UV mapping is correct.*/
+                GuIritMdlrDllSetTextureFromImage(FI, LclData -> ObjExpr.GetIPObj(),
+                    DefaultTexture,
+                    4, 4, FALSE, Span);
 
-            if (OGLProps != NULL) {
-                IrtDspRGBAClrClass
-                    White = IrtDspRGBAClrClass(255, 255, 255);
+                /* Set Object color to white (default is red) */
+                AttrIDSetObjectRGBColor(LclData -> ObjExpr.GetIPObj(),
+                    255, 255, 255);
+                OGLProps = GuIritMdlrDllGetObjectOGLProps(FI,
+                    LclData -> ObjExpr.GetIPObj());
 
-                OGLProps -> FrontFaceColor.SetValue(White);
-                OGLProps -> BackFaceColor.SetValue(White);
-                OGLProps -> BDspListNeedsUpdate = true;
-                GuIritMdlrDllRedrawScreen(FI);
+                if (OGLProps != NULL) {
+                    IrtDspRGBAClrClass
+                        White = IrtDspRGBAClrClass(255, 255, 255);
+
+                    OGLProps -> FrontFaceColor.SetValue(White);
+                    OGLProps -> BackFaceColor.SetValue(White);
+                    OGLProps -> BDspListNeedsUpdate = true;
+                    GuIritMdlrDllRedrawScreen(FI);
+                }
             }
         }
-        if (LclData -> SrfExpr.GetIPObj() != LclData -> Surface) {
-	        int i;
-            CagdRType UMin, UMax, VMin, VMax, j, k;
-            CagdVType SuVec, SvVec, 
-                SUMSuVec = {0, 0, 0}, 
-                SUMSvVec = {0, 0, 0};
-            IrtMdlrPoSTextureStruct
-	            *Texture = LclData -> Textures[LclData -> SrfExpr.GetIPObj()];
-
-            GuIritMdlrDllSetInputParameter(FI, IRT_MDLR_POS_WIDTH, 
-					   &Texture -> Width);
-            GuIritMdlrDllSetInputParameter(FI, IRT_MDLR_POS_HEIGHT, 
-					   &Texture -> Height);
-            LclData -> Surface = LclData -> SrfExpr.GetIPObj();
-            LclData -> TextureAlpha = (IrtImgPixelStruct *)
-                IritMalloc(sizeof(IrtImgPixelStruct) * IRT_MDLR_POS_DFLT_SIZE);
-            LclData -> TextureBuffer = (IrtImgPixelStruct *)
-                IritMalloc(sizeof(IrtImgPixelStruct) * IRT_MDLR_POS_DFLT_SIZE);
-            for (i = 0; i < IRT_MDLR_POS_DFLT_SIZE; i++) {
-                LclData -> TextureAlpha[i] = Texture -> Texture[i];
-                LclData -> TextureBuffer[i] = Texture -> Texture[i];
+        if (LclData -> ObjExpr.GetIPObj() != LclData -> Object) {
+            if (IP_IS_MODEL_OBJ(LclData -> ObjExpr.GetIPObj())) {
+                GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_ERROR, "TODO Model init buffers and derivatives\n");
             }
+            else {
+                int i;
+                CagdRType UMin, UMax, VMin, VMax, j, k;
+                CagdVType SuVec, SvVec,
+                    SUMSuVec = {0, 0, 0},
+                    SUMSvVec = {0, 0, 0};
+                IrtMdlrPoSTextureStruct
+                    *Texture = LclData -> Textures[LclData -> ObjExpr.GetIPObj()];
 
-            LclData -> Deriv.u.Srf = CagdSrfDerive(LclData->Surface->U.Srfs, CAGD_CONST_U_DIR);
-            LclData -> Deriv.v.Srf = CagdSrfDerive(LclData->Surface->U.Srfs, CAGD_CONST_V_DIR);
-
-            CagdSrfDomain(LclData->Surface->U.Srfs, &UMin, &UMax, &VMin, &VMax);
-
-            LclData -> Deriv.u.AvgMgn = 0;
-            LclData -> Deriv.v.AvgMgn = 0;
-
-            for (j = UMin; j <= UMax; j += (UMax - UMin) / 10) {
-                for (k = VMin; k <= VMax; k += (VMax - VMin) / 10) {
-                    CAGD_SRF_EVAL_E3(LclData -> Deriv.u.Srf, j, k, SuVec);
-                    CAGD_SRF_EVAL_E3(LclData -> Deriv.u.Srf, j, k, SvVec);
-
-                    LclData -> Deriv.u.AvgMgn += sqrt(SuVec[0] * SuVec[0] + SuVec[1] * SuVec[1] + SuVec[2] * SuVec[2]);
-                    LclData -> Deriv.v.AvgMgn += sqrt(SvVec[0] * SvVec[0] + SvVec[1] * SvVec[1] + SvVec[2] * SvVec[2]);
-
+                GuIritMdlrDllSetInputParameter(FI, IRT_MDLR_POS_WIDTH,
+                    &Texture -> Width);
+                GuIritMdlrDllSetInputParameter(FI, IRT_MDLR_POS_HEIGHT,
+                    &Texture -> Height);
+                LclData -> Object = LclData -> ObjExpr.GetIPObj();
+                LclData -> TextureAlpha = (IrtImgPixelStruct *)
+                    IritMalloc(sizeof(IrtImgPixelStruct) * IRT_MDLR_POS_DFLT_SIZE);
+                LclData -> TextureBuffer = (IrtImgPixelStruct *)
+                    IritMalloc(sizeof(IrtImgPixelStruct) * IRT_MDLR_POS_DFLT_SIZE);
+                for (i = 0; i < IRT_MDLR_POS_DFLT_SIZE; i++) {
+                    LclData -> TextureAlpha[i] = Texture -> Texture[i];
+                    LclData -> TextureBuffer[i] = Texture -> Texture[i];
                 }
-            }
 
-            LclData -> Deriv.u.AvgMgn /= 100;
-            LclData -> Deriv.v.AvgMgn /= 100;
+                LclData -> Deriv.u.Srf = CagdSrfDerive(LclData->Object->U.Srfs, CAGD_CONST_U_DIR);
+                LclData -> Deriv.v.Srf = CagdSrfDerive(LclData->Object->U.Srfs, CAGD_CONST_V_DIR);
+
+                CagdSrfDomain(LclData->Object->U.Srfs, &UMin, &UMax, &VMin, &VMax);
+
+                LclData -> Deriv.u.AvgMgn = 0;
+                LclData -> Deriv.v.AvgMgn = 0;
+
+                for (j = UMin; j <= UMax; j += (UMax - UMin) / 10) {
+                    for (k = VMin; k <= VMax; k += (VMax - VMin) / 10) {
+                        CAGD_SRF_EVAL_E3(LclData -> Deriv.u.Srf, j, k, SuVec);
+                        CAGD_SRF_EVAL_E3(LclData -> Deriv.u.Srf, j, k, SvVec);
+
+                        LclData -> Deriv.u.AvgMgn += sqrt(SuVec[0] * SuVec[0] + SuVec[1] * SuVec[1] + SuVec[2] * SuVec[2]);
+                        LclData -> Deriv.v.AvgMgn += sqrt(SvVec[0] * SvVec[0] + SvVec[1] * SvVec[1] + SvVec[2] * SvVec[2]);
+
+                    }
+                }
+
+                LclData -> Deriv.u.AvgMgn /= 100;
+                LclData -> Deriv.v.AvgMgn /= 100;
+            }
         }
         PanelUpdate = false;
     }
 
     /* Texture fields. */
     if (FI -> IntermediateWidgetMajor == IRT_MDLR_POS_LOAD &&
-	!PanelUpdate &&
-	LclData -> Surface != NULL) {
+	    !PanelUpdate &&
+	    LclData -> Object != NULL) {
         char *Filename;
         bool
 	    Res = GuIritMdlrDllGetAsyncInputFileName(FI,
@@ -617,10 +632,10 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
 						     "*.png", &Filename);
 
         if (Res) {
-	    int Width, Height,
+	        int Width, Height,
                 Alpha = 0;
             IrtMdlrPoSTextureStruct
-	        *Texture = LclData -> Textures[LclData -> SrfExpr.GetIPObj()];
+	        *Texture = LclData -> Textures[LclData -> Object];
             IrtImgPixelStruct
 	        *Image = IrtImgReadImage2(Filename, &Width, &Height, &Alpha);
 
@@ -659,7 +674,7 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
             }
 
             GuIritMdlrDllSetTextureFromImage(FI, 
-					     LclData -> Surface, 
+					     LclData -> Object, 
 					     Texture -> Texture, 
 					     Texture -> Width, 
 					     Texture -> Height, 
@@ -677,7 +692,7 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
     }
 
     if (FI -> IntermediateWidgetMajor == IRT_MDLR_POS_SAVE &&
-        LclData -> Surface != NULL) {
+        LclData -> Object != NULL) {
         char *Filename;
         bool
 	    Res = GuIritMdlrDllGetAsyncInputFileName(FI, 
@@ -685,7 +700,7 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
 						     "*.png", &Filename);
         if (Res) {
             IrtMdlrPoSTextureStruct
-	        *Texture = LclData -> Textures[LclData -> SrfExpr.GetIPObj()];
+	        *Texture = LclData -> Textures[LclData -> Object];
             MiscWriteGenInfoStructPtr
 	        GI = IrtImgWriteOpenFile(NULL, Filename, IRIT_IMAGE_PNG_TYPE, 
 					 Texture -> Alpha, Texture -> Width, 
@@ -714,7 +729,7 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
 
     if (FI -> IntermediateWidgetMajor == IRT_MDLR_POS_RESET &&
 	!PanelUpdate &&
-        LclData -> Surface != NULL) {
+        LclData -> Object != NULL) {
         bool
 	    Res = GuIritMdlrDllGetAsyncInputConfirm(FI, 
                             "Texture Reset", 
@@ -724,7 +739,7 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
             int Width = IRT_MDLR_POS_DFLT_WIDTH, 
                 Height = IRT_MDLR_POS_DFLT_HEIGHT;
             IrtMdlrPoSTextureStruct
-	        *Texture = LclData -> Textures[LclData -> SrfExpr.GetIPObj()];
+	        *Texture = LclData -> Textures[LclData -> Object];
 
             IrtMdlrPoSResizeTexture(FI, IRT_MDLR_POS_DFLT_WIDTH, 
 				    IRT_MDLR_POS_DFLT_HEIGHT, true);
@@ -733,7 +748,7 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
             GuIritMdlrDllSetInputParameter(FI, IRT_MDLR_POS_WIDTH, &Width);
             GuIritMdlrDllSetInputParameter(FI, IRT_MDLR_POS_HEIGHT, &Height);
             PanelUpdate = false;
-            GuIritMdlrDllSetTextureFromImage(FI, LclData -> Surface, 
+            GuIritMdlrDllSetTextureFromImage(FI, LclData -> Object, 
 					     Texture -> Texture,
 					     Texture -> Width, 
 					     Texture -> Height, 
@@ -773,9 +788,9 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
 	    LclData -> TextureWidth += 4;
 	}
 
-    if (LclData -> Surface != NULL) {
+    if (LclData -> Object != NULL) {
         IrtMdlrPoSTextureStruct
-	    *Texture = LclData -> Textures[LclData -> SrfExpr.GetIPObj()];
+	    *Texture = LclData -> Textures[LclData -> Object];
 
         if ((Texture -> Width != LclData -> TextureWidth ||
 	     Texture -> Height != LclData -> TextureHeight) &&
@@ -807,7 +822,7 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
                 IrtMdlrPoSResizeTexture(FI, LclData -> TextureWidth, 
 					LclData -> TextureHeight, true);
                 Texture -> Saved = false;
-                GuIritMdlrDllSetTextureFromImage(FI, LclData -> Surface, 
+                GuIritMdlrDllSetTextureFromImage(FI, LclData -> Object, 
 						 Texture -> Texture, 
 						 Texture -> Width, 
 						 Texture -> Height, 
@@ -888,12 +903,12 @@ static void IrtMdlrPoSResizeTexture(IrtMdlrFuncInfoClass *FI,
             }
         }
     }
-    IritFree(LclData->Textures[LclData->Surface]-> Texture);
+    IritFree(LclData->Textures[LclData->Object]-> Texture);
     IritFree(LclData -> TextureAlpha);
     IritFree(LclData -> TextureBuffer);
-    LclData->Textures[LclData->Surface]-> Width = Width;
-    LclData->Textures[LclData->Surface]-> Height = Height;
-    LclData->Textures[LclData->Surface]-> Texture = Texture;
+    LclData->Textures[LclData->Object]-> Width = Width;
+    LclData->Textures[LclData->Object]-> Height = Height;
+    LclData->Textures[LclData->Object]-> Texture = Texture;
     LclData -> TextureAlpha = TextureAlpha;
     LclData -> TextureBuffer = TextureBuffer;
 
@@ -1116,7 +1131,7 @@ static void IrtMdlrPoSRenderShape(IrtMdlrFuncInfoClass *FI,
         XMin = XOff - LclData -> Updated.Width / 2,
         YMin = (YOff - LclData -> Updated.Height / 2);
     IrtMdlrPoSTextureStruct
-        *Texture = LclData -> Textures[LclData -> Surface];
+        *Texture = LclData -> Textures[LclData -> Object];
 
     /* Modulo needs positive values to work as intended */
     while (XMin < 0) {
@@ -1206,10 +1221,10 @@ static int IrtMdlrPoSMouseCallBack(IrtMdlrMouseEventStruct *MouseEvent)
             case IRT_DSP_MOUSE_EVENT_LEFT_UP:
 	        GuIritMdlrDllCaptureCursorFocus(FI, MouseEvent, false);
 	       	Clicking = FALSE;
-	    	if (LclData -> Surface != NULL) {
+	    	if (LclData -> Object != NULL) {
 		        int x, y;
 		        IrtMdlrPoSTextureStruct
-	    	        *Texture = LclData -> Textures[LclData -> Surface];
+	    	        *Texture = LclData -> Textures[LclData -> Object];
 
 		    for (y = 0; y < Texture -> Height; y++) {
 		        for (x = 0; x < Texture -> Width; x++) {
@@ -1233,10 +1248,10 @@ static int IrtMdlrPoSMouseCallBack(IrtMdlrMouseEventStruct *MouseEvent)
 	        MouseEvent -> UVW != NULL &&
 	        PObj != NULL &&
             (IP_IS_SRF_OBJ(PObj) || IP_IS_TRIMSRF_OBJ(PObj) || IP_IS_MODEL_OBJ(PObj)) &&
-	        PObj == LclData -> Surface) {
+	        PObj == LclData -> Object) {
 
             IrtMdlrPoSTextureStruct 
-                *Texture = LclData -> Textures[LclData -> Surface];
+                *Texture = LclData -> Textures[LclData -> Object];
             int XOff = (int) ((double) Texture -> Width *
 			                               MouseEvent -> UVW[0]),
                 YOff = (int) ((double) Texture -> Height *
@@ -1283,7 +1298,7 @@ static int IrtMdlrPoSMouseCallBack(IrtMdlrMouseEventStruct *MouseEvent)
             }
 
             GuIritMdlrDllSetTextureFromImage(FI, 
-                LclData -> Surface, 
+                LclData -> Object, 
                 Texture -> Texture, 
                 Texture -> Width, 
                 Texture -> Height, 
@@ -1321,7 +1336,7 @@ static void IrtMdlrPoSShapeUpdate(IrtMdlrFuncInfoClass* FI, double u, double v) 
         }
     }
 
-    CagdSrfDomain(LclData->SrfExpr.GetIPObj()->U.Srfs, &UMin, &UMax, &VMin, &VMax);
+    CagdSrfDomain(LclData->Object->U.Srfs, &UMin, &UMax, &VMin, &VMax);
 
     //GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_ERROR, "[%f,%f]x[%f,%f]\n", UMin, UMax, VMin, VMax);
 
