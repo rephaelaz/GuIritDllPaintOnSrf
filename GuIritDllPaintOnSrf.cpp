@@ -1166,17 +1166,17 @@ static void IrtMdlrPoSRenderShape(IrtMdlrFuncInfoClass *FI,
                 (IrtBType)(LclData -> TextureBuffer[TextureOff].r 
                 + (LclData -> TextureAlpha[TextureOff].r 
                 - LclData -> TextureBuffer[TextureOff].r) 
-                * (LclData -> Updated.Alpha / 255.0));
+                * (LclData -> Base.Alpha / 255.0));
             Texture -> Texture[TextureOff].g = 
                 (IrtBType)(LclData -> TextureBuffer[TextureOff].g 
                 + (LclData -> TextureAlpha[TextureOff].g 
                 - LclData -> TextureBuffer[TextureOff].g)
-                * (LclData -> Updated.Alpha / 255.0));
+                * (LclData -> Base.Alpha / 255.0));
             Texture -> Texture[TextureOff].b = 
                 (IrtBType)(LclData -> TextureBuffer[TextureOff].b 
                 + (LclData -> TextureAlpha[TextureOff].b 
                 - LclData -> TextureBuffer[TextureOff].b) 
-                * (LclData -> Updated.Alpha / 255.0));
+                * (LclData -> Base.Alpha / 255.0));
 
             
         }
@@ -1346,7 +1346,7 @@ static void IrtMdlrPoSShapeUpdate(IrtMdlrFuncInfoClass* FI, double u, double v) 
     CAGD_SRF_EVAL_E3(LclData -> Deriv.u.Srf, u, v, SuVec);
     CAGD_SRF_EVAL_E3(LclData -> Deriv.v.Srf, u, v, SvVec);
 
-    IrtMdlrPoSApplyShear(FI, SuVec, SvVec);
+    //IrtMdlrPoSApplyShear(FI, SuVec, SvVec);
 
     for (int i = 0; i < 3; i++) {
         SuVec[i] /= LclData -> Deriv.u.AvgMgn;
