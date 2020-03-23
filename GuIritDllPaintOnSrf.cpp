@@ -81,6 +81,17 @@ struct IrtMdlrPoSTextureStruct {
     IrtImgPixelStruct *Texture;
 };
 
+struct IrtMdlrPoSPartialDerivStruct {
+    IrtMdlrPoSPartialDerivStruct(): AvgMgn(0), Srf(NULL) {}
+
+    CagdRType AvgMgn;
+    CagdSrfStruct *Srf;
+};
+
+struct IrtMdlrPoSDerivDataStruct {
+    IrtMdlrPoSPartialDerivStruct u, v;
+};
+
 class IrtMdlrPaintOnSrfLclClass : public IrtMdlrLclDataClass {
     public:
 	IrtMdlrPaintOnSrfLclClass(const IrtMdlrFuncTableStruct *FuncTbl):
@@ -90,14 +101,10 @@ class IrtMdlrPaintOnSrfLclClass : public IrtMdlrLclDataClass {
             TextureHeight(4),
             ShapeIndex(-1),
             ShapeFiles(NULL),
-            AgvMgnU(1),
-            AgvMgnV(1),
             Base(0, 0, 255, 1, 1, NULL),
             Updated(0, 0, 255, 1, 1, NULL),
             Names(IrtMdlrSelectExprClass(ShapeNames, 0)),
-            Surface(NULL),
-            SrfDu(NULL),
-            SrfDv(NULL)
+            Surface(NULL)
 	{
 	    ParamVals[0] = (void *) &SrfExpr;
 	    ParamVals[1] = NULL;
@@ -125,8 +132,6 @@ class IrtMdlrPaintOnSrfLclClass : public IrtMdlrLclDataClass {
     unsigned char Color[3];
     char ShapeNames[IRIT_LINE_LEN_XLONG];
     const char **ShapeFiles;
-    CagdRType AgvMgnU;
-    CagdRType AgvMgnV;
     IrtMdlrPoSShapeStruct Base;
     IrtMdlrPoSShapeStruct Updated;
     IrtMdlrSelectExprClass Names;
@@ -134,8 +139,7 @@ class IrtMdlrPaintOnSrfLclClass : public IrtMdlrLclDataClass {
     IrtImgPixelStruct *TextureBuffer;
     map<IPObjectStruct *, IrtMdlrPoSTextureStruct *> Textures;
     IPObjectStruct *Surface;
-    CagdSrfStruct *SrfDu;
-    CagdSrfStruct *SrfDv;
+    IrtMdlrPoSDerivDataStruct Deriv;
  };
 
 
@@ -577,27 +581,27 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
                 LclData -> TextureBuffer[i] = Texture -> Texture[i];
             }
 
-            LclData -> SrfDu = CagdSrfDerive(LclData->Surface->U.Srfs, CAGD_CONST_U_DIR);
-            LclData -> SrfDv = CagdSrfDerive(LclData->Surface->U.Srfs, CAGD_CONST_V_DIR);
+            LclData -> Deriv.u.Srf = CagdSrfDerive(LclData->Surface->U.Srfs, CAGD_CONST_U_DIR);
+            LclData -> Deriv.v.Srf = CagdSrfDerive(LclData->Surface->U.Srfs, CAGD_CONST_V_DIR);
 
             CagdSrfDomain(LclData->Surface->U.Srfs, &UMin, &UMax, &VMin, &VMax);
 
-            LclData -> AgvMgnU = 0;
-            LclData -> AgvMgnV = 0;
+            LclData -> Deriv.u.AvgMgn = 0;
+            LclData -> Deriv.v.AvgMgn = 0;
 
             for (j = UMin; j <= UMax; j += (UMax - UMin) / 10) {
                 for (k = VMin; k <= VMax; k += (VMax - VMin) / 10) {
-                    CAGD_SRF_EVAL_E3(LclData -> SrfDu, j, k, SuVec);
-                    CAGD_SRF_EVAL_E3(LclData -> SrfDv, j, k, SvVec);
+                    CAGD_SRF_EVAL_E3(LclData -> Deriv.u.Srf, j, k, SuVec);
+                    CAGD_SRF_EVAL_E3(LclData -> Deriv.u.Srf, j, k, SvVec);
 
-                    LclData -> AgvMgnU += sqrt(SuVec[0] * SuVec[0] + SuVec[1] * SuVec[1] + SuVec[2] * SuVec[2]);
-                    LclData -> AgvMgnV += sqrt(SvVec[0] * SvVec[0] + SvVec[1] * SvVec[1] + SvVec[2] * SvVec[2]);
+                    LclData -> Deriv.u.AvgMgn += sqrt(SuVec[0] * SuVec[0] + SuVec[1] * SuVec[1] + SuVec[2] * SuVec[2]);
+                    LclData -> Deriv.v.AvgMgn += sqrt(SvVec[0] * SvVec[0] + SvVec[1] * SvVec[1] + SvVec[2] * SvVec[2]);
 
                 }
             }
 
-            LclData -> AgvMgnU /= 100;
-            LclData -> AgvMgnV /= 100;
+            LclData -> Deriv.u.AvgMgn /= 100;
+            LclData -> Deriv.v.AvgMgn /= 100;
         }
         PanelUpdate = false;
     }
@@ -1318,17 +1322,20 @@ static void IrtMdlrPoSShapeUpdate(IrtMdlrFuncInfoClass* FI, double u, double v) 
     }
 
     CagdSrfDomain(LclData->SrfExpr.GetIPObj()->U.Srfs, &UMin, &UMax, &VMin, &VMax);
+
+    //GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_ERROR, "[%f,%f]x[%f,%f]\n", UMin, UMax, VMin, VMax);
+
     u = ((UMax - UMin) * u) + UMin;
     v = ((VMax - VMin) * v) + VMin;
 
-    CAGD_SRF_EVAL_E3(LclData -> SrfDu, u, v, SuVec);
-    CAGD_SRF_EVAL_E3(LclData -> SrfDv, u, v, SvVec);
+    CAGD_SRF_EVAL_E3(LclData -> Deriv.u.Srf, u, v, SuVec);
+    CAGD_SRF_EVAL_E3(LclData -> Deriv.v.Srf, u, v, SvVec);
 
     IrtMdlrPoSApplyShear(FI, SuVec, SvVec);
 
     for (int i = 0; i < 3; i++) {
-        SuVec[i] /= LclData -> AgvMgnU;
-        SvVec[i] /= LclData -> AgvMgnV;
+        SuVec[i] /= LclData -> Deriv.u.AvgMgn;
+        SvVec[i] /= LclData -> Deriv.v.AvgMgn;
     }
 
     IrtMdlrPoSApplyResize(FI, SuVec, SvVec);
@@ -1372,6 +1379,9 @@ static void IrtMdlrPoSApplyShear(IrtMdlrFuncInfoClass* FI, CagdVType SuVec, Cagd
     double normU = sqrt(SuVec[0] * SuVec[0] + SuVec[1] * SuVec[1] + SuVec[2] * SuVec[2]);
     double normV = sqrt(SvVec[0] * SvVec[0] + SvVec[1] * SvVec[1] + SvVec[2] * SvVec[2]);
     double cosAngle = (SuVec[0] * SvVec[0] + SuVec[1] * SvVec[1] + SuVec[2] * SvVec[2]) / (normU * normV);
+
+    //GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_ERROR, "U: (%.3f, %.3f, %.3f) - Norm: %.4f\n", SuVec[0], SuVec[1], SuVec[2], normU);
+    //GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_ERROR, "V: (%.3f, %.3f, %.3f) - Norm: %.4f\n", SvVec[0], SvVec[1], SvVec[2], normV);
 
     IrtMdlrPaintOnSrfLclClass
         *LclData = dynamic_cast<IrtMdlrPaintOnSrfLclClass *> (FI->LocalFuncData());
