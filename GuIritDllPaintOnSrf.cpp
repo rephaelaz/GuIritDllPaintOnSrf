@@ -395,10 +395,6 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
                         for (int w = 0; w < Width; w++) {
                             Texture->Texture[h * Width + w + (h * offsetW)] =
                                 Image[h * Width + w];
-                            LclData->TextureAlpha[h * Width + w + (h * offsetW)] =
-                                Image[h * Width + w];
-                            LclData->TextureBuffer[h * Width + w + (h * offsetW)] =
-                                Image[h * Width + w];
                         }
                     }
                     GuIritMdlrDllSetTextureFromImage(FI,
@@ -590,10 +586,6 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
                     IritMalloc(sizeof(IrtImgPixelStruct) * IRT_MDLR_POS_DFLT_SIZE);
                 LclData -> TextureBuffer = (IrtImgPixelStruct *)
                     IritMalloc(sizeof(IrtImgPixelStruct) * IRT_MDLR_POS_DFLT_SIZE);
-                for (i = 0; i < IRT_MDLR_POS_DFLT_SIZE; i++) {
-                    LclData -> TextureAlpha[i] = Texture -> Texture[i];
-                    LclData -> TextureBuffer[i] = Texture -> Texture[i];
-                }
 
                 LclData -> Deriv.u.Srf = CagdSrfDerive(LclData->Object->U.Srfs, CAGD_CONST_U_DIR);
                 LclData -> Deriv.v.Srf = CagdSrfDerive(LclData->Object->U.Srfs, CAGD_CONST_V_DIR);
@@ -663,14 +655,9 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
 				offsetW = 4 - Width % 4;
 			}
             for (int h = 0; h <  Height; h++) {
-	        for (int w = 0; w < Width; w++) {
-		    Texture -> Texture[h * Width + w + (h * offsetW)] =
-		                                          Image[h * Width + w];
-		    LclData -> TextureAlpha[h * Width + w + (h * offsetW)] =
-							  Image[h * Width + w];
-		    LclData -> TextureBuffer[h * Width + w + (h * offsetW)] =
-							  Image[h * Width + w];
-		}
+	            for (int w = 0; w < Width; w++) {
+		            Texture -> Texture[h * Width + w + (h * offsetW)] = Image[h * Width + w];
+		        }
             }
 
             GuIritMdlrDllSetTextureFromImage(FI, 
@@ -894,12 +881,6 @@ static void IrtMdlrPoSResizeTexture(IrtMdlrFuncInfoClass *FI,
                 Texture[y * Width + x].r = 255;
                 Texture[y * Width + x].g = 255;
                 Texture[y * Width + x].b = 255;
-                TextureAlpha[y * Width + x].r = 255;
-                TextureAlpha[y * Width + x].g = 255;
-                TextureAlpha[y * Width + x].b = 255;
-                TextureBuffer[y * Width + x].r = 255;
-                TextureBuffer[y * Width + x].g = 255;
-                TextureBuffer[y * Width + x].b = 255;
             }
         }
     }
@@ -1177,8 +1158,6 @@ static void IrtMdlrPoSRenderShape(IrtMdlrFuncInfoClass *FI,
                 + (LclData -> TextureAlpha[TextureOff].b 
                 - LclData -> TextureBuffer[TextureOff].b) 
                 * (LclData -> Base.Alpha / 255.0));
-
-            
         }
     }
     Texture -> Saved = false;
@@ -1216,29 +1195,34 @@ static int IrtMdlrPoSMouseCallBack(IrtMdlrMouseEventStruct *MouseEvent)
             case IRT_DSP_MOUSE_EVENT_LEFT_DOWN:
 	        GuIritMdlrDllCaptureCursorFocus(FI, MouseEvent, true);
 		    Clicking = TRUE;
+            if (LclData -> Object != NULL) {
+                int x;
+                IrtMdlrPoSTextureStruct
+                    *Texture = LclData -> Textures[LclData -> Object];
+
+                for (x = 0; x < Texture -> Width * Texture -> Height; x++) {
+                    LclData -> TextureAlpha[x] = Texture -> Texture[x];
+                    LclData -> TextureBuffer[x] = Texture -> Texture[x];
+                }
+            }
 		    break;
 
             case IRT_DSP_MOUSE_EVENT_LEFT_UP:
 	        GuIritMdlrDllCaptureCursorFocus(FI, MouseEvent, false);
 	       	Clicking = FALSE;
 	    	if (LclData -> Object != NULL) {
-		        int x, y;
+		        int x;
 		        IrtMdlrPoSTextureStruct
 	    	        *Texture = LclData -> Textures[LclData -> Object];
 
-		    for (y = 0; y < Texture -> Height; y++) {
-		        for (x = 0; x < Texture -> Width; x++) {
-			       int offset = y * Texture -> Width + x;
-			       LclData -> TextureAlpha[offset] = 
-			                          Texture -> Texture[offset];
-			        LclData -> TextureBuffer[offset] = 
-			                          Texture -> Texture[offset];
-		    	}
+		        for (x = 0; x < Texture -> Width * Texture -> Height; x++) {
+			        LclData -> TextureAlpha[x] = Texture -> Texture[x];
+			        LclData -> TextureBuffer[x] = Texture -> Texture[x];
+		        }
 		    }
-		}
-		PrevXOff = -1;
-		PrefYOff = -1;
-		break;
+		    PrevXOff = -1;
+		    PrefYOff = -1;
+		    break;
 
             default:
 	        break;
@@ -1346,7 +1330,7 @@ static void IrtMdlrPoSShapeUpdate(IrtMdlrFuncInfoClass* FI, double u, double v) 
     CAGD_SRF_EVAL_E3(LclData -> Deriv.u.Srf, u, v, SuVec);
     CAGD_SRF_EVAL_E3(LclData -> Deriv.v.Srf, u, v, SvVec);
 
-    //IrtMdlrPoSApplyShear(FI, SuVec, SvVec);
+    IrtMdlrPoSApplyShear(FI, SuVec, SvVec);
 
     for (int i = 0; i < 3; i++) {
         SuVec[i] /= LclData -> Deriv.u.Avg;
