@@ -83,9 +83,9 @@ struct IrtMdlrPoSTextureStruct {
 };
 
 struct IrtMdlrPoSPartialDerivStruct {
-    IrtMdlrPoSPartialDerivStruct(): AvgMgn(0), Srf(NULL) {}
+    IrtMdlrPoSPartialDerivStruct(): Avg(0), Srf(NULL) {}
 
-    CagdRType AvgMgn;
+    CagdRType Avg;
     CagdSrfStruct *Srf;
 };
 
@@ -600,22 +600,22 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
 
                 CagdSrfDomain(LclData->Object->U.Srfs, &UMin, &UMax, &VMin, &VMax);
 
-                LclData -> Deriv.u.AvgMgn = 0;
-                LclData -> Deriv.v.AvgMgn = 0;
+                LclData -> Deriv.u.Avg = 0;
+                LclData -> Deriv.v.Avg = 0;
 
                 for (j = UMin; j <= UMax; j += (UMax - UMin) / 10) {
                     for (k = VMin; k <= VMax; k += (VMax - VMin) / 10) {
                         CAGD_SRF_EVAL_E3(LclData -> Deriv.u.Srf, j, k, SuVec);
-                        CAGD_SRF_EVAL_E3(LclData -> Deriv.u.Srf, j, k, SvVec);
+                        CAGD_SRF_EVAL_E3(LclData -> Deriv.v.Srf, j, k, SvVec);
 
-                        LclData -> Deriv.u.AvgMgn += sqrt(SuVec[0] * SuVec[0] + SuVec[1] * SuVec[1] + SuVec[2] * SuVec[2]);
-                        LclData -> Deriv.v.AvgMgn += sqrt(SvVec[0] * SvVec[0] + SvVec[1] * SvVec[1] + SvVec[2] * SvVec[2]);
+                        LclData -> Deriv.u.Avg += sqrt(SuVec[0] * SuVec[0] + SuVec[1] * SuVec[1] + SuVec[2] * SuVec[2]);
+                        LclData -> Deriv.v.Avg += sqrt(SvVec[0] * SvVec[0] + SvVec[1] * SvVec[1] + SvVec[2] * SvVec[2]);
 
                     }
                 }
 
-                LclData -> Deriv.u.AvgMgn /= 100;
-                LclData -> Deriv.v.AvgMgn /= 100;
+                LclData -> Deriv.u.Avg /= 100;
+                LclData -> Deriv.v.Avg /= 100;
             }
         }
         PanelUpdate = false;
@@ -1349,8 +1349,8 @@ static void IrtMdlrPoSShapeUpdate(IrtMdlrFuncInfoClass* FI, double u, double v) 
     //IrtMdlrPoSApplyShear(FI, SuVec, SvVec);
 
     for (int i = 0; i < 3; i++) {
-        SuVec[i] /= LclData -> Deriv.u.AvgMgn;
-        SvVec[i] /= LclData -> Deriv.v.AvgMgn;
+        SuVec[i] /= LclData -> Deriv.u.Avg;
+        SvVec[i] /= LclData -> Deriv.v.Avg;
     }
 
     IrtMdlrPoSApplyResize(FI, SuVec, SvVec);
