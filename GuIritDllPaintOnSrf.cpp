@@ -569,8 +569,7 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
                 GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_ERROR, "TODO Model init buffers and derivatives\n");
             }
             else {
-                int i;
-                CagdRType UMin, UMax, VMin, VMax, j, k;
+                CagdRType UMin, UMax, VMin, VMax, i, j;
                 CagdVType SuVec, SvVec,
                     SUMSuVec = {0, 0, 0},
                     SUMSvVec = {0, 0, 0};
@@ -587,18 +586,24 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
                 LclData -> TextureBuffer = (IrtImgPixelStruct *)
                     IritMalloc(sizeof(IrtImgPixelStruct) * IRT_MDLR_POS_DFLT_SIZE);
 
-                LclData -> Deriv.u.Srf = CagdSrfDerive(LclData->Object->U.Srfs, CAGD_CONST_U_DIR);
-                LclData -> Deriv.v.Srf = CagdSrfDerive(LclData->Object->U.Srfs, CAGD_CONST_V_DIR);
-
-                CagdSrfDomain(LclData->Object->U.Srfs, &UMin, &UMax, &VMin, &VMax);
+                if (IP_IS_TRIMSRF_OBJ(LclData->Object)) {
+                    LclData -> Deriv.u.Srf = CagdSrfDerive(LclData->Object->U.TrimSrfs->Srf, CAGD_CONST_U_DIR);
+                    LclData -> Deriv.v.Srf = CagdSrfDerive(LclData->Object->U.TrimSrfs->Srf, CAGD_CONST_V_DIR);
+                    CagdSrfDomain(LclData->Object->U.TrimSrfs->Srf, &UMin, &UMax, &VMin, &VMax);
+                }
+                else {
+                    LclData -> Deriv.u.Srf = CagdSrfDerive(LclData->Object->U.Srfs, CAGD_CONST_U_DIR);
+                    LclData -> Deriv.v.Srf = CagdSrfDerive(LclData->Object->U.Srfs, CAGD_CONST_V_DIR);
+                    CagdSrfDomain(LclData->Object->U.Srfs, &UMin, &UMax, &VMin, &VMax);
+                }
 
                 LclData -> Deriv.u.Avg = 0;
                 LclData -> Deriv.v.Avg = 0;
 
-                for (j = UMin; j <= UMax; j += (UMax - UMin) / 10) {
-                    for (k = VMin; k <= VMax; k += (VMax - VMin) / 10) {
-                        CAGD_SRF_EVAL_E3(LclData -> Deriv.u.Srf, j, k, SuVec);
-                        CAGD_SRF_EVAL_E3(LclData -> Deriv.v.Srf, j, k, SvVec);
+                for (i = UMin; i <= UMax; i += (UMax - UMin) / 10) {
+                    for (j = VMin; j <= VMax; j += (VMax - VMin) / 10) {
+                        CAGD_SRF_EVAL_E3(LclData -> Deriv.u.Srf, i, j, SuVec);
+                        CAGD_SRF_EVAL_E3(LclData -> Deriv.v.Srf, i, j, SvVec);
 
                         LclData -> Deriv.u.Avg += sqrt(SuVec[0] * SuVec[0] + SuVec[1] * SuVec[1] + SuVec[2] * SuVec[2]);
                         LclData -> Deriv.v.Avg += sqrt(SvVec[0] * SvVec[0] + SvVec[1] * SvVec[1] + SvVec[2] * SvVec[2]);
@@ -1320,7 +1325,12 @@ static void IrtMdlrPoSShapeUpdate(IrtMdlrFuncInfoClass* FI, double u, double v) 
         }
     }
 
-    CagdSrfDomain(LclData->Object->U.Srfs, &UMin, &UMax, &VMin, &VMax);
+    if (IP_IS_TRIMSRF_OBJ(LclData->Object)) {
+        CagdSrfDomain(LclData->Object->U.TrimSrfs->Srf, &UMin, &UMax, &VMin, &VMax);
+    }
+    else {
+        CagdSrfDomain(LclData->Object->U.Srfs, &UMin, &UMax, &VMin, &VMax);
+    }
 
     //GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_ERROR, "[%f,%f]x[%f,%f]\n", UMin, UMax, VMin, VMax);
 
