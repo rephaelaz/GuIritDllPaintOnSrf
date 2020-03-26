@@ -1,0 +1,52 @@
+[OBJECT [ObjWrapper _REFPTR_ATTR_NOT_CNVRTED_] SelectionFolder_#000003
+    [OBJECT [ObjWrapper _REFPTR_ATTR_NOT_CNVRTED_] [transp 0] 
+	[rgb "200,0,0"] BILINEAR_#000049
+	[SURFACE BEZIER 2 2 E3
+	    [0. 0. 0.]
+	    [1. 0. 0.]
+
+	    [0. 1. 0.]
+	    [1. 1. 0.]
+	]
+    ]
+    [OBJECT [transp 0] [rgb "200,0,0"] 
+	[ObjWrapper _REFPTR_ATTR_NOT_CNVRTED_] BILINEAR_#000053
+	[SURFACE BEZIER 2 2 E3
+	    [1. 0. 0.]
+	    [2. 0. 0.]
+
+	    [1.5 1. 0.]
+	    [2.5 1. 0.]
+	]
+    ]
+    [OBJECT [transp 0] [rgb "200,0,0"] 
+	[ObjWrapper _REFPTR_ATTR_NOT_CNVRTED_] BILINEAR_#000055
+	[SURFACE BEZIER 2 2 E3
+	    [2. 0. 0.]
+	    [3. 0. 0.]
+
+	    [3. 1. 0.]
+	    [4. 1. 0.]
+	]
+    ]
+    [OBJECT [transp 0] [rgb "200,0,0"] 
+	[ObjWrapper _REFPTR_ATTR_NOT_CNVRTED_] BILINEAR_#000057
+	[SURFACE BEZIER 2 2 E3
+	    [-1. 0. 0.]
+	    [0. 0. 0.]
+
+	    [-1.5 1. 0.]
+	    [-0.5 1. 0.]
+	]
+    ]
+    [OBJECT [transp 0] [rgb "200,0,0"] 
+	[ObjWrapper _REFPTR_ATTR_NOT_CNVRTED_] BILINEAR_#000059
+	[SURFACE BEZIER 2 2 E3
+	    [-2. 0. 0.]
+	    [-1. 0. 0.]
+
+	    [-3. 1. 0.]
+	    [-2. 1. 0.]
+	]
+    ]
+]

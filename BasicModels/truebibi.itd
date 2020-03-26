@@ -1,0 +1,10 @@
+[OBJECT [ObjWrapper _REFPTR_ATTR_NOT_CNVRTED_] [transp 0] 
+    [rgb "255,255,255"] BILINEAR_#000048
+    [SURFACE BEZIER 2 2 E3
+	[-2. -2. 2.]
+	[10. -10. 0.]
+
+	[-2. 10. 0.]
+	[0. 2. 4.]
+    ]
+]
