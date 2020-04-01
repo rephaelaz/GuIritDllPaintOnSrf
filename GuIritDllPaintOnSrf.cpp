@@ -158,6 +158,8 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI);
 static void IrtMdlrPoSLoadTexture(IrtMdlrFuncInfoClass *FI,
     IrtMdlrPoSTexDataStruct *TexData,
     const char *path);
+static void IrtMdlrPoSRecolorObject(IrtMdlrFuncInfoClass *FI,
+    IPObjectStruct *Object);
 static void IrtMdlrPoSResizeTexture(IrtMdlrFuncInfoClass *FI,
     IrtMdlrPoSTexDataStruct *TexData,
     int Width,
@@ -394,13 +396,11 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
                         TexData->Alpha,
                         Span);
                 }
-                else {
-                    // Here put a 4x4 empty texture.
-                    
+                else {                    
                     GuIritMdlrDllSetTextureFromImage(FI, it->first,
                         LclData -> DefaultTexture,
                         4, 4, FALSE, Span);
-
+                    IrtMdlrPoSRecolorObject(FI, it->first);
                 }
             }
         }
@@ -421,6 +421,7 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
                     "Save Texture to....",
                     "*.png", &Filename);
                 if (Res) {
+                    GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_ERROR, "Euh\n");
                     IrtMdlrPoSTexDataStruct *TexData = it->second;
                     MiscWriteGenInfoStructPtr
                         GI = IrtImgWriteOpenFile(NULL, Filename, IRIT_IMAGE_PNG_TYPE,
@@ -499,7 +500,6 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
                 IrtMdlrPoSTexDataStruct
                     *TexData = (IrtMdlrPoSTexDataStruct *)
                     IritMalloc(sizeof(IrtMdlrPoSTexDataStruct));
-                IrtDspOGLObjPropsClass *OGLProps;
 
                 TexData -> Width = IRT_MDLR_POS_DFLT_WIDTH;
                 TexData -> Height = IRT_MDLR_POS_DFLT_HEIGHT;
@@ -521,21 +521,7 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
                     LclData -> DefaultTexture,
                     4, 4, FALSE, Span);
 
-                /* Set Object color to white (default is red) */
-                AttrIDSetObjectRGBColor(LclData -> ObjExpr.GetIPObj(),
-                    255, 255, 255);
-                OGLProps = GuIritMdlrDllGetObjectOGLProps(FI,
-                    LclData -> ObjExpr.GetIPObj());
-
-                if (OGLProps != NULL) {
-                    IrtDspRGBAClrClass
-                        White = IrtDspRGBAClrClass(255, 255, 255);
-
-                    OGLProps -> FrontFaceColor.SetValue(White);
-                    OGLProps -> BackFaceColor.SetValue(White);
-                    OGLProps -> BDspListNeedsUpdate = true;
-                    GuIritMdlrDllRedrawScreen(FI);
-                }
+                IrtMdlrPoSRecolorObject(FI, LclData -> ObjExpr.GetIPObj());
             }
         }
         if (LclData -> ObjExpr.GetIPObj() != LclData -> Object) {
@@ -605,6 +591,7 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
         if (Res) {
             IrtMdlrPoSTexDataStruct
                 *TexData = LclData -> TexDatas[LclData -> Object];
+
             IrtMdlrPoSLoadTexture(FI, TexData, Path);
 
             GuIritMdlrDllSetTextureFromImage(FI,
@@ -698,11 +685,7 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
     if (FI -> IntermediateWidgetMajor == IRT_MDLR_POS_COLOR) {
         unsigned char Red, Green, Blue;
 
-        /* Set drops color. */
         if (GuIritMdlrDllGetAsyncInputColor(FI, &Red, &Green, &Blue)) {
-            GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO,
-                "Color selection: %u, %u, %u.\n",
-                Red, Green, Blue);
             LclData -> Color[0] = Red;
             LclData -> Color[1] = Green;
             LclData -> Color[2] = Blue;
@@ -830,6 +813,26 @@ static void IrtMdlrPoSLoadTexture(IrtMdlrFuncInfoClass *FI,
             TexData->Texture[h * Width + w + (h * offsetW)] =
                 Image[h * Width + w];
         }
+    }
+}
+
+static void IrtMdlrPoSRecolorObject(IrtMdlrFuncInfoClass *FI,
+    IPObjectStruct *Object)
+{
+    IrtDspOGLObjPropsClass *OGLProps;
+
+    AttrIDSetObjectRGBColor(Object, 255, 255, 255);
+
+    OGLProps = GuIritMdlrDllGetObjectOGLProps(FI, Object);
+
+    if (OGLProps != NULL) {
+        IrtDspRGBAClrClass
+            White = IrtDspRGBAClrClass(255, 255, 255);
+
+        OGLProps -> FrontFaceColor.SetValue(White);
+        OGLProps -> BackFaceColor.SetValue(White);
+        OGLProps -> BDspListNeedsUpdate = true;
+        GuIritMdlrDllRedrawScreen(FI);
     }
 }
 
