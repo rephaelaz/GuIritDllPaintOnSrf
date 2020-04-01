@@ -158,6 +158,9 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI);
 static void IrtMdlrPoSLoadTexture(IrtMdlrFuncInfoClass *FI,
     IrtMdlrPoSTexDataStruct *TexData,
     const char *path);
+static void IrtMdlrPoSSaveTexture(IrtMdlrFuncInfoClass *FI,
+    IPObjectStruct *Object,
+    IrtMdlrPoSTexDataStruct *TexData);
 static void IrtMdlrPoSRecolorObject(IrtMdlrFuncInfoClass *FI,
     IPObjectStruct *Object);
 static void IrtMdlrPoSResizeTexture(IrtMdlrFuncInfoClass *FI,
@@ -355,9 +358,6 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
                 IritFree(LastObjName);
             LastObjName = NULL;
         }
-
-        GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO,
-            "Surface Painter initialized\n");
     }
 
     if (FI -> CnstrctState == IRT_MDLR_CNSTRCT_STATE_CANCEL) {
@@ -400,6 +400,7 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
                     GuIritMdlrDllSetTextureFromImage(FI, it->first,
                         LclData -> DefaultTexture,
                         4, 4, FALSE, Span);
+
                     IrtMdlrPoSRecolorObject(FI, it->first);
                 }
             }
@@ -416,36 +417,8 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
                 GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_ERROR, "TODO Model Ok save\n");
             }
             else {
-                char *Filename;
-                bool Res = GuIritMdlrDllGetAsyncInputFileName(FI,
-                    "Save Texture to....",
-                    "*.png", &Filename);
-                if (Res) {
-                    GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_ERROR, "Euh\n");
-                    IrtMdlrPoSTexDataStruct *TexData = it->second;
-                    MiscWriteGenInfoStructPtr
-                        GI = IrtImgWriteOpenFile(NULL, Filename, IRIT_IMAGE_PNG_TYPE,
-                        TexData->Alpha, TexData->Width,
-                        TexData->Height);
-                    if (GI == NULL) {
-                        GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_ERROR,
-                            "Error saving texture to \"%s\"\n",
-                            Filename);
-                    }
-                    else {
-                        int y;
-                        for (y = 0; y < TexData->Height; y++) {
-                            IrtImgWritePutLine(GI, NULL,
-                                &TexData->Texture[y * TexData->Width]);
-                        }
-                        IrtImgWriteCloseFile(GI);
-                        GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO,
-                            "Texture saved successfully to \"%s\"\n",
-                            Filename);
-                        TexData->Saved = true;
-
-                        AttrIDSetObjectStrAttrib(it->first, IRIT_ATTR_CREATE_ID(ptexture), Filename);
-                    }
+                if (!it -> second -> Saved) {
+                    IrtMdlrPoSSaveTexture(FI, it -> first, it -> second);
                 }
             }
         }
@@ -504,7 +477,7 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
                 TexData -> Width = IRT_MDLR_POS_DFLT_WIDTH;
                 TexData -> Height = IRT_MDLR_POS_DFLT_HEIGHT;
                 TexData -> Alpha = 0;
-                TexData -> Saved = false;
+                TexData -> Saved = true;
                 TexData -> Resize = false;
                 TexData -> Texture = (IrtImgPixelStruct *)
                     IritMalloc(sizeof(IrtImgPixelStruct) * IRT_MDLR_POS_DFLT_SIZE);
@@ -614,38 +587,9 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
 
     if (FI -> IntermediateWidgetMajor == IRT_MDLR_POS_SAVE &&
         LclData -> Object != NULL) {
-        char *Filename;
-        bool
-            Res = GuIritMdlrDllGetAsyncInputFileName(FI,
-            "Save Texture to....",
-            "*.png", &Filename);
-        if (Res) {
-            IrtMdlrPoSTexDataStruct
-                *TexData = LclData -> TexDatas[LclData -> Object];
-            MiscWriteGenInfoStructPtr
-                GI = IrtImgWriteOpenFile(NULL, Filename, IRIT_IMAGE_PNG_TYPE,
-                TexData -> Alpha, TexData -> Width,
-                TexData -> Height);
-
-            if (GI == NULL) {
-                GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_ERROR,
-                    "Error saving texture to \"%s\"\n",
-                    Filename);
-            }
-            else {
-                int y;
-
-                for (y = 0; y < TexData -> Height; y++) {
-                    IrtImgWritePutLine(GI, NULL,
-                        &TexData -> Texture[y * TexData -> Width]);
-                }
-                IrtImgWriteCloseFile(GI);
-                GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO,
-                    "Texture saved successfully to \"%s\"\n",
-                    Filename);
-                TexData -> Saved = true;
-            }
-        }
+        IrtMdlrPoSTexDataStruct
+            *TexData = LclData -> TexDatas[LclData -> Object];
+        IrtMdlrPoSSaveTexture(FI, LclData -> Object, TexData);
     }
 
     if (FI -> IntermediateWidgetMajor == IRT_MDLR_POS_RESET &&
@@ -678,7 +622,6 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
                 TexData -> Height,
                 TexData -> Alpha,
                 Span);
-
         }
     }
 
@@ -812,6 +755,41 @@ static void IrtMdlrPoSLoadTexture(IrtMdlrFuncInfoClass *FI,
         for (int w = 0; w < Width; w++) {
             TexData->Texture[h * Width + w + (h * offsetW)] =
                 Image[h * Width + w];
+        }
+    }
+}
+
+static void IrtMdlrPoSSaveTexture(IrtMdlrFuncInfoClass *FI,
+    IPObjectStruct *Object,
+    IrtMdlrPoSTexDataStruct *TexData)
+{
+    char *Filename;
+    bool Res = GuIritMdlrDllGetAsyncInputFileName(FI,
+        "Save Texture to....",
+        "*.png", &Filename);
+    if (Res) {
+        MiscWriteGenInfoStructPtr
+            GI = IrtImgWriteOpenFile(NULL, Filename, IRIT_IMAGE_PNG_TYPE,
+            TexData->Alpha, TexData->Width,
+            TexData->Height);
+        if (GI == NULL) {
+            GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_ERROR,
+                "Error saving texture to \"%s\"\n",
+                Filename);
+        }
+        else {
+            int y;
+            for (y = 0; y < TexData->Height; y++) {
+                IrtImgWritePutLine(GI, NULL,
+                    &TexData->Texture[y * TexData->Width]);
+            }
+            IrtImgWriteCloseFile(GI);
+            GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO,
+                "Texture saved successfully to \"%s\"\n",
+                Filename);
+            TexData->Saved = true;
+
+            AttrIDSetObjectStrAttrib(Object, IRIT_ATTR_CREATE_ID(ptexture), Filename);
         }
     }
 }
