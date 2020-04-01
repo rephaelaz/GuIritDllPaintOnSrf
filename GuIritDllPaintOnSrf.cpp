@@ -105,6 +105,8 @@ public:
         Base(0, 0, 255, 1, 1, NULL),
         Updated(0, 0, 255, 1, 1, NULL),
         Names(IrtMdlrSelectExprClass(ShapeNames, 0)),
+        TextureAlpha(NULL),
+        TextureBuffer(NULL),
         Object(NULL)
     {
         ParamVals[0] = (void *) &ObjExpr;
@@ -157,7 +159,7 @@ public:
 static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI);
 static void IrtMdlrPoSLoadTexture(IrtMdlrFuncInfoClass *FI,
     IrtMdlrPoSTexDataStruct *TexData,
-    const char *path);
+    const char *Path);
 static void IrtMdlrPoSSaveTexture(IrtMdlrFuncInfoClass *FI,
     IPObjectStruct *Object,
     IrtMdlrPoSTexDataStruct *TexData);
@@ -470,31 +472,41 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
             }
             else {
                 int i;
+                const char *Path = 
+                    AttrIDGetObjectStrAttrib(LclData -> ObjExpr.GetIPObj(), IRIT_ATTR_CREATE_ID(ptexture));
                 IrtMdlrPoSTexDataStruct
                     *TexData = (IrtMdlrPoSTexDataStruct *)
                     IritMalloc(sizeof(IrtMdlrPoSTexDataStruct));
 
-                TexData -> Width = IRT_MDLR_POS_DFLT_WIDTH;
-                TexData -> Height = IRT_MDLR_POS_DFLT_HEIGHT;
                 TexData -> Alpha = 0;
                 TexData -> Saved = true;
                 TexData -> Resize = false;
-                TexData -> Texture = (IrtImgPixelStruct *)
-                    IritMalloc(sizeof(IrtImgPixelStruct) * IRT_MDLR_POS_DFLT_SIZE);
-                for (i = 0; i < IRT_MDLR_POS_DFLT_SIZE; i++) {
-                    TexData -> Texture[i].r = 255;
-                    TexData -> Texture[i].g = 255;
-                    TexData -> Texture[i].b = 255;
+
+                if (Path != NULL) {
+                    TexData -> Texture = NULL;
+                    IrtMdlrPoSLoadTexture(FI, TexData, Path);
                 }
-                LclData -> TexDatas[LclData -> ObjExpr.GetIPObj()] = TexData;
+                else {
+                    TexData -> Width = IRT_MDLR_POS_DFLT_WIDTH;
+                    TexData -> Height = IRT_MDLR_POS_DFLT_HEIGHT;
+                    TexData -> Texture = (IrtImgPixelStruct *)
+                        IritMalloc(sizeof(IrtImgPixelStruct) * IRT_MDLR_POS_DFLT_SIZE);
 
-                /* Apply dummy white texture. This ensure UV mapping is correct.*/
-                GuIritMdlrDllSetTextureFromImage(FI, 
-                    LclData -> ObjExpr.GetIPObj(),
-                    LclData -> DefaultTexture,
-                    4, 4, FALSE, Span);
+                    for (i = 0; i < IRT_MDLR_POS_DFLT_SIZE; i++) {
+                        TexData -> Texture[i].r = 255;
+                        TexData -> Texture[i].g = 255;
+                        TexData -> Texture[i].b = 255;
+                    }
 
+                    /* Apply dummy white texture. This ensure UV mapping is correct.*/
+                    GuIritMdlrDllSetTextureFromImage(FI,
+                        LclData -> ObjExpr.GetIPObj(),
+                        LclData -> DefaultTexture,
+                        4, 4, FALSE, Span);
+                }
                 IrtMdlrPoSRecolorObject(FI, LclData -> ObjExpr.GetIPObj());
+
+                LclData -> TexDatas[LclData -> ObjExpr.GetIPObj()] = TexData;
             }
         }
         if (LclData -> ObjExpr.GetIPObj() != LclData -> Object) {
@@ -515,9 +527,9 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
                     &TexData -> Height);
                 LclData -> Object = LclData -> ObjExpr.GetIPObj();
                 LclData -> TextureAlpha = (IrtImgPixelStruct *)
-                    IritMalloc(sizeof(IrtImgPixelStruct) * IRT_MDLR_POS_DFLT_SIZE);
+                    IritMalloc(sizeof(IrtImgPixelStruct) * TexData -> Width * TexData -> Height);
                 LclData -> TextureBuffer = (IrtImgPixelStruct *)
-                    IritMalloc(sizeof(IrtImgPixelStruct) * IRT_MDLR_POS_DFLT_SIZE);
+                    IritMalloc(sizeof(IrtImgPixelStruct) * TexData -> Width * TexData -> Height);
 
                 if (IP_IS_TRIMSRF_OBJ(LclData->Object)) {
                     LclData -> Deriv.u.Srf = CagdSrfDerive(LclData->Object->U.TrimSrfs->Srf, CAGD_CONST_U_DIR);
@@ -733,7 +745,7 @@ static void IrtMdlrPoSLoadTexture(IrtMdlrFuncInfoClass *FI,
 
     Width++, Height++;
     TexData->Alpha = Alpha;
-    TexData->Saved = false;
+    TexData->Saved = true;
     TexData->Resize = false;
 
     if (Width % 4 != 0) {
@@ -784,9 +796,6 @@ static void IrtMdlrPoSSaveTexture(IrtMdlrFuncInfoClass *FI,
                     &TexData->Texture[y * TexData->Width]);
             }
             IrtImgWriteCloseFile(GI);
-            GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_INFO,
-                "Texture saved successfully to \"%s\"\n",
-                Filename);
             TexData->Saved = true;
 
             AttrIDSetObjectStrAttrib(Object, IRIT_ATTR_CREATE_ID(ptexture), Filename);
@@ -856,12 +865,20 @@ static void IrtMdlrPoSResizeTexture(IrtMdlrFuncInfoClass *FI,
             }
         }
     }
-    IritFree(TexData -> Texture);
-    IritFree(LclData -> TextureAlpha);
-    IritFree(LclData -> TextureBuffer);
-    LclData->TexDatas[LclData->Object]-> Width = Width;
-    LclData->TexDatas[LclData->Object]-> Height = Height;
-    LclData->TexDatas[LclData->Object]-> Texture = NewTexture;
+
+    if (TexData -> Texture != NULL) {
+        IritFree(TexData -> Texture);
+    }
+    if (LclData -> TextureAlpha != NULL) {
+        IritFree(LclData -> TextureAlpha);
+    }
+    if (LclData -> TextureBuffer != NULL) {
+        IritFree(LclData -> TextureBuffer);
+    }
+    
+    TexData -> Width = Width;
+    TexData -> Height = Height;
+    TexData -> Texture = NewTexture;
     LclData -> TextureAlpha = TextureAlpha;
     LclData -> TextureBuffer = TextureBuffer;
 }
