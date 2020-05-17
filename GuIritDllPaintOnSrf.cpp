@@ -26,6 +26,7 @@
 using std::vector;
 using std::map;
 using std::pair;
+using std::find;
 using std::swap;
 using std::min;
 using std::max;
@@ -89,12 +90,11 @@ struct IrtMdlrPoSDerivDataStruct {
 struct IrtMdlrPoSTexDataStruct {
     IrtMdlrPoSTexDataStruct(): Texture(NULL) {}
 
-    bool Saved, Resize, Model;
+    bool Saved, Resize;
     int Width, Height, Alpha;
     IrtImgPixelStruct *Texture;
     IrtMdlrPoSDerivDataStruct Deriv;
-    /*map<CagdSrfStruct *, IrtImgPixelStruct *> TextureMap;
-    map<CagdSrfStruct *, IPObjectStruct *> ObjectMap;*/
+    vector<IPObjectStruct *> ModelSrfs;
 };
 
 class IrtMdlrPaintOnSrfLclClass : public IrtMdlrLclDataClass {
@@ -158,6 +158,7 @@ public:
     IrtImgPixelStruct *TextureAlpha;
     IrtImgPixelStruct *TextureBuffer;
     map<IPObjectStruct *, IrtMdlrPoSTexDataStruct> TexDatas;
+    vector<IPObjectStruct *> Selection;
     IPObjectStruct *Object;
     /*IrtMdlrPoSDerivDataStruct Deriv;
     map<CagdSrfStruct *, IrtMdlrPoSDerivDataStruct> DerivMap;*/
@@ -189,6 +190,7 @@ static void IrtMdlrPoSBresenham(const pair<int, int> &a,
     const pair<int, int> &b,
     vector<pair<int, int>> &Points);
 static void IrtMdlrPoSRenderShape(IrtMdlrFuncInfoClass *FI,
+    IPObjectStruct *Object,
     int XOff,
     int YOff);
 static int IrtMdlrPoSMouseCallBack(IrtMdlrMouseEventStruct *MouseEvent);
@@ -363,7 +365,7 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
         GuIritMdlrDllSetRealInputDomain(FI, 0.01, 100, IRT_MDLR_POS_Y_FACTOR);
 
         LclData -> TexDatas.clear();
-        LclData -> Object = NULL;
+        LclData -> Selection.clear();
 
         if (LastObj != NULL) {
             LastObj = NULL;
@@ -395,7 +397,7 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
                     std::string Relative(Path);
                     std::istringstream Stream(Relative);
                     IrtMdlrPoSTexDataStruct
-                        &TexData = LclData->TexDatas[LclData->Object];
+                        &TexData = LclData -> TexDatas[LclData -> Object];
 
                     getline(Stream, Relative, ',');
 
@@ -438,7 +440,6 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
         return;
     }
 
-
     GuIritMdlrDllGetInputParameter(FI, IRT_MDLR_POS_SURFACE,
         LclData->ObjExpr.GetObjAddr());
 
@@ -480,10 +481,13 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
             LclData -> TexDatas.end()) {
 
             if (IP_IS_MODEL_OBJ(LclData -> ObjExpr.GetIPObj())) {
-
                 char Buffer[IRIT_LINE_LEN_XLONG];
+                IrtMdlrPoSTexDataStruct TexData;
                 TrimSrfStruct *TSrfList = MdlCnvrtMdl2TrimmedSrfs(LclData -> ObjExpr.GetIPObj()->U.Mdls, 0);
                 IPObjectStruct *ObjList = IPGenLISTObject(NULL);
+
+                TexData.Width = IRT_MDLR_POS_DFLT_WIDTH;
+                TexData.Height = IRT_MDLR_POS_DFLT_HEIGHT;
 
                 sprintf(Buffer, "%s_TRLIST", LclData -> ObjExpr.GetIPObj()->ObjName);
                 GuIritMdlrDllSetObjectName(FI, ObjList, Buffer);
@@ -496,15 +500,12 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
                     IrtMdlrPoSInitTexture(FI, Obj);
                     IrtMdlrPoSDeriveTexture(FI, Obj);
                     IPListObjectAppend(ObjList, Obj);
+                    TexData.ModelSrfs.push_back(Obj);
                 };
 
                 GuIritMdlrDllInsertModelingNewObj(FI, ObjList);
                 GuIritMdlrDllSetObjectVisible(FI, LclData -> ObjExpr.GetIPObj(), false);
 
-                // C'EST DEGUEULASSE
-                IrtMdlrPoSTexDataStruct TexData;
-                TexData.Width = IRT_MDLR_POS_DFLT_WIDTH;
-                TexData.Height = IRT_MDLR_POS_DFLT_HEIGHT;
                 LclData -> TexDatas[LclData -> ObjExpr.GetIPObj()] = TexData;
             }
             else {
@@ -516,7 +517,19 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
         if (LclData -> ObjExpr.GetIPObj() != LclData -> Object) {
             IrtMdlrPoSTexDataStruct
                 &TexData = LclData -> TexDatas[LclData -> ObjExpr.GetIPObj()];
+            LclData -> Selection.clear();
+            if (IP_IS_MODEL_OBJ(LclData -> ObjExpr.GetIPObj())) {
+                vector<IPObjectStruct *>::iterator it;
 
+                for (it = TexData.ModelSrfs.begin();
+                    it != TexData.ModelSrfs.end();
+                    it++) {
+                    LclData -> Selection.push_back(*it);
+                }
+            }
+            else {
+                LclData -> Selection.push_back(LclData -> ObjExpr.GetIPObj());
+            }
             GuIritMdlrDllSetInputParameter(FI, IRT_MDLR_POS_WIDTH,
                 &TexData.Width);
             GuIritMdlrDllSetInputParameter(FI, IRT_MDLR_POS_HEIGHT,
@@ -716,7 +729,6 @@ static void IrtMdlrPoSInitTexture(IrtMdlrFuncInfoClass *FI,
     const char *Path = 
         AttrIDGetObjectStrAttrib(Object, IRIT_ATTR_CREATE_ID(ptexture));
                 
-    TexData.Model = false;
     if (Path != NULL) {
         IrtMdlrPoSLoadTexture(FI, TexData, Path);
     }
@@ -1123,6 +1135,7 @@ static void IrtMdlrPoSBresenham(const pair<int, int> &a,
 *   void                                                                     *
 *****************************************************************************/
 static void IrtMdlrPoSRenderShape(IrtMdlrFuncInfoClass *FI,
+    IPObjectStruct *Object,
     int XOff,
     int YOff)
 {
@@ -1134,7 +1147,7 @@ static void IrtMdlrPoSRenderShape(IrtMdlrFuncInfoClass *FI,
         XMin = XOff - LclData -> Updated.Width / 2,
         YMin = (YOff - LclData -> Updated.Height / 2);
     IrtMdlrPoSTexDataStruct
-        &TexData = LclData -> TexDatas[LclData -> Object];
+        &TexData = LclData -> TexDatas[Object];
 
     /* Modulo needs positive values to work as intended */
     while (XMin < 0) {
@@ -1202,12 +1215,14 @@ static int IrtMdlrPoSMouseCallBack(IrtMdlrMouseEventStruct *MouseEvent)
     IRT_DSP_STATIC_DATA int
         PrevXOff = -1,
         PrefYOff = -1;
+    IRT_DSP_STATIC_DATA IPObjectStruct *
+        PrevObj = NULL;
     IrtRType
         Span[2] = {1.0, 1.0};
     IrtMdlrFuncInfoClass
         *FI = (IrtMdlrFuncInfoClass *) MouseEvent -> Data;
     IPObjectStruct
-        *PObj = (IPObjectStruct *) MouseEvent -> PObj;
+        *Obj = (IPObjectStruct *) MouseEvent -> PObj;
     IrtMdlrPaintOnSrfLclClass
         *LclData = dynamic_cast<IrtMdlrPaintOnSrfLclClass *>
         (FI -> LocalFuncData());
@@ -1217,7 +1232,7 @@ static int IrtMdlrPoSMouseCallBack(IrtMdlrMouseEventStruct *MouseEvent)
             case IRT_DSP_MOUSE_EVENT_LEFT_DOWN:
             GuIritMdlrDllCaptureCursorFocus(FI, MouseEvent, true);
             Clicking = TRUE;
-            if (LclData -> Object != NULL) {
+            /*if (LclData -> Object != NULL) {
                 int x;
                 IrtMdlrPoSTexDataStruct
                     &TexData = LclData -> TexDatas[LclData -> Object];
@@ -1231,19 +1246,19 @@ static int IrtMdlrPoSMouseCallBack(IrtMdlrMouseEventStruct *MouseEvent)
                     LclData -> TextureAlpha[x] = TexData.Texture[x];
                     LclData -> TextureBuffer[x] = TexData.Texture[x];
                 }
-            }
+            }*/
             break;
 
             case IRT_DSP_MOUSE_EVENT_LEFT_UP:
             GuIritMdlrDllCaptureCursorFocus(FI, MouseEvent, false);
             Clicking = FALSE;
-            if (LclData -> Object != NULL) {
+            /*if (LclData -> Object != NULL) {
                 IrtMdlrPoSTexDataStruct
                     &TexData = LclData -> TexDatas[LclData -> Object];
 
                 IritFree(LclData -> TextureAlpha);
                 IritFree(LclData -> TextureBuffer);
-            }
+            }*/
             PrevXOff = -1;
             PrefYOff = -1;
             break;
@@ -1254,17 +1269,39 @@ static int IrtMdlrPoSMouseCallBack(IrtMdlrMouseEventStruct *MouseEvent)
 
         if (Clicking &&
             MouseEvent -> UVW != NULL &&
-            PObj != NULL &&
-            (IP_IS_SRF_OBJ(PObj) || IP_IS_TRIMSRF_OBJ(PObj) || IP_IS_MODEL_OBJ(PObj)) &&
-            PObj == LclData -> Object) {
-
+            Obj != NULL &&
+            find(LclData -> Selection.begin(), LclData -> Selection.end(), Obj) != LclData -> Selection.end()) {
             IrtMdlrPoSTexDataStruct
-                &TexData = LclData -> TexDatas[LclData -> Object];
+                &TexData = LclData -> TexDatas[Obj];
+
+            // Reset texture buffers if needed
+            if (Obj != PrevObj) {
+                int x;
+
+                if (LclData -> TextureAlpha != NULL) {
+                    IritFree(LclData -> TextureAlpha);
+                }
+                if (LclData -> TextureBuffer != NULL) {
+                    IritFree(LclData -> TextureBuffer);
+                }
+
+                LclData -> TextureAlpha = (IrtImgPixelStruct *)
+                    IritMalloc(sizeof(IrtImgPixelStruct) * TexData.Width * TexData.Height);
+                LclData -> TextureBuffer = (IrtImgPixelStruct *)
+                    IritMalloc(sizeof(IrtImgPixelStruct) * TexData.Width * TexData.Height);
+
+                for (x = 0; x < TexData.Width * TexData.Height; x++) {
+                    LclData -> TextureAlpha[x] = TexData.Texture[x];
+                    LclData -> TextureBuffer[x] = TexData.Texture[x];
+                }
+            }
+            PrevObj = Obj;
+
             int XOff = (int) ((double) TexData.Width * MouseEvent -> UVW[0]),
                 YOff = (int) ((double) TexData.Height * MouseEvent -> UVW[1]);
             if (PrefYOff == -1) {
-                IrtMdlrPoSShapeUpdate(FI, PObj, MouseEvent->UVW[0], MouseEvent->UVW[1]);
-                IrtMdlrPoSRenderShape(FI, XOff, YOff);
+                IrtMdlrPoSShapeUpdate(FI, Obj, MouseEvent->UVW[0], MouseEvent->UVW[1]);
+                IrtMdlrPoSRenderShape(FI, Obj, XOff, YOff);
                 PrevXOff = XOff;
                 PrefYOff = YOff;
             }
@@ -1292,10 +1329,11 @@ static int IrtMdlrPoSMouseCallBack(IrtMdlrMouseEventStruct *MouseEvent)
 
                 for (size_t i = 0; i < Points.size(); i++) {
                     IrtMdlrPoSShapeUpdate(FI,
-                        PObj, 
+                        Obj, 
                         (float) Points[i].first / (float) TexData.Width,
                         (float) Points[i].second / (float) TexData.Height);
                     IrtMdlrPoSRenderShape(FI,
+                        Obj,
                         Points[i].first % TexData.Width,
                         Points[i].second % TexData.Height);
                 }
@@ -1305,7 +1343,7 @@ static int IrtMdlrPoSMouseCallBack(IrtMdlrMouseEventStruct *MouseEvent)
             }
 
             GuIritMdlrDllSetTextureFromImage(FI,
-                LclData -> Object,
+                Obj,
                 TexData.Texture,
                 TexData.Width,
                 TexData.Height,
@@ -1345,11 +1383,11 @@ static void IrtMdlrPoSShapeUpdate(IrtMdlrFuncInfoClass *FI, IPObjectStruct *Obje
         }
     }
 
-    if (IP_IS_TRIMSRF_OBJ(LclData->Object)) {
-        CagdSrfDomain(LclData->Object->U.TrimSrfs->Srf, &UMin, &UMax, &VMin, &VMax);
+    if (IP_IS_TRIMSRF_OBJ(Object)) {
+        CagdSrfDomain(Object->U.TrimSrfs->Srf, &UMin, &UMax, &VMin, &VMax);
     }
     else {
-        CagdSrfDomain(LclData->Object->U.Srfs, &UMin, &UMax, &VMin, &VMax);
+        CagdSrfDomain(Object->U.Srfs, &UMin, &UMax, &VMin, &VMax);
     }
 
     u = ((UMax - UMin) * u) + UMin;
