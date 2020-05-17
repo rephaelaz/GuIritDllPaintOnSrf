@@ -585,8 +585,6 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
                     TexData.Height = Data.Height;
                 }
             }
-
-
         }
         else {
             bool
@@ -622,8 +620,21 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
     if (FI -> IntermediateWidgetMajor == IRT_MDLR_POS_SAVE &&
         LclData -> Object != NULL) {
         IrtMdlrPoSTexDataStruct
-            &TexData = LclData -> TexDatas[LclData -> Object];
-        IrtMdlrPoSSaveTexture(FI, LclData -> Object, TexData);
+                &TexData = LclData -> TexDatas[LclData -> Object];
+        if (IP_IS_MODEL_OBJ(LclData -> Object)) {
+            vector<IPObjectStruct *>::iterator it;
+
+            for (it = TexData.ModelSrfs.begin();
+                it != TexData.ModelSrfs.end();
+                it++) {
+                IrtMdlrPoSTexDataStruct
+                        &Data = LclData -> TexDatas[*it];
+                IrtMdlrPoSSaveTexture(FI, *it, Data);
+            }
+        }
+        else {
+            IrtMdlrPoSSaveTexture(FI, LclData -> Object, TexData);
+        }
     }
 
     if (FI -> IntermediateWidgetMajor == IRT_MDLR_POS_RESET &&
