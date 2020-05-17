@@ -486,6 +486,7 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
                 TrimSrfStruct *TSrfList = MdlCnvrtMdl2TrimmedSrfs(LclData -> ObjExpr.GetIPObj()->U.Mdls, 0);
                 IPObjectStruct *ObjList = IPGenLISTObject(NULL);
 
+                TexData.Resize = false;
                 TexData.Width = IRT_MDLR_POS_DFLT_WIDTH;
                 TexData.Height = IRT_MDLR_POS_DFLT_HEIGHT;
 
@@ -694,17 +695,42 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
                         "Invalid Width (not a multiple of 4), changed to %d\n",
                         LclData -> TextureWidth);
                 }
+
+                if (IP_IS_MODEL_OBJ(LclData -> Object)) {
+                    vector<IPObjectStruct *>::iterator it;
+                    for (it = TexData.ModelSrfs.begin();
+                        it != TexData.ModelSrfs.end();
+                        it++) {
+                        IrtMdlrPoSTexDataStruct
+                            &Data = LclData -> TexDatas[*it];
+                        IrtMdlrPoSResizeTexture(FI,
+                            Data,
+                            LclData -> TextureWidth,
+                            LclData -> TextureHeight,
+                            true);
+                        GuIritMdlrDllSetTextureFromImage(FI, 
+                            *it,
+                            Data.Texture,
+                            Data.Width,
+                            Data.Height,
+                            Data.Alpha,
+                            LclData -> Span);
+                        Data.Saved = false;
+                    }
+                }
                 IrtMdlrPoSResizeTexture(FI,
                     TexData,
                     LclData -> TextureWidth,
-                    LclData -> TextureHeight, true);
-                TexData.Saved = false;
-                GuIritMdlrDllSetTextureFromImage(FI, LclData -> Object,
+                    LclData -> TextureHeight, 
+                    true);
+                GuIritMdlrDllSetTextureFromImage(FI, 
+                    LclData -> Object,
                     TexData.Texture,
                     TexData.Width,
                     TexData.Height,
                     TexData.Alpha,
                     LclData -> Span);
+                TexData.Saved = false;
             }
             else {
                 GuIritMdlrDllSetInputParameter(FI,
@@ -1283,8 +1309,7 @@ static int IrtMdlrPoSMouseCallBack(IrtMdlrMouseEventStruct *MouseEvent)
                 IritFree(LclData -> TextureAlpha);
                 IritFree(LclData -> TextureBuffer);
             }*/
-            PrevXOff = -1;
-            PrefYOff = -1;
+            
             break;
 
             default:
@@ -1318,6 +1343,9 @@ static int IrtMdlrPoSMouseCallBack(IrtMdlrMouseEventStruct *MouseEvent)
                     LclData -> TextureAlpha[x] = TexData.Texture[x];
                     LclData -> TextureBuffer[x] = TexData.Texture[x];
                 }
+
+                PrevXOff = -1;
+                PrefYOff = -1;
             }
             PrevObj = Obj;
 
