@@ -545,32 +545,77 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
         !PanelUpdate &&
         LclData -> Object != NULL) {
         char *Path;
-        bool
-            Res = GuIritMdlrDllGetAsyncInputFileName(FI,
-            "Load Texture from....",
-            "*.png", &Path);
 
-        if (Res) {
+        if (IP_IS_MODEL_OBJ(LclData -> Object)) {
             IrtMdlrPoSTexDataStruct
                 &TexData = LclData -> TexDatas[LclData -> Object];
+            vector<IPObjectStruct *>::iterator it;
 
-            IrtMdlrPoSLoadTexture(FI, TexData, Path);
+            for (it = TexData.ModelSrfs.begin();
+                it != TexData.ModelSrfs.end();
+                it++) {
+                
+                bool
+                    Res = GuIritMdlrDllGetAsyncInputFileName(FI,
+                    "Load Texture from....",
+                    "*.png", &Path);
 
-            GuIritMdlrDllSetTextureFromImage(FI,
-                LclData -> Object,
-                TexData.Texture,
-                TexData.Width,
-                TexData.Height,
-                TexData.Alpha,
-                LclData -> Span);
-            PanelUpdate = true;
-            GuIritMdlrDllSetInputParameter(FI,
-                IRT_MDLR_POS_WIDTH,
-                &TexData.Width);
-            GuIritMdlrDllSetInputParameter(FI,
-                IRT_MDLR_POS_HEIGHT,
-                &TexData.Height);
-            PanelUpdate = false;
+                if (Res) {
+                    IrtMdlrPoSTexDataStruct
+                        &Data = LclData -> TexDatas[*it];
+
+                    IrtMdlrPoSLoadTexture(FI, Data, Path);
+
+                    GuIritMdlrDllSetTextureFromImage(FI,
+                        *it,
+                        Data.Texture,
+                        Data.Width,
+                        Data.Height,
+                        Data.Alpha,
+                        LclData -> Span);
+                    PanelUpdate = true;
+                    GuIritMdlrDllSetInputParameter(FI,
+                        IRT_MDLR_POS_WIDTH,
+                        &Data.Width);
+                    GuIritMdlrDllSetInputParameter(FI,
+                        IRT_MDLR_POS_HEIGHT,
+                        &Data.Height);
+                    PanelUpdate = false;
+                    TexData.Width = Data.Width;
+                    TexData.Height = Data.Height;
+                }
+            }
+
+
+        }
+        else {
+            bool
+                Res = GuIritMdlrDllGetAsyncInputFileName(FI,
+                "Load Texture from....",
+                "*.png", &Path);
+
+            if (Res) {
+                IrtMdlrPoSTexDataStruct
+                    &TexData = LclData -> TexDatas[LclData -> Object];
+
+                IrtMdlrPoSLoadTexture(FI, TexData, Path);
+
+                GuIritMdlrDllSetTextureFromImage(FI,
+                    LclData -> Object,
+                    TexData.Texture,
+                    TexData.Width,
+                    TexData.Height,
+                    TexData.Alpha,
+                    LclData -> Span);
+                PanelUpdate = true;
+                GuIritMdlrDllSetInputParameter(FI,
+                    IRT_MDLR_POS_WIDTH,
+                    &TexData.Width);
+                GuIritMdlrDllSetInputParameter(FI,
+                    IRT_MDLR_POS_HEIGHT,
+                    &TexData.Height);
+                PanelUpdate = false;
+            }
         }
     }
 
