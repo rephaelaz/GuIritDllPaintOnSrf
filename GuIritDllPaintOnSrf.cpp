@@ -593,23 +593,47 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
                 Height = IRT_MDLR_POS_DFLT_HEIGHT;
             IrtMdlrPoSTexDataStruct
                 &TexData = LclData -> TexDatas[LclData -> Object];
-
-            IrtMdlrPoSResizeTexture(FI,
-                TexData,
-                IRT_MDLR_POS_DFLT_WIDTH,
-                IRT_MDLR_POS_DFLT_HEIGHT,
-                true);
+            if (IP_IS_MODEL_OBJ(LclData -> Object)) {
+                vector<IPObjectStruct *>::iterator it;
+                for (it = TexData.ModelSrfs.begin();
+                    it != TexData.ModelSrfs.end();
+                    it++) {
+                    IrtMdlrPoSTexDataStruct
+                        &Data = LclData -> TexDatas[*it];
+                    IrtMdlrPoSResizeTexture(FI,
+                        Data,
+                        IRT_MDLR_POS_DFLT_WIDTH,
+                        IRT_MDLR_POS_DFLT_HEIGHT,
+                        true);
+                    GuIritMdlrDllSetTextureFromImage(FI, 
+                        *it,
+                        Data.Texture,
+                        Data.Width,
+                        Data.Height,
+                        Data.Alpha,
+                        LclData -> Span);
+                    Data.Saved = false;
+                }
+            }
+            else {
+                IrtMdlrPoSResizeTexture(FI,
+                    TexData,
+                    IRT_MDLR_POS_DFLT_WIDTH,
+                    IRT_MDLR_POS_DFLT_HEIGHT,
+                    true);
+                GuIritMdlrDllSetTextureFromImage(FI, 
+                    LclData -> Object,
+                    TexData.Texture,
+                    TexData.Width,
+                    TexData.Height,
+                    TexData.Alpha,
+                    LclData -> Span);
+            }
             TexData.Saved = false;
             PanelUpdate = true;
             GuIritMdlrDllSetInputParameter(FI, IRT_MDLR_POS_WIDTH, &Width);
             GuIritMdlrDllSetInputParameter(FI, IRT_MDLR_POS_HEIGHT, &Height);
             PanelUpdate = false;
-            GuIritMdlrDllSetTextureFromImage(FI, LclData -> Object,
-                TexData.Texture,
-                TexData.Width,
-                TexData.Height,
-                TexData.Alpha,
-                LclData -> Span);
         }
     }
 
