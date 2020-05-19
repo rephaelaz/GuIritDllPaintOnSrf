@@ -224,7 +224,7 @@ IRT_DSP_STATIC_DATA IrtMdlrFuncTableStruct SrfPainterFunctionTable[] =
     IRT_MDLR_PARAM_EXACT,
     {
         /* Surface selection. */
-        IRT_MDLR_SRF_TSRF_MODEL_EXPR,
+        IRT_MDLR_OLST_GEOM_EXPR,
 
         /* Texture fields. */
         IRT_MDLR_BUTTON_EXPR,			  /* Load Texture. */
@@ -382,7 +382,7 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
             it != LclData -> TexDatas.end();
             it++) {
             if (IP_IS_MODEL_OBJ(it -> first)) {
-                GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_ERROR, "TODO Model Cancel restore\n");
+                //GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_ERROR, "TODO Model Cancel restore\n");
             }
             else {
                 const char *Path = AttrIDGetObjectStrAttrib(it->first, IRIT_ATTR_CREATE_ID(ptexture));
@@ -429,7 +429,7 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
             it != LclData->TexDatas.end();
             it++) {
             if (IP_IS_MODEL_OBJ(it -> first)) {
-                GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_ERROR, "TODO Model Ok save\n");
+                //GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_ERROR, "TODO Model Ok save\n");
             }
             else {
                 if (!it -> second.Saved) {
