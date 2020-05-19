@@ -166,6 +166,10 @@ public:
 
 
 static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI);
+static void IrtMdlrPoSInitListTextures(IrtMdlrFuncInfoClass* FI,
+    IPObjectStruct* Object);
+static void IrtMdlrPoSListAddSurfaces(IrtMdlrPaintOnSrfLclClass* LclData,
+    IPObjectStruct* Object);
 static void IrtMdlrPoSInitTexture(IrtMdlrFuncInfoClass *FI,
     IPObjectStruct *Object);
 static void IrtMdlrPoSLoadTexture(IrtMdlrFuncInfoClass *FI,
@@ -480,7 +484,11 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
         if (LclData -> TexDatas.find(LclData -> ObjExpr.GetIPObj()) ==
             LclData -> TexDatas.end()) {
 
-            if (IP_IS_MODEL_OBJ(LclData -> ObjExpr.GetIPObj())) {
+            if (IP_IS_OLST_OBJ(LclData->ObjExpr.GetIPObj())) {
+                IrtMdlrPoSInitListTextures(FI, LclData->ObjExpr.GetIPObj());
+            }
+
+            else if (IP_IS_MODEL_OBJ(LclData -> ObjExpr.GetIPObj())) {
                 char Buffer[IRIT_LINE_LEN_XLONG];
                 IrtMdlrPoSTexDataStruct TexData;
                 TrimSrfStruct *TSrfList = MdlCnvrtMdl2TrimmedSrfs(LclData -> ObjExpr.GetIPObj()->U.Mdls, 0);
@@ -509,33 +517,42 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
 
                 LclData -> TexDatas[LclData -> ObjExpr.GetIPObj()] = TexData;
             }
-            else {
+            else if (IP_IS_TRIMSRF_OBJ(LclData->ObjExpr.GetIPObj()) ||
+                IP_IS_SRF_OBJ(LclData->ObjExpr.GetIPObj())) {
                 IrtMdlrPoSInitTexture(FI, LclData -> ObjExpr.GetIPObj());
                 IrtMdlrPoSDeriveTexture(FI, LclData-> ObjExpr.GetIPObj());
             }
         }
 
         if (LclData -> ObjExpr.GetIPObj() != LclData -> Object) {
-            IrtMdlrPoSTexDataStruct
-                &TexData = LclData -> TexDatas[LclData -> ObjExpr.GetIPObj()];
             LclData -> Selection.clear();
-            if (IP_IS_MODEL_OBJ(LclData -> ObjExpr.GetIPObj())) {
-                vector<IPObjectStruct *>::iterator it;
+            if (IP_IS_OLST_OBJ(LclData->ObjExpr.GetIPObj())) {
+                IrtMdlrPoSListAddSurfaces(LclData, LclData->ObjExpr.GetIPObj());
+                LclData->Object = LclData->ObjExpr.GetIPObj();
+            }
+            else if (IP_IS_MODEL_OBJ(LclData->ObjExpr.GetIPObj()) ||
+                IP_IS_TRIMSRF_OBJ(LclData->ObjExpr.GetIPObj()) || IP_IS_SRF_OBJ(LclData->ObjExpr.GetIPObj())) {
+                
+                IrtMdlrPoSTexDataStruct
+                    &TexData = LclData -> TexDatas[LclData -> ObjExpr.GetIPObj()];
+                if (IP_IS_MODEL_OBJ(LclData -> ObjExpr.GetIPObj())) {
+                    vector<IPObjectStruct *>::iterator it;
 
-                for (it = TexData.ModelSrfs.begin();
-                    it != TexData.ModelSrfs.end();
-                    it++) {
-                    LclData -> Selection.push_back(*it);
+                    for (it = TexData.ModelSrfs.begin();
+                        it != TexData.ModelSrfs.end();
+                        it++) {
+                        LclData -> Selection.push_back(*it);
+                    }
                 }
+                else {
+                    LclData -> Selection.push_back(LclData -> ObjExpr.GetIPObj());
+                }
+                GuIritMdlrDllSetInputParameter(FI, IRT_MDLR_POS_WIDTH,
+                    &TexData.Width);
+                GuIritMdlrDllSetInputParameter(FI, IRT_MDLR_POS_HEIGHT,
+                    &TexData.Height);
+                LclData -> Object = LclData -> ObjExpr.GetIPObj();
             }
-            else {
-                LclData -> Selection.push_back(LclData -> ObjExpr.GetIPObj());
-            }
-            GuIritMdlrDllSetInputParameter(FI, IRT_MDLR_POS_WIDTH,
-                &TexData.Width);
-            GuIritMdlrDllSetInputParameter(FI, IRT_MDLR_POS_HEIGHT,
-                &TexData.Height);
-            LclData -> Object = LclData -> ObjExpr.GetIPObj();
         }
         PanelUpdate = false;
     }
@@ -814,6 +831,84 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
 
     GuIritMdlrDllGetInputParameter(FI, IRT_MDLR_POS_X_FACTOR, &LclData -> Base.XFactor);
     GuIritMdlrDllGetInputParameter(FI, IRT_MDLR_POS_Y_FACTOR, &LclData -> Base.YFactor);
+}
+
+static void IrtMdlrPoSInitListTextures(IrtMdlrFuncInfoClass* FI,
+    IPObjectStruct* list) {
+
+    IrtMdlrPaintOnSrfLclClass
+        * LclData = dynamic_cast<IrtMdlrPaintOnSrfLclClass*>
+        (FI->LocalFuncData());
+
+    IPObjectStruct* obj = NULL;
+    for (int i = 0; (obj = IPListObjectGet(list, i++)) != NULL; ) {
+        if (IP_IS_OLST_OBJ(obj)) {
+            IrtMdlrPoSInitListTextures(FI, obj);
+        }
+        else if (IP_IS_MODEL_OBJ(obj)) {
+            char Buffer[IRIT_LINE_LEN_XLONG];
+            IrtMdlrPoSTexDataStruct TexData;
+            TrimSrfStruct* TSrfList = MdlCnvrtMdl2TrimmedSrfs(obj->U.Mdls, 0);
+            IPObjectStruct* ObjList = IPGenLISTObject(NULL);
+
+            TexData.Resize = false;
+            TexData.Width = IRT_MDLR_POS_DFLT_WIDTH;
+            TexData.Height = IRT_MDLR_POS_DFLT_HEIGHT;
+
+            sprintf(Buffer, "%s_TRLIST", obj->ObjName);
+            GuIritMdlrDllSetObjectName(FI, ObjList, Buffer);
+
+            while (TSrfList != NULL) {
+                TrimSrfStruct* TSrf;
+                IRIT_LIST_POP(TSrf, TSrfList);
+                IPObjectStruct* Obj = IPGenTRIMSRFObject(TSrf);
+                GuIritMdlrDllSetObjectName(FI, Obj, "TRIM");
+                IrtMdlrPoSInitTexture(FI, Obj);
+                IrtMdlrPoSDeriveTexture(FI, Obj);
+                IPListObjectAppend(ObjList, Obj);
+                TexData.ModelSrfs.push_back(Obj);
+            };
+
+            GuIritMdlrDllInsertModelingNewObj(FI, ObjList);
+            GuIritMdlrDllSetObjectVisible(FI, obj, false);
+
+            LclData->TexDatas[obj] = TexData;
+        }
+        else if (IP_IS_TRIMSRF_OBJ(obj) ||
+            IP_IS_SRF_OBJ(obj)) {
+            IrtMdlrPoSInitTexture(FI, obj);
+            IrtMdlrPoSDeriveTexture(FI, obj);
+        }
+    }
+}
+
+static void IrtMdlrPoSListAddSurfaces(IrtMdlrPaintOnSrfLclClass* LclData,
+    IPObjectStruct* list) {
+    IPObjectStruct* obj = NULL;
+    for (int i = 0; (obj = IPListObjectGet(list, i++)) != NULL; ) {
+        if (IP_IS_OLST_OBJ(obj)) {
+            IrtMdlrPoSListAddSurfaces(LclData, obj);
+        }
+        else if (IP_IS_MODEL_OBJ(obj) || 
+            IP_IS_TRIMSRF_OBJ(obj) || IP_IS_SRF_OBJ(obj)) {
+            IrtMdlrPoSTexDataStruct
+                & TexData = LclData->TexDatas[obj];
+
+
+            if (IP_IS_MODEL_OBJ(obj)) {
+                vector<IPObjectStruct*>::iterator it;
+
+                for (it = TexData.ModelSrfs.begin();
+                    it != TexData.ModelSrfs.end();
+                    it++) {
+                    LclData->Selection.push_back(*it);
+                }
+            }
+            else {
+                LclData->Selection.push_back(obj);
+            }
+        }
+    }
 }
 
 // TODO Header
@@ -1358,6 +1453,8 @@ static int IrtMdlrPoSMouseCallBack(IrtMdlrMouseEventStruct *MouseEvent)
             case IRT_DSP_MOUSE_EVENT_LEFT_UP:
             GuIritMdlrDllCaptureCursorFocus(FI, MouseEvent, false);
             Clicking = FALSE;
+            PrevXOff = -1;
+            PrefYOff = -1;
             /*if (LclData -> Object != NULL) {
                 IrtMdlrPoSTexDataStruct
                     &TexData = LclData -> TexDatas[LclData -> Object];
