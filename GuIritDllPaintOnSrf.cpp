@@ -1099,8 +1099,8 @@ static void IrtMdlrPoSDeriveTexture(IrtMdlrFuncInfoClass *FI,
             CAGD_SRF_EVAL_E3(TexData.Deriv.u.Srf, i, j, SuVec);
             CAGD_SRF_EVAL_E3(TexData.Deriv.v.Srf, i, j, SvVec);
 
-            TexData.Deriv.u.Avg += sqrt(SuVec[0] * SuVec[0] + SuVec[1] * SuVec[1] + SuVec[2] * SuVec[2]);
-            TexData.Deriv.v.Avg += sqrt(SvVec[0] * SvVec[0] + SvVec[1] * SvVec[1] + SvVec[2] * SvVec[2]);
+            TexData.Deriv.u.Avg += IRIT_VEC_LENGTH(SuVec);
+            TexData.Deriv.v.Avg += IRIT_VEC_LENGTH(SvVec);
         }
     }
 
@@ -1584,8 +1584,8 @@ static void IrtMdlrPoSShapeUpdate(IrtMdlrFuncInfoClass *FI, IPObjectStruct *Obje
 }
 
 static void IrtMdlrPoSApplyResize(IrtMdlrFuncInfoClass *FI, CagdVType SuVec, CagdVType SvVec) {
-    double normU = sqrt(SuVec[0] * SuVec[0] + SuVec[1] * SuVec[1] + SuVec[2] * SuVec[2]);
-    double normV = sqrt(SvVec[0] * SvVec[0] + SvVec[1] * SvVec[1] + SvVec[2] * SvVec[2]);
+    double normU = IRIT_VEC_LENGTH(SuVec);
+    double normV = IRIT_VEC_LENGTH(SvVec);
 
     IrtMdlrPaintOnSrfLclClass
         *LclData = dynamic_cast<IrtMdlrPaintOnSrfLclClass *> (FI->LocalFuncData());
@@ -1618,8 +1618,8 @@ static void IrtMdlrPoSApplyResize(IrtMdlrFuncInfoClass *FI, CagdVType SuVec, Cag
 
 static void IrtMdlrPoSApplyShear(IrtMdlrFuncInfoClass *FI, CagdVType SuVec, CagdVType SvVec) {
     int x, y;
-    double normU = sqrt(SuVec[0] * SuVec[0] + SuVec[1] * SuVec[1] + SuVec[2] * SuVec[2]);
-    double normV = sqrt(SvVec[0] * SvVec[0] + SvVec[1] * SvVec[1] + SvVec[2] * SvVec[2]);
+    double normU = IRIT_VEC_LENGTH(SuVec);
+    double normV = IRIT_VEC_LENGTH(SvVec);
     double cos = (SuVec[0] * SvVec[0] + SuVec[1] * SvVec[1] + SuVec[2] * SvVec[2]) / (normU * normV);
 
     IrtMdlrPaintOnSrfLclClass
