@@ -160,8 +160,6 @@ public:
     map<IPObjectStruct *, IrtMdlrPoSTexDataStruct> TexDatas;
     vector<IPObjectStruct *> Selection;
     IPObjectStruct *Object;
-    /*IrtMdlrPoSDerivDataStruct Deriv;
-    map<CagdSrfStruct *, IrtMdlrPoSDerivDataStruct> DerivMap;*/
 };
 
 
@@ -386,7 +384,6 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
             it != LclData -> TexDatas.end();
             it++) {
             if (IP_IS_MODEL_OBJ(it -> first)) {
-                //GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_ERROR, "TODO Model Cancel restore\n");
             }
             else {
                 const char *Path = AttrIDGetObjectStrAttrib(it->first, IRIT_ATTR_CREATE_ID(ptexture));
@@ -433,7 +430,6 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
             it != LclData->TexDatas.end();
             it++) {
             if (IP_IS_MODEL_OBJ(it -> first)) {
-                //GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_ERROR, "TODO Model Ok save\n");
             }
             else {
                 if (!it -> second.Saved) {
@@ -1433,21 +1429,6 @@ static int IrtMdlrPoSMouseCallBack(IrtMdlrMouseEventStruct *MouseEvent)
             case IRT_DSP_MOUSE_EVENT_LEFT_DOWN:
             GuIritMdlrDllCaptureCursorFocus(FI, MouseEvent, true);
             Clicking = TRUE;
-            /*if (LclData -> Object != NULL) {
-                int x;
-                IrtMdlrPoSTexDataStruct
-                    &TexData = LclData -> TexDatas[LclData -> Object];
-
-                LclData -> TextureAlpha = (IrtImgPixelStruct *)
-                    IritMalloc(sizeof(IrtImgPixelStruct) * TexData.Width * TexData.Height);
-                LclData -> TextureBuffer = (IrtImgPixelStruct *)
-                    IritMalloc(sizeof(IrtImgPixelStruct) * TexData.Width * TexData.Height);
-
-                for (x = 0; x < TexData.Width * TexData.Height; x++) {
-                    LclData -> TextureAlpha[x] = TexData.Texture[x];
-                    LclData -> TextureBuffer[x] = TexData.Texture[x];
-                }
-            }*/
             break;
 
             case IRT_DSP_MOUSE_EVENT_LEFT_UP:
@@ -1455,14 +1436,6 @@ static int IrtMdlrPoSMouseCallBack(IrtMdlrMouseEventStruct *MouseEvent)
             Clicking = FALSE;
             PrevXOff = -1;
             PrefYOff = -1;
-            /*if (LclData -> Object != NULL) {
-                IrtMdlrPoSTexDataStruct
-                    &TexData = LclData -> TexDatas[LclData -> Object];
-
-                IritFree(LclData -> TextureAlpha);
-                IritFree(LclData -> TextureBuffer);
-            }*/
-            
             break;
 
             default:
