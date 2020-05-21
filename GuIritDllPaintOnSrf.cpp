@@ -829,6 +829,17 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
     GuIritMdlrDllGetInputParameter(FI, IRT_MDLR_POS_Y_FACTOR, &LclData -> Base.YFactor);
 }
 
+/*****************************************************************************
+* DESCRIPTION:                                                               *
+*   Init every texture in the list recursively, with a default white texture.*
+*                                                                            *
+* PARAMETERS:                                                                *
+*   FI:      Function information - holds generic information such as Panel. *
+*   list:    The list of objects to init.                                    *
+*                                                                            *
+* RETURN VALUE:                                                              *
+*   void                                                                     *
+*****************************************************************************/
 static void IrtMdlrPoSInitListTextures(IrtMdlrFuncInfoClass* FI,
     IPObjectStruct* list) {
 
@@ -878,6 +889,18 @@ static void IrtMdlrPoSInitListTextures(IrtMdlrFuncInfoClass* FI,
     }
 }
 
+/*****************************************************************************
+* DESCRIPTION:                                                               *
+*   Add every surface in the list recursively to the selection set.          *
+*                                                                            *
+* PARAMETERS:                                                                *
+*   LclData: Structure containing the global data accessed by any method     *
+             of the DLL                                                      *
+*   list:    The list of objects to add.                                     *
+*                                                                            *
+* RETURN VALUE:                                                              *
+*   void                                                                     *
+*****************************************************************************/
 static void IrtMdlrPoSListAddSurfaces(IrtMdlrPaintOnSrfLclClass* LclData,
     IPObjectStruct* list) {
     IPObjectStruct* obj = NULL;
@@ -907,7 +930,17 @@ static void IrtMdlrPoSListAddSurfaces(IrtMdlrPaintOnSrfLclClass* LclData,
     }
 }
 
-// TODO Header
+/*****************************************************************************
+* DESCRIPTION:                                                               *
+*   Init the texture of the object with a default white texture.             *
+*                                                                            *
+* PARAMETERS:                                                                *
+*   FI:      Function information - holds generic information such as Panel. *
+*   Object:  The object having the texture initialized.                      *
+*                                                                            *
+* RETURN VALUE:                                                              *
+*   void                                                                     *
+*****************************************************************************/
 static void IrtMdlrPoSInitTexture(IrtMdlrFuncInfoClass *FI,
     IPObjectStruct *Object)
 {
@@ -950,7 +983,18 @@ static void IrtMdlrPoSInitTexture(IrtMdlrFuncInfoClass *FI,
     LclData -> TexDatas[Object] = TexData;
 }
 
-// TODO Header
+/*****************************************************************************
+* DESCRIPTION:                                                               *
+*   Load the texture of the object from a file.                              *
+*                                                                            *
+* PARAMETERS:                                                                *
+*   FI:      Function information - holds generic information such as Panel. *
+*   TexData: Data about the texture to save.                                 *
+*   Path:    Path to the file.                                               *
+*                                                                            *
+* RETURN VALUE:                                                              *
+*   void                                                                     *
+*****************************************************************************/
 static void IrtMdlrPoSLoadTexture(IrtMdlrFuncInfoClass *FI, 
     IrtMdlrPoSTexDataStruct &TexData, 
     const char *Path) 
@@ -988,7 +1032,18 @@ static void IrtMdlrPoSLoadTexture(IrtMdlrFuncInfoClass *FI,
     }
 }
 
-// TODO Header
+/*****************************************************************************
+* DESCRIPTION:                                                               *
+*   Save the texture of the object to a file.                                *
+*                                                                            *
+* PARAMETERS:                                                                *
+*   FI:      Function information - holds generic information such as Panel. *
+*   Object:  The object containing the texture to save.                      *
+*   TexData: Data about the texture to save.                                 *
+*                                                                            *
+* RETURN VALUE:                                                              *
+*   void                                                                     *
+*****************************************************************************/
 static void IrtMdlrPoSSaveTexture(IrtMdlrFuncInfoClass *FI,
     IPObjectStruct *Object,
     IrtMdlrPoSTexDataStruct &TexData)
@@ -1027,6 +1082,7 @@ static void IrtMdlrPoSSaveTexture(IrtMdlrFuncInfoClass *FI,
 *                                                                            *
 * PARAMETERS:                                                                *
 *   FI:      Function information - holds generic information such as Panel. *
+*   TexData: Data about the texture to resize.                               *
 *   Width:   New Width of the texture.                                       *
 *   Height:  New Height of the texture.                                      *
 *   Reset:   Set the texture to blank.                                       *
@@ -1067,6 +1123,18 @@ static void IrtMdlrPoSResizeTexture(IrtMdlrFuncInfoClass *FI,
     TexData.Texture = NewTexture;
 }
 
+/*****************************************************************************
+* DESCRIPTION:                                                               *
+*   Update the derivative data of the texture, based on the partial          *
+*   derivatives of the object's surface                                      *
+*                                                                            *
+* PARAMETERS:                                                                *
+*   FI:      Function information - holds generic information such as Panel. *
+*   Object:  The object to update                                            *
+*                                                                            *
+* RETURN VALUE:                                                              *
+*   void                                                                     *
+*****************************************************************************/
 static void IrtMdlrPoSDeriveTexture(IrtMdlrFuncInfoClass *FI,
     IPObjectStruct *Object)
 {
@@ -1108,6 +1176,17 @@ static void IrtMdlrPoSDeriveTexture(IrtMdlrFuncInfoClass *FI,
     TexData.Deriv.v.Avg /= 100;
 }
 
+/*****************************************************************************
+* DESCRIPTION:                                                               *
+*   Set the color attributes of the object to white                          *
+*                                                                            *
+* PARAMETERS:                                                                *
+*   FI:      Function information - holds generic information such as Panel. *
+*   Object:  The object to update                                            *
+*                                                                            *
+* RETURN VALUE:                                                              *
+*   void                                                                     *
+*****************************************************************************/
 static void IrtMdlrPoSRecolorObject(IrtMdlrFuncInfoClass *FI,
     IPObjectStruct *Object)
 {
@@ -1400,7 +1479,7 @@ static void IrtMdlrPoSRenderShape(IrtMdlrFuncInfoClass *FI,
 *   Callback function for mouse events for painting .          	             *
 *                                                                            *
 * PARAMETERS:                                                                *
-*   MouseEvent:  The mouse call back event to handle.		             *
+*   MouseEvent:  The mouse call back event to handle.		                 *
 *                                                                            *
 * RETURN VALUE:                                                              *
 *   int: True if event handled, false to propagate event to next handler.    *
@@ -1449,7 +1528,7 @@ static int IrtMdlrPoSMouseCallBack(IrtMdlrMouseEventStruct *MouseEvent)
             IrtMdlrPoSTexDataStruct
                 &TexData = LclData -> TexDatas[Obj];
 
-            // Reset texture buffers if needed
+            /* Reset texture buffers if needed */
             if (Obj != PrevObj) {
                 int x;
 
@@ -1535,6 +1614,20 @@ static int IrtMdlrPoSMouseCallBack(IrtMdlrMouseEventStruct *MouseEvent)
     return TRUE;
 }
 
+/*****************************************************************************
+* DESCRIPTION:                                                               *
+*   Updates the shape, according to the UV coordinates on the surface's      *
+*   UV mapping. This includes resizing and shearing                          *
+*                                                                            *
+* PARAMETERS:                                                                *
+*   FI:      Function information - holds generic information such as Panel. *
+*   Object:  Object containing the shape to update                           *
+*   u:       U component of the coordinates in the UV mapping                *
+*   v:       V component of the coordinates in the UV mapping                *
+*                                                                            *
+* RETURN VALUE:                                                              *
+*   None                                                                     *
+*****************************************************************************/
 static void IrtMdlrPoSShapeUpdate(IrtMdlrFuncInfoClass *FI, IPObjectStruct *Object, double u, double v) {
     CagdRType UMin, UMax, VMin, VMax;
     CagdVType SuVec, SvVec, SuVecAvg, SvVecAvg;
@@ -1543,7 +1636,7 @@ static void IrtMdlrPoSShapeUpdate(IrtMdlrFuncInfoClass *FI, IPObjectStruct *Obje
 
     IrtMdlrPoSDerivDataStruct &Deriv = LclData -> TexDatas[Object].Deriv;
 
-    // Copy base shape
+    /* Copy base shape */
     IritFree(LclData -> Updated.Shape);
 
     LclData->Updated.XFactor = LclData->Base.XFactor;
@@ -1561,6 +1654,7 @@ static void IrtMdlrPoSShapeUpdate(IrtMdlrFuncInfoClass *FI, IPObjectStruct *Obje
         }
     }
 
+    /* Get the UV mapping domain of the object */
     if (IP_IS_TRIMSRF_OBJ(Object)) {
         CagdSrfDomain(Object->U.TrimSrfs->Srf, &UMin, &UMax, &VMin, &VMax);
     }
@@ -1571,6 +1665,7 @@ static void IrtMdlrPoSShapeUpdate(IrtMdlrFuncInfoClass *FI, IPObjectStruct *Obje
     u = ((UMax - UMin) * u) + UMin;
     v = ((VMax - VMin) * v) + VMin;
 
+    /* Compute the partial derivatives */
     CAGD_SRF_EVAL_E3(Deriv.u.Srf, u, v, SuVec);
     CAGD_SRF_EVAL_E3(Deriv.v.Srf, u, v, SvVec);
 
@@ -1579,10 +1674,23 @@ static void IrtMdlrPoSShapeUpdate(IrtMdlrFuncInfoClass *FI, IPObjectStruct *Obje
         SvVecAvg[i] = SvVec[i] / Deriv.v.Avg;
     }
 
+    /* Execute the transformations */
     IrtMdlrPoSApplyResize(FI, SuVecAvg, SvVecAvg);
     IrtMdlrPoSApplyShear(FI, SuVec, SvVec);
 }
 
+/*****************************************************************************
+* DESCRIPTION:                                                               *
+*   Updates scaling factors, using partial derivatives, and applies them     *
+*                                                                            *
+* PARAMETERS:                                                                *
+*   FI:      Function information - holds generic information such as Panel. *
+*   SuVec:   Partial derivative vector in the U direction                    *
+*   SvVec:   Partial derivative vector in the V direction                    *
+*                                                                            *
+* RETURN VALUE:                                                              *
+*   None                                                                     *
+*****************************************************************************/
 static void IrtMdlrPoSApplyResize(IrtMdlrFuncInfoClass *FI, CagdVType SuVec, CagdVType SvVec) {
     double normU = IRIT_VEC_LENGTH(SuVec);
     double normV = IRIT_VEC_LENGTH(SvVec);
@@ -1605,6 +1713,7 @@ static void IrtMdlrPoSApplyResize(IrtMdlrFuncInfoClass *FI, CagdVType SuVec, Cag
     float XRatio = (float) oldWidth / (float) LclData->Updated.Width;
     float YRatio = (float) oldHeight / (float) LclData->Updated.Height;
 
+    /* Apply the resizing */
     for (int y = 0; y < LclData->Updated.Height; y++) {
         for (int x = 0; x < LclData->Updated.Width; x++) {
             int UpdatedOff = y * LclData->Updated.Width + x;
@@ -1616,6 +1725,18 @@ static void IrtMdlrPoSApplyResize(IrtMdlrFuncInfoClass *FI, CagdVType SuVec, Cag
     IritFree(oldShape);
 }
 
+/*****************************************************************************
+* DESCRIPTION:                                                               *
+*   Shears the current used shape, using partial derivatives        	     *
+*                                                                            *
+* PARAMETERS:                                                                *
+*   FI:      Function information - holds generic information such as Panel. *
+*   SuVec:   Partial derivative vector in the U direction                    *
+*   SvVec:   Partial derivative vector in the V direction                    *
+*                                                                            *
+* RETURN VALUE:                                                              *
+*   None                                                                     *
+*****************************************************************************/
 static void IrtMdlrPoSApplyShear(IrtMdlrFuncInfoClass *FI, CagdVType SuVec, CagdVType SvVec) {
     int x, y;
     double normU = IRIT_VEC_LENGTH(SuVec);
@@ -1625,6 +1746,7 @@ static void IrtMdlrPoSApplyShear(IrtMdlrFuncInfoClass *FI, CagdVType SuVec, Cagd
     IrtMdlrPaintOnSrfLclClass
         *LclData = dynamic_cast<IrtMdlrPaintOnSrfLclClass *> (FI->LocalFuncData());
 
+    /* If the change is negligeable or non-existant, don't do it */
     if (abs(cos) < IRT_MDLR_POS_EPSILON) {
         return;
     }
@@ -1632,6 +1754,8 @@ static void IrtMdlrPoSApplyShear(IrtMdlrFuncInfoClass *FI, CagdVType SuVec, Cagd
     double Factor = (normV * abs(cos) * LclData -> TextureWidth) / (normU * LclData -> TextureHeight);
     double ShearWidth = Factor * LclData -> Updated.Width;
     int NewWidth = (int) (LclData -> Updated.Width + ShearWidth);
+
+    /* Allocate and init the pointer which will contain the sheared shape */
     float *NewShape = (float *)
         IritMalloc(sizeof(float) * LclData -> Updated.Height * NewWidth);
 
@@ -1639,6 +1763,7 @@ static void IrtMdlrPoSApplyShear(IrtMdlrFuncInfoClass *FI, CagdVType SuVec, Cagd
         NewShape[x] = 0;
     }
 
+    /* Fill the texture with the sheared shape */
     for (y = 0; y < LclData -> Updated.Height; y++) {
         for (x = 0; x < LclData -> Updated.Width; x++) {
             int NewX;
