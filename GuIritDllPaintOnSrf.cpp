@@ -1,10 +1,10 @@
-/******************************************************************************
-* GuiIritDllPaintOnSrf.cpp - painting textures over surfaces.		      *
-*******************************************************************************
-* (C) Gershon Elber, Technion, Israel Institute of Technology                 *
-*******************************************************************************
-* Written by Ilan Coronel and Raphael Azoulay, 2019.		              *
-******************************************************************************/
+/*****************************************************************************
+* GuiIritDllPaintOnSrf.cpp - painting textures over surfaces.		         *
+******************************************************************************
+* (C) Gershon Elber, Technion, Israel Institute of Technology                *
+******************************************************************************
+* Written by Ilan Coronel and Raphael Azoulay, 2019.		                 *
+*****************************************************************************/
 
 #include <ctype.h>
 #include <stdlib.h>
@@ -27,18 +27,22 @@ using std::vector;
 using std::map;
 using std::pair;
 using std::find;
-using std::swap;
-using std::min;
-using std::max;
 
 #define IRT_MDLR_POS_DFLT_WIDTH  256
 #define IRT_MDLR_POS_DFLT_HEIGHT 256
 #define IRT_MDLR_POS_MAX_WIDTH  4096
 #define IRT_MDLR_POS_MAX_HEIGHT 4096
-#define IRT_MDLR_POS_EPSILON  	 10e-5
-#define IRT_MDLR_POS_DFLT_SIZE   (IRT_MDLR_POS_DFLT_WIDTH) * \
-                                               (IRT_MDLR_POS_DFLT_HEIGHT)
-#define IRT_MDLR_POS_DIST(a, b) (fabs((double)(a) - (double)(b)))
+#define IRT_MDLR_POS_DFLT_SIZE \
+    (IRT_MDLR_POS_DFLT_WIDTH) * (IRT_MDLR_POS_DFLT_HEIGHT)
+#define IRT_MDLR_POS_DIST(a, b) (IRIT_ABS((a) - (b)))
+#define IRT_MDLR_POS_DOT(u, v) \
+    ((u)[0] * (v)[0] + (u)[1] * (v)[1] + (u)[2] * (v)[2])
+
+#ifdef __WINNT__
+#define GUIRIT_DLL_PAINT_ON_SRF_FILE_RELATIVE_PATH "\\SandArt\\Masks"
+#else
+#define GUIRIT_DLL_PAINT_ON_SRF_FILE_RELATIVE_PATH "/SandArt/Masks"
+#endif /* __WINNT__ */
 
 enum {
     IRT_MDLR_POS_SURFACE = 0,
@@ -47,18 +51,13 @@ enum {
     IRT_MDLR_POS_RESET,
     IRT_MDLR_POS_WIDTH,
     IRT_MDLR_POS_HEIGHT,
-    IRT_MDLR_POS_COLOR,
+    IRT_MDLR_POS_BG_COLOR,
+    IRT_MDLR_POS_SHAPE_COLOR,
     IRT_MDLR_POS_ALPHA,
     IRT_MDLR_POS_SHAPE,
     IRT_MDLR_POS_X_FACTOR,
     IRT_MDLR_POS_Y_FACTOR
 };
-
-#ifdef __WINNT__
-#define GUIRIT_DLL_PAINT_ON_SRF_FILE_RELATIVE_PATH "\\SandArt\\Masks"
-#else
-#define GUIRIT_DLL_PAINT_ON_SRF_FILE_RELATIVE_PATH "/SandArt/Masks"
-#endif /* __WINNT__ */
 
 struct IrtMdlrPoSShapeStruct {
     IrtMdlrPoSShapeStruct(int Width, int Height, IrtRType Alpha,
@@ -120,10 +119,11 @@ public:
         ParamVals[4] = (void *) &TextureWidth;
         ParamVals[5] = (void *) &TextureHeight;
         ParamVals[6] = NULL;
-        ParamVals[7] = (void *) &Base.Alpha;
-        ParamVals[8] = (void *) &Names;
-        ParamVals[9] = (void *) &Base.XFactor;
-        ParamVals[10] = (void *) &Base.YFactor;
+        ParamVals[7] = NULL;
+        ParamVals[8] = (void *) &Base.Alpha;
+        ParamVals[9] = (void *) &Names;
+        ParamVals[10] = (void *) &Base.XFactor;
+        ParamVals[11] = (void *) &Base.YFactor;
 
         Span[0] = 1.0;
         Span[1] = 1.0;
@@ -220,29 +220,31 @@ IRT_DSP_STATIC_DATA IrtMdlrFuncTableStruct SrfPainterFunctionTable[] =
         NULL,
         IRT_MDLR_PARAM_VIEW_CHANGES_UDPATE
         | IRT_MDLR_PARAM_INTERMEDIATE_UPDATE_DFLT_ON
-    | IRT_MDLR_PARAM_NO_APPLY,
-    IRT_MDLR_NUMERIC_EXPR,
-    11,
-    IRT_MDLR_PARAM_EXACT,
-    {
-        /* Surface selection. */
-        IRT_MDLR_OLST_GEOM_EXPR,
-
-        /* Texture fields. */
-        IRT_MDLR_BUTTON_EXPR,			  /* Load Texture. */
-        IRT_MDLR_BUTTON_EXPR,			  /* Save Texture. */
-        IRT_MDLR_BUTTON_EXPR,	                 /* Reset Texture. */
-        IRT_MDLR_INTEGER_EXPR,	                 /* Texture width. */
-        IRT_MDLR_INTEGER_EXPR,			/* Texture height. */
-
-        /* Brush fields. */
-        IRT_MDLR_BUTTON_EXPR,			    /* RGB Values. */
-        IRT_MDLR_NUMERIC_EXPR,		    	   /* Alpha Value. */
-        IRT_MDLR_HIERARCHY_SELECTION_EXPR,	  /* Shape selection menu. */
-        IRT_MDLR_NUMERIC_EXPR,			      /* X Factor. */
-        IRT_MDLR_NUMERIC_EXPR,			      /* Y Factor. */
-},
+        | IRT_MDLR_PARAM_NO_APPLY,
+        IRT_MDLR_NUMERIC_EXPR,
+        12,
+        IRT_MDLR_PARAM_EXACT,
         {
+            /* Surface selection. */
+            IRT_MDLR_OLST_GEOM_EXPR,
+
+            /* Texture fields. */
+            IRT_MDLR_BUTTON_EXPR,			        /* Load Texture. */
+            IRT_MDLR_BUTTON_EXPR,			        /* Save Texture. */
+            IRT_MDLR_BUTTON_EXPR,	                /* Reset Texture. */
+            IRT_MDLR_INTEGER_EXPR,	                /* Texture width. */
+            IRT_MDLR_INTEGER_EXPR,			        /* Texture height. */
+            IRT_MDLR_BUTTON_EXPR,                   /* Ambient Color button. */
+
+            /* Brush fields. */
+            IRT_MDLR_BUTTON_EXPR,			        /* Shape Color button */
+            IRT_MDLR_NUMERIC_EXPR,		    	    /* Alpha Value. */
+            IRT_MDLR_HIERARCHY_SELECTION_EXPR,	    /* Shape selection menu. */
+            IRT_MDLR_NUMERIC_EXPR,			        /* X Factor. */
+            IRT_MDLR_NUMERIC_EXPR,			        /* Y Factor. */
+        },
+        {
+            NULL,
             NULL,
             NULL,
             NULL,
@@ -262,7 +264,8 @@ IRT_DSP_STATIC_DATA IrtMdlrFuncTableStruct SrfPainterFunctionTable[] =
             "Reset Texture",
             "Texture\nWidth",
             "Texture\nHeight",
-            "Color",
+            "Background Color",
+            "Shape Color",
             "Alpha",
             "Shape",
             "X\nFactor",
@@ -275,7 +278,8 @@ IRT_DSP_STATIC_DATA IrtMdlrFuncTableStruct SrfPainterFunctionTable[] =
             "Resets the current texture to a blank texture.",
             "Width of the texture.",
             "Height of the texture.",
-            "Color of the painting brush.",
+            "Color of the ambient background.",
+            "Color of the painting shape.",
             "Transparency factor of the painting brush.",
             "Shape of the painting brush.",
             "X factor of the painting brush.",
@@ -707,7 +711,18 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
         }
     }
 
-    if (FI -> IntermediateWidgetMajor == IRT_MDLR_POS_COLOR) {
+    if (FI -> IntermediateWidgetMajor == IRT_MDLR_POS_BG_COLOR) {
+        unsigned char Red, Green, Blue;
+        IrtDspOGLWinPropsClass *
+            OGLWinProps = GuIritMdlrDllGetWindowOGLProps(FI);
+
+        if (GuIritMdlrDllGetAsyncInputColor(FI, &Red, &Green, &Blue)) {
+            IrtDspRGBAClrClass Color(Red, Green, Blue);
+            OGLWinProps -> WinAmbientIntensity.SetValue(Color);
+        }
+    }
+
+    if (FI -> IntermediateWidgetMajor == IRT_MDLR_POS_SHAPE_COLOR) {
         unsigned char Red, Green, Blue;
 
         if (GuIritMdlrDllGetAsyncInputColor(FI, &Red, &Green, &Blue)) {
@@ -1368,8 +1383,8 @@ static void IrtMdlrPoSBresenham(const pair<int, int> &a,
         High = true;
     }
     if (A1 > A2) {
-        swap(A1, A2);
-        swap(B1, B2);
+        std::swap(A1, A2);
+        std::swap(B1, B2);
     }
     Da = A2 - A1;
     Db = B2 - B1;
@@ -1628,11 +1643,16 @@ static int IrtMdlrPoSMouseCallBack(IrtMdlrMouseEventStruct *MouseEvent)
 * RETURN VALUE:                                                              *
 *   None                                                                     *
 *****************************************************************************/
-static void IrtMdlrPoSShapeUpdate(IrtMdlrFuncInfoClass *FI, IPObjectStruct *Object, double u, double v) {
+static void IrtMdlrPoSShapeUpdate(IrtMdlrFuncInfoClass *FI, 
+    IPObjectStruct *Object, 
+    double u, 
+    double v) 
+{
     CagdRType UMin, UMax, VMin, VMax;
     CagdVType SuVec, SvVec, SuVecAvg, SvVecAvg;
     IrtMdlrPaintOnSrfLclClass
-        *LclData = dynamic_cast<IrtMdlrPaintOnSrfLclClass *> (FI->LocalFuncData());
+        *LclData = dynamic_cast<IrtMdlrPaintOnSrfLclClass *> 
+        (FI->LocalFuncData());
 
     IrtMdlrPoSDerivDataStruct &Deriv = LclData -> TexDatas[Object].Deriv;
 
@@ -1691,12 +1711,16 @@ static void IrtMdlrPoSShapeUpdate(IrtMdlrFuncInfoClass *FI, IPObjectStruct *Obje
 * RETURN VALUE:                                                              *
 *   None                                                                     *
 *****************************************************************************/
-static void IrtMdlrPoSApplyResize(IrtMdlrFuncInfoClass *FI, CagdVType SuVec, CagdVType SvVec) {
+static void IrtMdlrPoSApplyResize(IrtMdlrFuncInfoClass *FI, 
+    CagdVType SuVec, 
+    CagdVType SvVec) 
+{
     double normU = IRIT_VEC_LENGTH(SuVec);
     double normV = IRIT_VEC_LENGTH(SvVec);
 
     IrtMdlrPaintOnSrfLclClass
-        *LclData = dynamic_cast<IrtMdlrPaintOnSrfLclClass *> (FI->LocalFuncData());
+        *LclData = dynamic_cast<IrtMdlrPaintOnSrfLclClass *> 
+        (FI->LocalFuncData());
 
     LclData->Updated.XFactor = abs(1 / normU) * LclData->Updated.XFactor;
     LclData->Updated.YFactor = abs(1 / normV) * LclData->Updated.YFactor;
@@ -1705,8 +1729,10 @@ static void IrtMdlrPoSApplyResize(IrtMdlrFuncInfoClass *FI, CagdVType SuVec, Cag
     int oldHeight = LclData->Updated.Height;
     float *oldShape = LclData->Updated.Shape;
 
-    LclData->Updated.Width = (int) (LclData->Updated.Width * LclData->Updated.XFactor);
-    LclData->Updated.Height = (int) (LclData->Updated.Height * LclData->Updated.YFactor);
+    LclData->Updated.Width = 
+        (int) (LclData->Updated.Width * LclData->Updated.XFactor);
+    LclData->Updated.Height = 
+        (int) (LclData->Updated.Height * LclData->Updated.YFactor);
     int Size = LclData->Updated.Height * LclData->Updated.Width;
     LclData->Updated.Shape = (float *) IritMalloc(sizeof(float) * Size);
 
@@ -1737,21 +1763,26 @@ static void IrtMdlrPoSApplyResize(IrtMdlrFuncInfoClass *FI, CagdVType SuVec, Cag
 * RETURN VALUE:                                                              *
 *   None                                                                     *
 *****************************************************************************/
-static void IrtMdlrPoSApplyShear(IrtMdlrFuncInfoClass *FI, CagdVType SuVec, CagdVType SvVec) {
+static void IrtMdlrPoSApplyShear(IrtMdlrFuncInfoClass *FI, 
+    CagdVType SuVec,
+    CagdVType SvVec) 
+{
     int x, y;
     double normU = IRIT_VEC_LENGTH(SuVec);
     double normV = IRIT_VEC_LENGTH(SvVec);
-    double cos = (SuVec[0] * SvVec[0] + SuVec[1] * SvVec[1] + SuVec[2] * SvVec[2]) / (normU * normV);
+    double cos = IRT_MDLR_POS_DOT(SuVec, SvVec) / (normU * normV);
 
     IrtMdlrPaintOnSrfLclClass
-        *LclData = dynamic_cast<IrtMdlrPaintOnSrfLclClass *> (FI->LocalFuncData());
+        *LclData = dynamic_cast<IrtMdlrPaintOnSrfLclClass *> 
+        (FI->LocalFuncData());
 
     /* If the change is negligeable or non-existant, don't do it */
-    if (abs(cos) < IRT_MDLR_POS_EPSILON) {
+    if (abs(cos) < IRIT_EPS) {
         return;
     }
 
-    double Factor = (normV * abs(cos) * LclData -> TextureWidth) / (normU * LclData -> TextureHeight);
+    double Factor = (normV * abs(cos) * LclData -> TextureWidth) 
+        / (normU * LclData -> TextureHeight);
     double ShearWidth = Factor * LclData -> Updated.Width;
     int NewWidth = (int) (LclData -> Updated.Width + ShearWidth);
 
@@ -1768,10 +1799,13 @@ static void IrtMdlrPoSApplyShear(IrtMdlrFuncInfoClass *FI, CagdVType SuVec, Cagd
         for (x = 0; x < LclData -> Updated.Width; x++) {
             int NewX;
             if (cos > 0) {
-                NewX = (int) (x + ShearWidth * (double) (LclData -> Updated.Height - y - 1) / (double) (LclData -> Updated.Height - 1));
+                NewX = (int) (x + ShearWidth 
+                    * (double) (LclData -> Updated.Height - y - 1) 
+                    / (double) (LclData -> Updated.Height - 1));
             }
             else {
-                NewX = (int) (x + ShearWidth * (double) (y) / (double) (LclData -> Updated.Height - 1));
+                NewX = (int) (x + ShearWidth * (double) (y) 
+                    / (double) (LclData -> Updated.Height - 1));
             }
             int OldOff = y * LclData -> Updated.Width + x;
             int NewOff = y * NewWidth + NewX;
