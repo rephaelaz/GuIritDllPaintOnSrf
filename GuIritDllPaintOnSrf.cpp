@@ -51,7 +51,8 @@ enum {
     IRT_MDLR_POS_RESET,
     IRT_MDLR_POS_WIDTH,
     IRT_MDLR_POS_HEIGHT,
-    IRT_MDLR_POS_COLOR,
+    IRT_MDLR_POS_BG_COLOR,
+    IRT_MDLR_POS_SHAPE_COLOR,
     IRT_MDLR_POS_ALPHA,
     IRT_MDLR_POS_SHAPE,
     IRT_MDLR_POS_X_FACTOR,
@@ -118,10 +119,11 @@ public:
         ParamVals[4] = (void *) &TextureWidth;
         ParamVals[5] = (void *) &TextureHeight;
         ParamVals[6] = NULL;
-        ParamVals[7] = (void *) &Base.Alpha;
-        ParamVals[8] = (void *) &Names;
-        ParamVals[9] = (void *) &Base.XFactor;
-        ParamVals[10] = (void *) &Base.YFactor;
+        ParamVals[7] = NULL;
+        ParamVals[8] = (void *) &Base.Alpha;
+        ParamVals[9] = (void *) &Names;
+        ParamVals[10] = (void *) &Base.XFactor;
+        ParamVals[11] = (void *) &Base.YFactor;
 
         Span[0] = 1.0;
         Span[1] = 1.0;
@@ -218,29 +220,31 @@ IRT_DSP_STATIC_DATA IrtMdlrFuncTableStruct SrfPainterFunctionTable[] =
         NULL,
         IRT_MDLR_PARAM_VIEW_CHANGES_UDPATE
         | IRT_MDLR_PARAM_INTERMEDIATE_UPDATE_DFLT_ON
-    | IRT_MDLR_PARAM_NO_APPLY,
-    IRT_MDLR_NUMERIC_EXPR,
-    11,
-    IRT_MDLR_PARAM_EXACT,
-    {
-        /* Surface selection. */
-        IRT_MDLR_OLST_GEOM_EXPR,
-
-        /* Texture fields. */
-        IRT_MDLR_BUTTON_EXPR,			  /* Load Texture. */
-        IRT_MDLR_BUTTON_EXPR,			  /* Save Texture. */
-        IRT_MDLR_BUTTON_EXPR,	                 /* Reset Texture. */
-        IRT_MDLR_INTEGER_EXPR,	                 /* Texture width. */
-        IRT_MDLR_INTEGER_EXPR,			/* Texture height. */
-
-        /* Brush fields. */
-        IRT_MDLR_BUTTON_EXPR,			    /* RGB Values. */
-        IRT_MDLR_NUMERIC_EXPR,		    	   /* Alpha Value. */
-        IRT_MDLR_HIERARCHY_SELECTION_EXPR,	  /* Shape selection menu. */
-        IRT_MDLR_NUMERIC_EXPR,			      /* X Factor. */
-        IRT_MDLR_NUMERIC_EXPR,			      /* Y Factor. */
-},
+        | IRT_MDLR_PARAM_NO_APPLY,
+        IRT_MDLR_NUMERIC_EXPR,
+        12,
+        IRT_MDLR_PARAM_EXACT,
         {
+            /* Surface selection. */
+            IRT_MDLR_OLST_GEOM_EXPR,
+
+            /* Texture fields. */
+            IRT_MDLR_BUTTON_EXPR,			        /* Load Texture. */
+            IRT_MDLR_BUTTON_EXPR,			        /* Save Texture. */
+            IRT_MDLR_BUTTON_EXPR,	                /* Reset Texture. */
+            IRT_MDLR_INTEGER_EXPR,	                /* Texture width. */
+            IRT_MDLR_INTEGER_EXPR,			        /* Texture height. */
+            IRT_MDLR_BUTTON_EXPR,                   /* Ambient Color button. */
+
+            /* Brush fields. */
+            IRT_MDLR_BUTTON_EXPR,			        /* Shape Color button */
+            IRT_MDLR_NUMERIC_EXPR,		    	    /* Alpha Value. */
+            IRT_MDLR_HIERARCHY_SELECTION_EXPR,	    /* Shape selection menu. */
+            IRT_MDLR_NUMERIC_EXPR,			        /* X Factor. */
+            IRT_MDLR_NUMERIC_EXPR,			        /* Y Factor. */
+        },
+        {
+            NULL,
             NULL,
             NULL,
             NULL,
@@ -260,7 +264,8 @@ IRT_DSP_STATIC_DATA IrtMdlrFuncTableStruct SrfPainterFunctionTable[] =
             "Reset Texture",
             "Texture\nWidth",
             "Texture\nHeight",
-            "Color",
+            "Background Color",
+            "Shape Color",
             "Alpha",
             "Shape",
             "X\nFactor",
@@ -273,7 +278,8 @@ IRT_DSP_STATIC_DATA IrtMdlrFuncTableStruct SrfPainterFunctionTable[] =
             "Resets the current texture to a blank texture.",
             "Width of the texture.",
             "Height of the texture.",
-            "Color of the painting brush.",
+            "Color of the ambient background.",
+            "Color of the painting shape.",
             "Transparency factor of the painting brush.",
             "Shape of the painting brush.",
             "X factor of the painting brush.",
@@ -705,7 +711,18 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
         }
     }
 
-    if (FI -> IntermediateWidgetMajor == IRT_MDLR_POS_COLOR) {
+    if (FI -> IntermediateWidgetMajor == IRT_MDLR_POS_BG_COLOR) {
+        unsigned char Red, Green, Blue;
+        IrtDspOGLWinPropsClass *
+            OGLWinProps = GuIritMdlrDllGetWindowOGLProps(FI);
+
+        if (GuIritMdlrDllGetAsyncInputColor(FI, &Red, &Green, &Blue)) {
+            IrtDspRGBAClrClass Color(Red, Green, Blue);
+            OGLWinProps -> WinAmbientIntensity.SetValue(Color);
+        }
+    }
+
+    if (FI -> IntermediateWidgetMajor == IRT_MDLR_POS_SHAPE_COLOR) {
         unsigned char Red, Green, Blue;
 
         if (GuIritMdlrDllGetAsyncInputColor(FI, &Red, &Green, &Blue)) {
