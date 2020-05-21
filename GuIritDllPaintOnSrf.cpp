@@ -607,7 +607,7 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
             bool
                 Res = GuIritMdlrDllGetAsyncInputFileName(FI,
                 "Load Texture from....",
-                "*.png", &Path);
+                "PNG files (*.png)|*.png|JPG files (*.jpg)|*.jpg|PPM files (*.ppm)|*.ppm|GIF files (*.gif)|*.gif", &Path);
 
             if (Res) {
                 IrtMdlrPoSTexDataStruct
@@ -1064,12 +1064,20 @@ static void IrtMdlrPoSSaveTexture(IrtMdlrFuncInfoClass *FI,
     IrtMdlrPoSTexDataStruct &TexData)
 {
     char *Filename;
+    int PathLength;
+    IrtImgImageType IT;
+
     bool Res = GuIritMdlrDllGetAsyncInputFileName(FI,
         "Save Texture to....",
-        "*.png", &Filename);
+        "PNG files (*.png)|*.png|JPG files (*.jpg)|*.jpg|PPM files (*.ppm)|*.ppm|GIF files (*.gif)|*.gif", &Filename);
     if (Res) {
+        PathLength = (int)strlen(Filename);
+        if (PathLength < 3) {
+            return;
+        }
+        IT = IrtImgWriteGetType((char*)&Filename[PathLength - 3]);
         MiscWriteGenInfoStructPtr
-            GI = IrtImgWriteOpenFile(NULL, Filename, IRIT_IMAGE_PNG_TYPE,
+            GI = IrtImgWriteOpenFile(NULL, Filename, IT,
             TexData.Alpha, TexData.Width,
             TexData.Height);
         if (GI == NULL) {
@@ -1433,7 +1441,7 @@ static void IrtMdlrPoSRenderShape(IrtMdlrFuncInfoClass *FI,
     IrtMdlrPaintOnSrfLclClass
         *LclData = dynamic_cast<IrtMdlrPaintOnSrfLclClass *>
         (FI -> LocalFuncData());
-
+    bool UClosed, VClosed;
     int u, v,
         XMin = XOff - LclData -> Updated.Width / 2,
         YMin = (YOff - LclData -> Updated.Height / 2);
@@ -1450,12 +1458,35 @@ static void IrtMdlrPoSRenderShape(IrtMdlrFuncInfoClass *FI,
     XMin %= TexData.Width;
     YMin %= TexData.Height;
 
+    if (IP_IS_TRIMSRF_OBJ(Object)) {
+        UClosed = Object->U.TrimSrfs->Srf->UPeriodic ||
+            CagdIsClosedSrf(Object->U.TrimSrfs->Srf, CAGD_CONST_U_DIR);
+        VClosed = Object->U.TrimSrfs->Srf->VPeriodic ||
+            CagdIsClosedSrf(Object->U.TrimSrfs->Srf, CAGD_CONST_V_DIR);
+    }
+    else {
+        UClosed = Object->U.Srfs->UPeriodic ||
+            CagdIsClosedSrf(Object->U.Srfs, CAGD_CONST_U_DIR);
+        VClosed = Object->U.Srfs->VPeriodic ||
+            CagdIsClosedSrf(Object->U.Srfs, CAGD_CONST_V_DIR);
+    }
+
     for (v = 0; v < LclData -> Updated.Height; v++) {
         for (u = 0; u < LclData -> Updated.Width; u++) {
             int x = (XMin + u) % TexData.Width,
                 y = (YMin + v) % TexData.Height,
                 TextureOff = x + TexData.Width * y,
                 ShapeOff = u + LclData -> Updated.Width * v;
+            if (UClosed) {
+                if (x != (XMin + u)) {
+                    continue;
+                }
+            }
+            if (VClosed) {
+                if (y != (YMin + v)) {
+                    continue;
+                }
+            }
 
             LclData -> TextureAlpha[TextureOff].r +=
                 (IrtBType) ((LclData -> Color[0]
