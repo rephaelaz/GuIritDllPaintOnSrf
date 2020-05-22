@@ -477,7 +477,8 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
     if (LclData -> ObjExpr.GetIPObj() != NULL &&
         GuIritMdlrDllGetObjectMatrix(FI, LclData -> ObjExpr.GetIPObj()) != NULL) {
         GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_WARNING,
-            "Paint on surface not supported for objects with transformation - \"Apply Transform\" to the object first.\n");
+            "Paint on surface not supported for objects with transformation - "
+            "\"Apply Transform\" to the object first.\n");
         return;
     }
 
@@ -506,74 +507,37 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
         LclData -> Object != NULL) {
         char *Path;
 
-        if (IP_IS_MODEL_OBJ(LclData -> Object)) {
-            IrtMdlrPoSTexDataStruct
-                &TexData = LclData -> TexDatas[LclData -> Object];
+        bool Res = GuIritMdlrDllGetAsyncInputFileName(FI,
+            "Load Texture from...",
+            "PNG files (*.png)|*.png|JPG files (*.jpg)|*.jpg|"
+            "PPM files (*.ppm)|*.ppm|GIF files (*.gif)|*.gif", 
+            &Path);
+
+        if (Res) {
+            int Width = -1, Height = -1;
             vector<IPObjectStruct *>::iterator it;
-
-            for (it = TexData.ModelSrfs.begin();
-                it != TexData.ModelSrfs.end();
+            for (it = LclData -> Selection.begin(); 
+                it != LclData -> Selection.end(); 
                 it++) {
-                
-                bool
-                    Res = GuIritMdlrDllGetAsyncInputFileName(FI,
-                    "Load Texture from....",
-                    "*.png", &Path);
-
-                if (Res) {
-                    IrtMdlrPoSTexDataStruct
-                        &Data = LclData -> TexDatas[*it];
-
-                    IrtMdlrPoSLoadTexture(FI, Data, Path);
-
-                    GuIritMdlrDllSetTextureFromImage(FI,
-                        *it,
-                        Data.Texture,
-                        Data.Width,
-                        Data.Height,
-                        Data.Alpha,
-                        LclData -> Span);
-                    PanelUpdate = true;
-                    GuIritMdlrDllSetInputParameter(FI,
-                        IRT_MDLR_POS_WIDTH,
-                        &Data.Width);
-                    GuIritMdlrDllSetInputParameter(FI,
-                        IRT_MDLR_POS_HEIGHT,
-                        &Data.Height);
-                    PanelUpdate = false;
-                    TexData.Width = Data.Width;
-                    TexData.Height = Data.Height;
-                }
-            }
-        }
-        else {
-            bool
-                Res = GuIritMdlrDllGetAsyncInputFileName(FI,
-                "Load Texture from....",
-                "PNG files (*.png)|*.png|JPG files (*.jpg)|*.jpg|PPM files (*.ppm)|*.ppm|GIF files (*.gif)|*.gif", &Path);
-
-            if (Res) {
                 IrtMdlrPoSTexDataStruct
-                    &TexData = LclData -> TexDatas[LclData -> Object];
+                    &TexData = LclData -> TexDatas[*it];
 
                 IrtMdlrPoSLoadTexture(FI, TexData, Path);
 
                 GuIritMdlrDllSetTextureFromImage(FI,
-                    LclData -> Object,
+                    *it,
                     TexData.Texture,
                     TexData.Width,
                     TexData.Height,
                     TexData.Alpha,
                     LclData -> Span);
-                PanelUpdate = true;
-                GuIritMdlrDllSetInputParameter(FI,
-                    IRT_MDLR_POS_WIDTH,
-                    &TexData.Width);
-                GuIritMdlrDllSetInputParameter(FI,
-                    IRT_MDLR_POS_HEIGHT,
-                    &TexData.Height);
-                PanelUpdate = false;
+                Width = TexData.Width;
+                Height = TexData.Height;
             }
+            PanelUpdate = true;
+            GuIritMdlrDllSetInputParameter(FI, IRT_MDLR_POS_WIDTH, &Width);
+            GuIritMdlrDllSetInputParameter(FI, IRT_MDLR_POS_HEIGHT, &Height);
+            PanelUpdate = false;
         }
     }
 
