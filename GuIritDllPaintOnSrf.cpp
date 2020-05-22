@@ -572,45 +572,26 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
         if (Res) {
             int Width = IRT_MDLR_POS_DFLT_WIDTH,
                 Height = IRT_MDLR_POS_DFLT_HEIGHT;
-            IrtMdlrPoSTexDataStruct
-                &TexData = LclData -> TexDatas[LclData -> Object];
-            if (IP_IS_MODEL_OBJ(LclData -> Object)) {
-                vector<IPObjectStruct *>::iterator it;
-                for (it = TexData.ModelSrfs.begin();
-                    it != TexData.ModelSrfs.end();
-                    it++) {
-                    IrtMdlrPoSTexDataStruct
-                        &Data = LclData -> TexDatas[*it];
-                    IrtMdlrPoSResizeTexture(FI,
-                        Data,
-                        IRT_MDLR_POS_DFLT_WIDTH,
-                        IRT_MDLR_POS_DFLT_HEIGHT,
-                        true);
-                    GuIritMdlrDllSetTextureFromImage(FI, 
-                        *it,
-                        Data.Texture,
-                        Data.Width,
-                        Data.Height,
-                        Data.Alpha,
-                        LclData -> Span);
-                    Data.Saved = false;
-                }
-            }
-            else {
+            vector<IPObjectStruct *>::iterator it;
+            for (it = LclData -> Selection.begin(); 
+                it != LclData -> Selection.end(); 
+                it++) {
+                IrtMdlrPoSTexDataStruct
+                    &TexData = LclData -> TexDatas[*it];
                 IrtMdlrPoSResizeTexture(FI,
                     TexData,
-                    IRT_MDLR_POS_DFLT_WIDTH,
-                    IRT_MDLR_POS_DFLT_HEIGHT,
+                    Width,
+                    Height,
                     true);
                 GuIritMdlrDllSetTextureFromImage(FI, 
-                    LclData -> Object,
+                    *it,
                     TexData.Texture,
                     TexData.Width,
                     TexData.Height,
                     TexData.Alpha,
                     LclData -> Span);
+                TexData.Saved = false;
             }
-            TexData.Saved = false;
             PanelUpdate = true;
             GuIritMdlrDllSetInputParameter(FI, IRT_MDLR_POS_WIDTH, &Width);
             GuIritMdlrDllSetInputParameter(FI, IRT_MDLR_POS_HEIGHT, &Height);
