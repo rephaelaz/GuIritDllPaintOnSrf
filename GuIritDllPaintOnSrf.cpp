@@ -37,6 +37,8 @@ using std::find;
 #define IRT_MDLR_POS_DIST(a, b) (IRIT_ABS((a) - (b)))
 #define IRT_MDLR_POS_DOT(u, v) \
     ((u)[0] * (v)[0] + (u)[1] * (v)[1] + (u)[2] * (v)[2])
+#define IRT_MDLR_POS_DRAWABLE(o) \
+    (IP_IS_SRF_OBJ(o) || IP_IS_TRIMSRF_OBJ(o) || IP_IS_MODEL_OBJ(o))
 
 #ifdef __WINNT__
 #define GUIRIT_DLL_PAINT_ON_SRF_FILE_RELATIVE_PATH "\\SandArt\\Masks"
@@ -164,9 +166,9 @@ public:
 
 
 static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI);
-static void IrtMdlrPoSInitListTextures(IrtMdlrFuncInfoClass* FI,
+static void IrtMdlrPoSInitSelection(IrtMdlrFuncInfoClass* FI,
     IPObjectStruct* Object);
-static void IrtMdlrPoSListAddSurfaces(IrtMdlrPaintOnSrfLclClass* LclData,
+static void IrtMdlrPoSInitObject(IrtMdlrFuncInfoClass* FI,
     IPObjectStruct* Object);
 static void IrtMdlrPoSInitTexture(IrtMdlrFuncInfoClass *FI,
     IPObjectStruct *Object);
@@ -481,77 +483,18 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
 
     if (LclData -> ObjExpr.GetIPObj() != NULL && !PanelUpdate) {
         PanelUpdate = true;
-        if (LclData -> TexDatas.find(LclData -> ObjExpr.GetIPObj()) ==
-            LclData -> TexDatas.end()) {
-
-            if (IP_IS_OLST_OBJ(LclData->ObjExpr.GetIPObj())) {
-                IrtMdlrPoSInitListTextures(FI, LclData->ObjExpr.GetIPObj());
-            }
-
-            else if (IP_IS_MODEL_OBJ(LclData -> ObjExpr.GetIPObj())) {
-                char Buffer[IRIT_LINE_LEN_XLONG];
-                IrtMdlrPoSTexDataStruct TexData;
-                TrimSrfStruct *TSrfList = MdlCnvrtMdl2TrimmedSrfs(LclData -> ObjExpr.GetIPObj()->U.Mdls, 0);
-                IPObjectStruct *ObjList = IPGenLISTObject(NULL);
-
-                TexData.Resize = false;
-                TexData.Width = IRT_MDLR_POS_DFLT_WIDTH;
-                TexData.Height = IRT_MDLR_POS_DFLT_HEIGHT;
-
-                sprintf(Buffer, "%s_TRLIST", LclData -> ObjExpr.GetIPObj()->ObjName);
-                GuIritMdlrDllSetObjectName(FI, ObjList, Buffer);
-
-                while(TSrfList != NULL) {
-                    TrimSrfStruct *TSrf;
-                    IRIT_LIST_POP(TSrf, TSrfList);
-                    IPObjectStruct *Obj = IPGenTRIMSRFObject(TSrf);
-                    GuIritMdlrDllSetObjectName(FI, Obj, "TRIM");
-                    IrtMdlrPoSInitTexture(FI, Obj);
-                    IrtMdlrPoSDeriveTexture(FI, Obj);
-                    IPListObjectAppend(ObjList, Obj);
-                    TexData.ModelSrfs.push_back(Obj);
-                };
-
-                GuIritMdlrDllInsertModelingNewObj(FI, ObjList);
-                GuIritMdlrDllSetObjectVisible(FI, LclData -> ObjExpr.GetIPObj(), false);
-
-                LclData -> TexDatas[LclData -> ObjExpr.GetIPObj()] = TexData;
-            }
-            else if (IP_IS_TRIMSRF_OBJ(LclData->ObjExpr.GetIPObj()) ||
-                IP_IS_SRF_OBJ(LclData->ObjExpr.GetIPObj())) {
-                IrtMdlrPoSInitTexture(FI, LclData -> ObjExpr.GetIPObj());
-                IrtMdlrPoSDeriveTexture(FI, LclData-> ObjExpr.GetIPObj());
-            }
-        }
-
         if (LclData -> ObjExpr.GetIPObj() != LclData -> Object) {
             LclData -> Selection.clear();
-            if (IP_IS_OLST_OBJ(LclData->ObjExpr.GetIPObj())) {
-                IrtMdlrPoSListAddSurfaces(LclData, LclData->ObjExpr.GetIPObj());
-                LclData->Object = LclData->ObjExpr.GetIPObj();
-            }
-            else if (IP_IS_MODEL_OBJ(LclData->ObjExpr.GetIPObj()) ||
-                IP_IS_TRIMSRF_OBJ(LclData->ObjExpr.GetIPObj()) || IP_IS_SRF_OBJ(LclData->ObjExpr.GetIPObj())) {
-                
-                IrtMdlrPoSTexDataStruct
-                    &TexData = LclData -> TexDatas[LclData -> ObjExpr.GetIPObj()];
-                if (IP_IS_MODEL_OBJ(LclData -> ObjExpr.GetIPObj())) {
-                    vector<IPObjectStruct *>::iterator it;
+            IrtMdlrPoSInitSelection(FI, LclData->ObjExpr.GetIPObj());
+            LclData -> Object = LclData -> ObjExpr.GetIPObj();
 
-                    for (it = TexData.ModelSrfs.begin();
-                        it != TexData.ModelSrfs.end();
-                        it++) {
-                        LclData -> Selection.push_back(*it);
-                    }
-                }
-                else {
-                    LclData -> Selection.push_back(LclData -> ObjExpr.GetIPObj());
-                }
+            if (IRT_MDLR_POS_DRAWABLE(LclData -> Object)) {
+                IrtMdlrPoSTexDataStruct
+                    &TexData = LclData -> TexDatas[LclData -> Object];
                 GuIritMdlrDllSetInputParameter(FI, IRT_MDLR_POS_WIDTH,
                     &TexData.Width);
                 GuIritMdlrDllSetInputParameter(FI, IRT_MDLR_POS_HEIGHT,
                     &TexData.Height);
-                LclData -> Object = LclData -> ObjExpr.GetIPObj();
             }
         }
         PanelUpdate = false;
@@ -846,102 +789,98 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
 
 /*****************************************************************************
 * DESCRIPTION:                                                               *
-*   Init every texture in the list recursively, with a default white texture.*
+*   Init the object with a default white texture. If the object is a list,   *
+*   the function will initialize every object in it recursively.             *
 *                                                                            *
 * PARAMETERS:                                                                *
 *   FI:      Function information - holds generic information such as Panel. *
-*   list:    The list of objects to init.                                    *
+*   Object:     The object to initialize and parse recursively.              *
 *                                                                            *
 * RETURN VALUE:                                                              *
 *   void                                                                     *
 *****************************************************************************/
-static void IrtMdlrPoSInitListTextures(IrtMdlrFuncInfoClass* FI,
-    IPObjectStruct* list) {
+static void IrtMdlrPoSInitSelection(IrtMdlrFuncInfoClass* FI,
+    IPObjectStruct* Object) {
 
     IrtMdlrPaintOnSrfLclClass
         * LclData = dynamic_cast<IrtMdlrPaintOnSrfLclClass*>
         (FI->LocalFuncData());
 
-    IPObjectStruct* obj = NULL;
-    for (int i = 0; (obj = IPListObjectGet(list, i++)) != NULL; ) {
-        if (IP_IS_OLST_OBJ(obj)) {
-            IrtMdlrPoSInitListTextures(FI, obj);
+    if (IRT_MDLR_POS_DRAWABLE(Object)) {
+        if (LclData -> TexDatas.find(Object) == LclData -> TexDatas.end()) {
+            IrtMdlrPoSInitObject(FI, Object);
         }
-        else if (IP_IS_MODEL_OBJ(obj)) {
-            char Buffer[IRIT_LINE_LEN_XLONG];
-            IrtMdlrPoSTexDataStruct TexData;
-            TrimSrfStruct* TSrfList = MdlCnvrtMdl2TrimmedSrfs(obj->U.Mdls, 0);
-            IPObjectStruct* ObjList = IPGenLISTObject(NULL);
-
-            TexData.Resize = false;
-            TexData.Width = IRT_MDLR_POS_DFLT_WIDTH;
-            TexData.Height = IRT_MDLR_POS_DFLT_HEIGHT;
-
-            sprintf(Buffer, "%s_TRLIST", obj->ObjName);
-            GuIritMdlrDllSetObjectName(FI, ObjList, Buffer);
-
-            while (TSrfList != NULL) {
-                TrimSrfStruct* TSrf;
-                IRIT_LIST_POP(TSrf, TSrfList);
-                IPObjectStruct* Obj = IPGenTRIMSRFObject(TSrf);
-                GuIritMdlrDllSetObjectName(FI, Obj, "TRIM");
-                IrtMdlrPoSInitTexture(FI, Obj);
-                IrtMdlrPoSDeriveTexture(FI, Obj);
-                IPListObjectAppend(ObjList, Obj);
-                TexData.ModelSrfs.push_back(Obj);
-            };
-
-            GuIritMdlrDllInsertModelingNewObj(FI, ObjList);
-            GuIritMdlrDllSetObjectVisible(FI, obj, false);
-
-            LclData->TexDatas[obj] = TexData;
+        if (IP_IS_MODEL_OBJ(Object)) {
+            vector<IPObjectStruct *>
+                &Sfrs = LclData -> TexDatas[Object].ModelSrfs;
+            vector<IPObjectStruct *>::iterator it;
+            for (it = Sfrs.begin(); it != Sfrs.end(); it++) {
+                LclData -> Selection.push_back(*it);
+            }
         }
-        else if (IP_IS_TRIMSRF_OBJ(obj) ||
-            IP_IS_SRF_OBJ(obj)) {
-            IrtMdlrPoSInitTexture(FI, obj);
-            IrtMdlrPoSDeriveTexture(FI, obj);
+        else {
+            LclData -> Selection.push_back(Object);
+        }
+    }
+    else if (IP_IS_OLST_OBJ(Object)) {
+        int i;
+        IPObjectStruct *Obj;
+        for (i = 0; (Obj = IPListObjectGet(Object, i)) != NULL; i++) {
+            IrtMdlrPoSInitSelection(FI, Obj);
         }
     }
 }
 
 /*****************************************************************************
 * DESCRIPTION:                                                               *
-*   Add every surface in the list recursively to the selection set.          *
+*   Init the texture of the object, or the list of textures for a model      *
 *                                                                            *
 * PARAMETERS:                                                                *
-*   LclData: Structure containing the global data accessed by any method     *
-             of the DLL                                                      *
-*   list:    The list of objects to add.                                     *
+*   FI:      Function information - holds generic information such as Panel. *
+*   Object:     The object to initialize.                                    *
 *                                                                            *
 * RETURN VALUE:                                                              *
 *   void                                                                     *
 *****************************************************************************/
-static void IrtMdlrPoSListAddSurfaces(IrtMdlrPaintOnSrfLclClass* LclData,
-    IPObjectStruct* list) {
-    IPObjectStruct* obj = NULL;
-    for (int i = 0; (obj = IPListObjectGet(list, i++)) != NULL; ) {
-        if (IP_IS_OLST_OBJ(obj)) {
-            IrtMdlrPoSListAddSurfaces(LclData, obj);
-        }
-        else if (IP_IS_MODEL_OBJ(obj) || 
-            IP_IS_TRIMSRF_OBJ(obj) || IP_IS_SRF_OBJ(obj)) {
-            IrtMdlrPoSTexDataStruct
-                & TexData = LclData->TexDatas[obj];
+static void IrtMdlrPoSInitObject(IrtMdlrFuncInfoClass* FI,
+    IPObjectStruct* Object) {
 
+    IrtMdlrPaintOnSrfLclClass
+        * LclData = dynamic_cast<IrtMdlrPaintOnSrfLclClass*>
+        (FI->LocalFuncData());
 
-            if (IP_IS_MODEL_OBJ(obj)) {
-                vector<IPObjectStruct*>::iterator it;
+    if (IP_IS_MODEL_OBJ(Object)) {
+        char Buffer[IRIT_LINE_LEN_XLONG];
+        IrtMdlrPoSTexDataStruct TexData;
+        TrimSrfStruct *TSrfList = MdlCnvrtMdl2TrimmedSrfs(Object->U.Mdls, 0);
+        IPObjectStruct *ObjList = IPGenLISTObject(NULL);
 
-                for (it = TexData.ModelSrfs.begin();
-                    it != TexData.ModelSrfs.end();
-                    it++) {
-                    LclData->Selection.push_back(*it);
-                }
-            }
-            else {
-                LclData->Selection.push_back(obj);
-            }
-        }
+        TexData.Resize = false;
+        TexData.Width = IRT_MDLR_POS_DFLT_WIDTH;
+        TexData.Height = IRT_MDLR_POS_DFLT_HEIGHT;
+
+        sprintf(Buffer, "%s_TRLIST", Object->ObjName);
+        GuIritMdlrDllSetObjectName(FI, ObjList, Buffer);
+
+        while(TSrfList != NULL) {
+            TrimSrfStruct *TSrf;
+            IRIT_LIST_POP(TSrf, TSrfList);
+            IPObjectStruct *Obj = IPGenTRIMSRFObject(TSrf);
+            GuIritMdlrDllSetObjectName(FI, Obj, "TRIM");
+            IrtMdlrPoSInitTexture(FI, Obj);
+            IrtMdlrPoSDeriveTexture(FI, Obj);
+            IPListObjectAppend(ObjList, Obj);
+            TexData.ModelSrfs.push_back(Obj);
+        };
+
+        GuIritMdlrDllInsertModelingNewObj(FI, ObjList);
+        GuIritMdlrDllSetObjectVisible(FI, Object, false);
+
+        LclData -> TexDatas[Object] = TexData;
+    }
+    else if (IP_IS_SRF_OBJ(Object) || IP_IS_TRIMSRF_OBJ(Object)) {
+        IrtMdlrPoSInitTexture(FI, Object);
+        IrtMdlrPoSDeriveTexture(FI, Object);
     }
 }
 
