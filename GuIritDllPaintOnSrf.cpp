@@ -91,7 +91,7 @@ struct IrtMdlrPoSDerivDataStruct {
 struct IrtMdlrPoSTexDataStruct {
     IrtMdlrPoSTexDataStruct(): Texture(NULL) {}
 
-    bool Saved, Resize;
+    bool Saved;
     int Width, Height, Alpha;
     IrtImgPixelStruct *Texture;
     IrtMdlrPoSDerivDataStruct Deriv;
@@ -103,6 +103,7 @@ public:
     IrtMdlrPaintOnSrfLclClass(const IrtMdlrFuncTableStruct *FuncTbl):
         IrtMdlrLclDataClass(NULL),
         ObjExpr(),
+        Resize(false),
         TextureWidth(4),
         TextureHeight(4),
         ShapeIndex(-1),
@@ -146,6 +147,7 @@ public:
     }
 
     IrtMdlrObjectExprClass ObjExpr;
+    bool Resize;
     int TextureWidth;
     int TextureHeight;
     int ShapeIndex;
@@ -239,7 +241,7 @@ IRT_DSP_STATIC_DATA IrtMdlrFuncTableStruct SrfPainterFunctionTable[] =
             IRT_MDLR_BUTTON_EXPR,                   /* Ambient Color button. */
 
             /* Brush fields. */
-            IRT_MDLR_BUTTON_EXPR,			        /* Shape Color button */
+            IRT_MDLR_BUTTON_EXPR,			        /* Shape Color button. */
             IRT_MDLR_NUMERIC_EXPR,		    	    /* Alpha Value. */
             IRT_MDLR_HIERARCHY_SELECTION_EXPR,	    /* Shape selection menu. */
             IRT_MDLR_NUMERIC_EXPR,			        /* X Factor. */
@@ -475,7 +477,7 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
     }
 
     if (LclData -> ObjExpr.GetIPObj() != NULL &&
-        GuIritMdlrDllGetObjectMatrix(FI, LclData -> ObjExpr.GetIPObj()) != NULL) {
+        GuIritMdlrDllGetObjectMatrix(FI, LclData -> ObjExpr.GetIPObj())) {
         GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_WARNING,
             "Paint on surface not supported for objects with transformation - "
             "\"Apply Transform\" to the object first.\n");
@@ -489,13 +491,14 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
             IrtMdlrPoSInitSelection(FI, LclData->ObjExpr.GetIPObj());
             LclData -> Object = LclData -> ObjExpr.GetIPObj();
 
-            if (IRT_MDLR_POS_DRAWABLE(LclData -> Object)) {
+            if (LclData -> Selection.size() > 0) {
                 IrtMdlrPoSTexDataStruct
-                    &TexData = LclData -> TexDatas[LclData -> Object];
+                    &TexData = LclData -> TexDatas[LclData -> Selection[0]];
                 GuIritMdlrDllSetInputParameter(FI, IRT_MDLR_POS_WIDTH,
                     &TexData.Width);
                 GuIritMdlrDllSetInputParameter(FI, IRT_MDLR_POS_HEIGHT,
                     &TexData.Height);
+                LclData -> Resize = false;
             }
         }
         PanelUpdate = false;
@@ -636,73 +639,53 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
         LclData -> TextureWidth += 4;
     }
 
-    if (LclData -> Object != NULL) {
+    if (LclData -> Selection.size() > 0) {
         IrtMdlrPoSTexDataStruct
-            &TexData = LclData -> TexDatas[LclData -> Object];
+            &TexData = LclData -> TexDatas[LclData -> Selection[0]];
 
         if ((TexData.Width != LclData -> TextureWidth ||
             TexData.Height != LclData -> TextureHeight) &&
             !PanelUpdate) {
-            bool
-                Res = true;
 
             PanelUpdate = true;
-            if (!TexData.Resize) {
-                Res = GuIritMdlrDllGetAsyncInputConfirm(FI, "",
+            if (!LclData -> Resize) {
+                LclData -> Resize = GuIritMdlrDllGetAsyncInputConfirm(FI, "",
                     "This will reset the texture.\n" \
                     "Are you sure you want to resize the texture ?");
-                if (Res) {
-                    TexData.Resize = true;
-                }
             }
 
-            if (Res) {
+            if (LclData -> Resize) {
                 if (PrevHeight != LclData -> TextureHeight) {
                     GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_WARNING,
-                        "Invalid Height (not a multiple of 4), changed to %d\n",
+                        "Invalid Height (not multiple of 4), changed to %d\n",
                         LclData -> TextureHeight);
                 }
                 if (PrevWidth != LclData -> TextureWidth) {
                     GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_WARNING,
-                        "Invalid Width (not a multiple of 4), changed to %d\n",
+                        "Invalid Width (not multiple of 4), changed to %d\n",
                         LclData -> TextureWidth);
                 }
 
-                if (IP_IS_MODEL_OBJ(LclData -> Object)) {
-                    vector<IPObjectStruct *>::iterator it;
-                    for (it = TexData.ModelSrfs.begin();
-                        it != TexData.ModelSrfs.end();
-                        it++) {
-                        IrtMdlrPoSTexDataStruct
-                            &Data = LclData -> TexDatas[*it];
-                        IrtMdlrPoSResizeTexture(FI,
-                            Data,
-                            LclData -> TextureWidth,
-                            LclData -> TextureHeight,
-                            true);
-                        GuIritMdlrDllSetTextureFromImage(FI, 
-                            *it,
-                            Data.Texture,
-                            Data.Width,
-                            Data.Height,
-                            Data.Alpha,
-                            LclData -> Span);
-                        Data.Saved = false;
-                    }
+                vector<IPObjectStruct *>::iterator it;
+                for (it = LclData -> Selection.begin(); 
+                    it != LclData -> Selection.end(); 
+                    it++) {
+                    IrtMdlrPoSTexDataStruct
+                        &TexData = LclData -> TexDatas[*it];
+                    IrtMdlrPoSResizeTexture(FI,
+                        TexData,
+                        LclData -> TextureWidth,
+                        LclData -> TextureHeight, 
+                        true);
+                    GuIritMdlrDllSetTextureFromImage(FI, 
+                        *it,
+                        TexData.Texture,
+                        TexData.Width,
+                        TexData.Height,
+                        TexData.Alpha,
+                        LclData -> Span);
+                    TexData.Saved = false;
                 }
-                IrtMdlrPoSResizeTexture(FI,
-                    TexData,
-                    LclData -> TextureWidth,
-                    LclData -> TextureHeight, 
-                    true);
-                GuIritMdlrDllSetTextureFromImage(FI, 
-                    LclData -> Object,
-                    TexData.Texture,
-                    TexData.Width,
-                    TexData.Height,
-                    TexData.Alpha,
-                    LclData -> Span);
-                TexData.Saved = false;
             }
             else {
                 GuIritMdlrDllSetInputParameter(FI,
@@ -800,7 +783,6 @@ static void IrtMdlrPoSInitObject(IrtMdlrFuncInfoClass* FI,
         TrimSrfStruct *TSrfList = MdlCnvrtMdl2TrimmedSrfs(Object->U.Mdls, 0);
         IPObjectStruct *ObjList = IPGenLISTObject(NULL);
 
-        TexData.Resize = false;
         TexData.Width = IRT_MDLR_POS_DFLT_WIDTH;
         TexData.Height = IRT_MDLR_POS_DFLT_HEIGHT;
 
@@ -851,7 +833,6 @@ static void IrtMdlrPoSInitTexture(IrtMdlrFuncInfoClass *FI,
 
     TexData.Alpha = 0;
     TexData.Saved = true;
-    TexData.Resize = false;
     TexData.Width = IRT_MDLR_POS_DFLT_WIDTH;
     TexData.Height = IRT_MDLR_POS_DFLT_HEIGHT;
 
@@ -906,7 +887,6 @@ static void IrtMdlrPoSLoadTexture(IrtMdlrFuncInfoClass *FI,
     Width++, Height++;
     TexData.Alpha = Alpha;
     TexData.Saved = true;
-    TexData.Resize = false;
 
     if (Width % 4 != 0) {
         Width -= Width % 4;
