@@ -657,12 +657,12 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
             if (LclData -> Resize) {
                 if (PrevHeight != LclData -> TextureHeight) {
                     GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_WARNING,
-                        "Invalid Height (not multiple of 4), changed to %d\n",
+                        "Height is not a multiple of 4, changed to %d\n",
                         LclData -> TextureHeight);
                 }
                 if (PrevWidth != LclData -> TextureWidth) {
                     GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_WARNING,
-                        "Invalid Width (not multiple of 4), changed to %d\n",
+                        "Width  is not a multiple of 4, changed to %d\n",
                         LclData -> TextureWidth);
                 }
 
@@ -711,8 +711,12 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
             LclData -> ShapeFiles[LclData -> Names.GetIndex()]);
     }
 
-    GuIritMdlrDllGetInputParameter(FI, IRT_MDLR_POS_X_FACTOR, &LclData -> Base.XFactor);
-    GuIritMdlrDllGetInputParameter(FI, IRT_MDLR_POS_Y_FACTOR, &LclData -> Base.YFactor);
+    GuIritMdlrDllGetInputParameter(FI, 
+        IRT_MDLR_POS_X_FACTOR, 
+        &LclData -> Base.XFactor);
+    GuIritMdlrDllGetInputParameter(FI, 
+        IRT_MDLR_POS_Y_FACTOR, 
+        &LclData -> Base.YFactor);
 }
 
 /*****************************************************************************
