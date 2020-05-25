@@ -1477,12 +1477,12 @@ static void IrtMdlrPoSRenderShape(IrtMdlrFuncInfoClass *FI,
                 y = (YMin + v) % TexData.Height,
                 TextureOff = x + TexData.Width * y,
                 ShapeOff = u + LclData -> Updated.Width * v;
-            if (UClosed) {
+            if (!UClosed) {
                 if (x != (XMin + u)) {
                     continue;
                 }
             }
-            if (VClosed) {
+            if (!VClosed) {
                 if (y != (YMin + v)) {
                     continue;
                 }
