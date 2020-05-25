@@ -178,6 +178,9 @@ static void IrtMdlrPoSInitSelection(IrtMdlrFuncInfoClass* FI,
     IPObjectStruct* Object);
 static void IrtMdlrPoSInitObject(IrtMdlrFuncInfoClass* FI,
     IPObjectStruct* Object);
+static void IrtMdlrPoSSetModelVisibility(IrtMdlrFuncInfoClass* FI,
+    IPObjectStruct* Object,
+    bool enabled);
 static void IrtMdlrPoSInitTexture(IrtMdlrFuncInfoClass *FI,
     IPObjectStruct *Object);
 static void IrtMdlrPoSLoadTexture(IrtMdlrFuncInfoClass *FI,
@@ -571,11 +574,22 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
                 it != LclData -> Selection.end(); 
                 it++) {
                 char Filename[IRIT_LINE_LEN_XLONG];
+                IrtMdlrPoSTexDataStruct
+                    &TexData = LclData -> TexDatas[*it];
+
                 sprintf(Filename, "%s_%d.png", Directory.c_str(), Index++);
 
                 IrtMdlrPoSSaveTexture(FI, *it, Filename);
+
+                if (TexData.ModelSurface != NULL) {
+                    AttrIDSetStrAttrib(&TexData.ModelSurface -> Attr, 
+                        IRIT_ATTR_CREATE_ID(ptexture), 
+                        Filename);
+                }
             }
+            IrtMdlrPoSSetModelVisibility(FI, LclData -> Object, true);
             GuIritMdlrDllSaveFile(FI, LclData -> Object -> ObjName, Path);
+            IrtMdlrPoSSetModelVisibility(FI, LclData -> Object, false);
         }
     }
 
@@ -831,6 +845,13 @@ static void IrtMdlrPoSInitObject(IrtMdlrFuncInfoClass* FI,
             IrtMdlrPoSDeriveTexture(FI, Obj);
             IPListObjectAppend(ObjList, Obj);
 
+            // If original surface has ptexture, load it to the new surface
+            const char *Path = AttrIDGetStrAttrib(TSrf -> Srf -> Attr, 
+                    IRIT_ATTR_CREATE_ID(ptexture));
+            if (Path != NULL) {
+                IrtMdlrPoSLoadTexture(FI, LclData -> TexDatas[Obj], Path);
+            }
+
             // Link model to child surface object
             TexData.SurfaceList.push_back(Obj);
 
@@ -856,6 +877,34 @@ static void IrtMdlrPoSInitObject(IrtMdlrFuncInfoClass* FI,
     else if (IP_IS_SRF_OBJ(Object) || IP_IS_TRIMSRF_OBJ(Object)) {
         IrtMdlrPoSInitTexture(FI, Object);
         IrtMdlrPoSDeriveTexture(FI, Object);
+    }
+}
+
+/*****************************************************************************
+* DESCRIPTION:                                                               *
+*   Set the visibility of all models in the objet recursively.               *
+*                                                                            *
+* PARAMETERS:                                                                *
+*   FI:      Function information - holds generic information such as Panel. *
+*   Object:  The object tree containing models.                              *
+*   Enabled: Set models visibles if true, hidden else.
+*                                                                            *
+* RETURN VALUE:                                                              *
+*   void                                                                     *
+*****************************************************************************/
+static void IrtMdlrPoSSetModelVisibility(IrtMdlrFuncInfoClass* FI,
+    IPObjectStruct* Object,
+    bool enabled)
+{
+    if (IP_IS_MODEL_OBJ(Object)) {
+        GuIritMdlrDllSetObjectVisible(FI, Object, enabled);
+    }
+    else if (IP_IS_OLST_OBJ(Object)) {
+        int i;
+        IPObjectStruct *Obj;
+        for (i = 0; (Obj = IPListObjectGet(Object, i)) != NULL; i++) {
+            IrtMdlrPoSSetModelVisibility(FI, Obj, enabled);
+        }
     }
 }
 
