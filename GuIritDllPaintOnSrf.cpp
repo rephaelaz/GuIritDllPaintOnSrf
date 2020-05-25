@@ -24,6 +24,7 @@
 #include <algorithm> 
 
 using std::vector;
+using std::string;
 using std::map;
 using std::pair;
 using std::find;
@@ -89,13 +90,18 @@ struct IrtMdlrPoSDerivDataStruct {
 };
 
 struct IrtMdlrPoSTexDataStruct {
-    IrtMdlrPoSTexDataStruct(): Texture(NULL) {}
+    IrtMdlrPoSTexDataStruct(): 
+        Texture(NULL),
+        ModelParent(NULL),
+        ModelSurface(NULL) {}
 
     bool Saved;
     int Width, Height, Alpha;
     IrtImgPixelStruct *Texture;
     IrtMdlrPoSDerivDataStruct Deriv;
-    vector<IPObjectStruct *> ModelSrfs;
+    vector<IPObjectStruct *> SurfaceList;
+    IPObjectStruct *ModelParent;
+    CagdSrfStruct *ModelSurface;
 };
 
 class IrtMdlrPaintOnSrfLclClass : public IrtMdlrLclDataClass {
@@ -179,7 +185,7 @@ static void IrtMdlrPoSLoadTexture(IrtMdlrFuncInfoClass *FI,
     const char *Path);
 static void IrtMdlrPoSSaveTexture(IrtMdlrFuncInfoClass *FI,
     IPObjectStruct *Object,
-    IrtMdlrPoSTexDataStruct &TexData);
+    char *Path = NULL);
 static void IrtMdlrPoSResizeTexture(IrtMdlrFuncInfoClass *FI,
     IrtMdlrPoSTexDataStruct &TexData,
     int Width,
@@ -264,7 +270,7 @@ IRT_DSP_STATIC_DATA IrtMdlrFuncTableStruct SrfPainterFunctionTable[] =
         {
             "Surface",
             "Load Texture",
-            "Save Texture",
+            "Save Geometry",
             "Reset Texture",
             "Texture\nWidth",
             "Texture\nHeight",
@@ -278,7 +284,7 @@ IRT_DSP_STATIC_DATA IrtMdlrFuncTableStruct SrfPainterFunctionTable[] =
         {
             "Select a surface.",
             "Loads a texture from an image file.",
-            "Saves the texture into an image file.",
+            "Saves the selected geometry and its textures into an .itd file.",
             "Resets the current texture to a blank texture.",
             "Width of the texture.",
             "Height of the texture.",
@@ -394,7 +400,8 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
             if (IP_IS_MODEL_OBJ(it -> first)) {
             }
             else {
-                const char *Path = AttrIDGetObjectStrAttrib(it->first, IRIT_ATTR_CREATE_ID(ptexture));
+                const char *Path = AttrIDGetObjectStrAttrib(it->first, 
+                    IRIT_ATTR_CREATE_ID(ptexture));
 
                 if (!it -> second.Saved) {
                     GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_WARNING,
@@ -403,12 +410,12 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
                 }
                
                 if (Path != NULL) {
-                    std::string Relative(Path);
+                    string Relative(Path);
                     std::istringstream Stream(Relative);
                     IrtMdlrPoSTexDataStruct
                         &TexData = LclData -> TexDatas[LclData -> Object];
 
-                    getline(Stream, Relative, ',');
+                    std::getline(Stream, Relative, ',');
 
                     IrtMdlrPoSLoadTexture(FI, TexData, Relative.c_str());
 
@@ -441,7 +448,7 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
             }
             else {
                 if (!it -> second.Saved) {
-                    IrtMdlrPoSSaveTexture(FI, it -> first, it -> second);
+                    IrtMdlrPoSSaveTexture(FI, it -> first);
                 }
             }
         }
@@ -546,29 +553,36 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
 
     if (FI -> IntermediateWidgetMajor == IRT_MDLR_POS_SAVE &&
         LclData -> Object != NULL) {
-        IrtMdlrPoSTexDataStruct
-                &TexData = LclData -> TexDatas[LclData -> Object];
-        if (IP_IS_MODEL_OBJ(LclData -> Object)) {
-            vector<IPObjectStruct *>::iterator it;
 
-            for (it = TexData.ModelSrfs.begin();
-                it != TexData.ModelSrfs.end();
+        char *Path;
+
+        bool Res = GuIritMdlrDllGetAsyncInputFileName(FI,
+            "Save Geometry from...",
+            "*.itd", 
+            &Path);
+
+        if (Res) {
+            int Index = 1;
+            string Directory = string(Path);
+            Directory = Directory.substr(0, Directory.size() - 4);
+            
+            vector<IPObjectStruct *>::iterator it;
+            for (it = LclData -> Selection.begin(); 
+                it != LclData -> Selection.end(); 
                 it++) {
-                IrtMdlrPoSTexDataStruct
-                        &Data = LclData -> TexDatas[*it];
-                IrtMdlrPoSSaveTexture(FI, *it, Data);
+                char Filename[IRIT_LINE_LEN_XLONG];
+                sprintf(Filename, "%s_%d.png", Directory.c_str(), Index++);
+
+                IrtMdlrPoSSaveTexture(FI, *it, Filename);
             }
-        }
-        else {
-            IrtMdlrPoSSaveTexture(FI, LclData -> Object, TexData);
+            GuIritMdlrDllSaveFile(FI, LclData -> Object -> ObjName, Path);
         }
     }
 
     if (FI -> IntermediateWidgetMajor == IRT_MDLR_POS_RESET &&
         !PanelUpdate &&
         LclData -> Object != NULL) {
-        bool
-            Res = GuIritMdlrDllGetAsyncInputConfirm(FI,
+        bool Res = GuIritMdlrDllGetAsyncInputConfirm(FI,
             "Texture Reset",
             "Are you sure you want to reset the texture ?");
 
@@ -744,7 +758,7 @@ static void IrtMdlrPoSInitSelection(IrtMdlrFuncInfoClass* FI,
         }
         if (IP_IS_MODEL_OBJ(Object)) {
             vector<IPObjectStruct *>
-                &Sfrs = LclData -> TexDatas[Object].ModelSrfs;
+                &Sfrs = LclData -> TexDatas[Object].SurfaceList;
             vector<IPObjectStruct *>::iterator it;
             for (it = Sfrs.begin(); it != Sfrs.end(); it++) {
                 LclData -> Selection.push_back(*it);
@@ -782,26 +796,56 @@ static void IrtMdlrPoSInitObject(IrtMdlrFuncInfoClass* FI,
         (FI->LocalFuncData());
 
     if (IP_IS_MODEL_OBJ(Object)) {
+        int index = 0;
         char Buffer[IRIT_LINE_LEN_XLONG];
         IrtMdlrPoSTexDataStruct TexData;
+
+        // Assign unique ID to each surface of the model
+        MdlTrimSrfStruct *MdlTSrf = Object->U.Mdls -> TrimSrfList;
+        while(MdlTSrf != NULL) {
+            AttrIDSetIntAttrib(&MdlTSrf -> Srf -> Attr, 
+                IRIT_ATTR_CREATE_ID(SrfIndex), 
+                index++);
+            MdlTSrf = MdlTSrf -> Pnext;
+        }
+
+        // Surface IDs should propagate to TSrfList
         TrimSrfStruct *TSrfList = MdlCnvrtMdl2TrimmedSrfs(Object->U.Mdls, 0);
         IPObjectStruct *ObjList = IPGenLISTObject(NULL);
 
         TexData.Width = IRT_MDLR_POS_DFLT_WIDTH;
         TexData.Height = IRT_MDLR_POS_DFLT_HEIGHT;
 
+        // Generate object list that will be worked on
         sprintf(Buffer, "%s_TRLIST", Object->ObjName);
         GuIritMdlrDllSetObjectName(FI, ObjList, Buffer);
 
         while(TSrfList != NULL) {
             TrimSrfStruct *TSrf;
             IRIT_LIST_POP(TSrf, TSrfList);
+            int CopyIndex = AttrIDGetIntAttrib(TSrf -> Srf -> Attr, 
+                IRIT_ATTR_CREATE_ID(SrfIndex));
             IPObjectStruct *Obj = IPGenTRIMSRFObject(TSrf);
             GuIritMdlrDllSetObjectName(FI, Obj, "TRIM");
             IrtMdlrPoSInitTexture(FI, Obj);
             IrtMdlrPoSDeriveTexture(FI, Obj);
             IPListObjectAppend(ObjList, Obj);
-            TexData.ModelSrfs.push_back(Obj);
+
+            // Link model to child surface object
+            TexData.SurfaceList.push_back(Obj);
+
+            // Link surface object to parent model and original surface
+            LclData -> TexDatas[Obj].ModelParent = Object;
+            MdlTSrf = Object->U.Mdls -> TrimSrfList;
+            while(MdlTSrf != NULL) {
+                int OriginalIndex = AttrIDGetIntAttrib(MdlTSrf -> Srf -> Attr, 
+                    IRIT_ATTR_CREATE_ID(SrfIndex));
+                if (CopyIndex == OriginalIndex) { 
+                    LclData -> TexDatas[Obj].ModelSurface = MdlTSrf -> Srf;
+                    break;
+                }
+                MdlTSrf = MdlTSrf -> Pnext;
+            }
         };
 
         GuIritMdlrDllInsertModelingNewObj(FI, ObjList);
@@ -929,15 +973,32 @@ static void IrtMdlrPoSLoadTexture(IrtMdlrFuncInfoClass *FI,
 *****************************************************************************/
 static void IrtMdlrPoSSaveTexture(IrtMdlrFuncInfoClass *FI,
     IPObjectStruct *Object,
-    IrtMdlrPoSTexDataStruct &TexData)
+    char *Path)
 {
+    bool Res = true;
     char *Filename;
+    char Header[IRIT_LINE_LEN_XLONG];
     int PathLength;
     IrtImgImageType IT;
+    IrtMdlrPaintOnSrfLclClass
+        *LclData = dynamic_cast<IrtMdlrPaintOnSrfLclClass *>
+        (FI -> LocalFuncData());
+    IrtMdlrPoSTexDataStruct
+        &TexData = LclData -> TexDatas[Object];
 
-    bool Res = GuIritMdlrDllGetAsyncInputFileName(FI,
-        "Save Texture to....",
-        "PNG files (*.png)|*.png|JPG files (*.jpg)|*.jpg|PPM files (*.ppm)|*.ppm|GIF files (*.gif)|*.gif", &Filename);
+    sprintf(Header, "Save %s texture to...", Object->ObjName);
+
+    if (Path != NULL) {
+        Filename = Path;
+    }
+    else {
+        Res = GuIritMdlrDllGetAsyncInputFileName(FI,
+            Header,
+            "PNG files (*.png)|*.png|JPG files (*.jpg)|*.jpg|"
+            "PPM files (*.ppm)|*.ppm|GIF files (*.gif)|*.gif", 
+            &Filename);
+    }
+
     if (Res) {
         PathLength = (int)strlen(Filename);
         if (PathLength < 3) {
@@ -962,7 +1023,9 @@ static void IrtMdlrPoSSaveTexture(IrtMdlrFuncInfoClass *FI,
             IrtImgWriteCloseFile(GI);
             TexData.Saved = true;
 
-            AttrIDSetObjectStrAttrib(Object, IRIT_ATTR_CREATE_ID(ptexture), Filename);
+            AttrIDSetObjectStrAttrib(Object, 
+                IRIT_ATTR_CREATE_ID(ptexture), 
+                Filename);
         }
     }
 }
