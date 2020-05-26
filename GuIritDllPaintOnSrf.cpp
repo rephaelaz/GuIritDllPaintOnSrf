@@ -92,15 +92,15 @@ struct IrtMdlrPoSDerivDataStruct {
 struct IrtMdlrPoSTexDataStruct {
     IrtMdlrPoSTexDataStruct(): 
         Texture(NULL),
-        ModelParent(NULL),
+        Parent(NULL),
         ModelSurface(NULL) {}
 
     bool Saved;
     int Width, Height, Alpha;
     IrtImgPixelStruct *Texture;
     IrtMdlrPoSDerivDataStruct Deriv;
-    vector<IPObjectStruct *> SurfaceList;
-    IPObjectStruct *ModelParent;
+    vector<IPObjectStruct *> Children;
+    IPObjectStruct *Parent;
     CagdSrfStruct *ModelSurface;
 };
 
@@ -567,6 +567,8 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
         if (Res) {
             int Index = 1;
             string Directory = string(Path);
+            IPObjectStruct *SaveList = NULL;
+
             Directory = Directory.substr(0, Directory.size() - 4);
             
             vector<IPObjectStruct *>::iterator it;
@@ -587,9 +589,42 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
                         Filename);
                 }
             }
-            IrtMdlrPoSSetModelVisibility(FI, LclData -> Object, true);
-            GuIritMdlrDllSaveFile(FI, LclData -> Object -> ObjName, Path);
-            IrtMdlrPoSSetModelVisibility(FI, LclData -> Object, false);
+
+            if (LclData -> Selection.size() == 1) {
+                SaveList = LclData -> TexDatas[LclData -> Selection[0]].Parent;
+            }
+            else if (LclData -> Selection.size() > 1) {
+                vector<IPObjectStruct *> Children;
+                SaveList = IPGenLISTObject(NULL);
+                for (it = LclData -> Selection.begin(); 
+                    it != LclData -> Selection.end(); 
+                    it++) {
+                    IPObjectStruct *Obj = LclData -> TexDatas[*it].Parent;
+                    if (find(Children.begin(), Children.end(), Obj) ==
+                        Children.end()) {
+                        if (IP_IS_MODEL_OBJ(Obj)) {
+                            GuIritMdlrDllSetObjectVisible(FI, Obj, true);
+                        }
+                        IPListObjectAppend(SaveList, Obj);
+                        Children.push_back(Obj);
+                    }
+                }
+                if (Children.size() == 1) {
+                    SaveList = Children[0];
+                }
+            }
+            
+            if (SaveList != NULL) {
+                IPPutObjectToFile3(Path, SaveList, 0);
+                for (it = LclData -> Selection.begin(); 
+                    it != LclData -> Selection.end(); 
+                    it++) {
+                    IPObjectStruct *Obj = LclData -> TexDatas[*it].Parent;
+                    if (IP_IS_MODEL_OBJ(Obj)) {
+                        GuIritMdlrDllSetObjectVisible(FI, Obj, false);
+                    }
+                }
+            }
         }
     }
 
@@ -770,16 +805,11 @@ static void IrtMdlrPoSInitSelection(IrtMdlrFuncInfoClass* FI,
         if (LclData -> TexDatas.find(Object) == LclData -> TexDatas.end()) {
             IrtMdlrPoSInitObject(FI, Object);
         }
-        if (IP_IS_MODEL_OBJ(Object)) {
-            vector<IPObjectStruct *>
-                &Sfrs = LclData -> TexDatas[Object].SurfaceList;
-            vector<IPObjectStruct *>::iterator it;
-            for (it = Sfrs.begin(); it != Sfrs.end(); it++) {
-                LclData -> Selection.push_back(*it);
-            }
-        }
-        else {
-            LclData -> Selection.push_back(Object);
+        vector<IPObjectStruct *>::iterator it;
+        for (it = LclData -> TexDatas[Object].Children.begin(); 
+            it != LclData -> TexDatas[Object].Children.end(); 
+            it++) {
+            LclData -> Selection.push_back(*it);
         }
     }
     else if (IP_IS_OLST_OBJ(Object)) {
@@ -805,17 +835,31 @@ static void IrtMdlrPoSInitSelection(IrtMdlrFuncInfoClass* FI,
 static void IrtMdlrPoSInitObject(IrtMdlrFuncInfoClass* FI,
     IPObjectStruct* Object) {
 
+    char Name[IRIT_LINE_LEN_XLONG];
+
+    IrtMdlrPoSTexDataStruct TexData;
+    TexData.Width = IRT_MDLR_POS_DFLT_WIDTH;
+    TexData.Height = IRT_MDLR_POS_DFLT_HEIGHT;
+
     IrtMdlrPaintOnSrfLclClass
         * LclData = dynamic_cast<IrtMdlrPaintOnSrfLclClass*>
         (FI->LocalFuncData());
 
+    // Dupplicate the object to leave original geometry unaltered
+    IPObjectStruct *Copy = IPCopyObject(NULL, Object, false);
+    sprintf(Name, "COPY_%s", Object -> ObjName);
+        
+    AttrFreeAttributes(&Copy -> Attr);
+    Copy -> Attr = NULL;
+    IP_SET_OBJ_NAME2(Copy, Name);
+
+    GuIritMdlrDllInsertModelingNewObj(FI, Copy);
+
     if (IP_IS_MODEL_OBJ(Object)) {
         int index = 0;
-        char Buffer[IRIT_LINE_LEN_XLONG];
-        IrtMdlrPoSTexDataStruct TexData;
 
         // Assign unique ID to each surface of the model
-        MdlTrimSrfStruct *MdlTSrf = Object->U.Mdls -> TrimSrfList;
+        MdlTrimSrfStruct *MdlTSrf = Copy->U.Mdls -> TrimSrfList;
         while(MdlTSrf != NULL) {
             AttrIDSetIntAttrib(&MdlTSrf -> Srf -> Attr, 
                 IRIT_ATTR_CREATE_ID(SrfIndex), 
@@ -824,15 +868,12 @@ static void IrtMdlrPoSInitObject(IrtMdlrFuncInfoClass* FI,
         }
 
         // Surface IDs should propagate to TSrfList
-        TrimSrfStruct *TSrfList = MdlCnvrtMdl2TrimmedSrfs(Object->U.Mdls, 0);
+        TrimSrfStruct *TSrfList = MdlCnvrtMdl2TrimmedSrfs(Copy->U.Mdls, 0);
         IPObjectStruct *ObjList = IPGenLISTObject(NULL);
 
-        TexData.Width = IRT_MDLR_POS_DFLT_WIDTH;
-        TexData.Height = IRT_MDLR_POS_DFLT_HEIGHT;
-
         // Generate object list that will be worked on
-        sprintf(Buffer, "%s_TRLIST", Object->ObjName);
-        GuIritMdlrDllSetObjectName(FI, ObjList, Buffer);
+        sprintf(Name, "%s_TRLIST", Object->ObjName);
+        GuIritMdlrDllSetObjectName(FI, ObjList, Name);
 
         while(TSrfList != NULL) {
             TrimSrfStruct *TSrf;
@@ -853,15 +894,15 @@ static void IrtMdlrPoSInitObject(IrtMdlrFuncInfoClass* FI,
             }
 
             // Link model to child surface object
-            TexData.SurfaceList.push_back(Obj);
+            TexData.Children.push_back(Obj);
 
             // Link surface object to parent model and original surface
-            LclData -> TexDatas[Obj].ModelParent = Object;
-            MdlTSrf = Object->U.Mdls -> TrimSrfList;
+            LclData -> TexDatas[Obj].Parent = Copy;
+            MdlTSrf = Copy->U.Mdls -> TrimSrfList;
             while(MdlTSrf != NULL) {
                 int OriginalIndex = AttrIDGetIntAttrib(MdlTSrf -> Srf -> Attr, 
                     IRIT_ATTR_CREATE_ID(SrfIndex));
-                if (CopyIndex == OriginalIndex) { 
+                if (CopyIndex == OriginalIndex) {
                     LclData -> TexDatas[Obj].ModelSurface = MdlTSrf -> Srf;
                     break;
                 }
@@ -871,12 +912,21 @@ static void IrtMdlrPoSInitObject(IrtMdlrFuncInfoClass* FI,
 
         GuIritMdlrDllInsertModelingNewObj(FI, ObjList);
         GuIritMdlrDllSetObjectVisible(FI, Object, false);
+        GuIritMdlrDllSetObjectVisible(FI, Copy, false);
 
         LclData -> TexDatas[Object] = TexData;
     }
     else if (IP_IS_SRF_OBJ(Object) || IP_IS_TRIMSRF_OBJ(Object)) {
-        IrtMdlrPoSInitTexture(FI, Object);
-        IrtMdlrPoSDeriveTexture(FI, Object);
+        IrtMdlrPoSInitTexture(FI, Copy);
+        IrtMdlrPoSDeriveTexture(FI, Copy);
+
+        // Link original object to its copy
+        TexData.Children.push_back(Copy);
+        LclData -> TexDatas[Copy].Parent = Copy;
+
+        GuIritMdlrDllSetObjectVisible(FI, Object, false);
+
+        LclData -> TexDatas[Object] = TexData;
     }
 }
 
