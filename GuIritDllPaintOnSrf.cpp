@@ -169,6 +169,8 @@ public:
     IrtImgPixelStruct *TextureBuffer;
     map<IPObjectStruct *, IrtMdlrPoSTexDataStruct> TexDatas;
     vector<IPObjectStruct *> Selection;
+    vector<IPObjectStruct *> CopyList;
+    vector<IPObjectStruct *> OriginalList;
     IPObjectStruct *Object;
 };
 
@@ -394,54 +396,6 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
         }
     }
 
-    if (FI -> CnstrctState == IRT_MDLR_CNSTRCT_STATE_CANCEL) {
-        map<IPObjectStruct *, IrtMdlrPoSTexDataStruct>::iterator it;
-
-        for (it = LclData -> TexDatas.begin();
-            it != LclData -> TexDatas.end();
-            it++) {
-            if (IP_IS_MODEL_OBJ(it -> first)) {
-            }
-            else {
-                const char *Path = AttrIDGetObjectStrAttrib(it->first, 
-                    IRIT_ATTR_CREATE_ID(ptexture));
-
-                if (!it -> second.Saved) {
-                    GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_WARNING,
-                        "Surface %s had changes that were not saved.\n",
-                        it -> first -> ObjName);
-                }
-               
-                if (Path != NULL) {
-                    string Relative(Path);
-                    std::istringstream Stream(Relative);
-                    IrtMdlrPoSTexDataStruct
-                        &TexData = LclData -> TexDatas[LclData -> Object];
-
-                    std::getline(Stream, Relative, ',');
-
-                    IrtMdlrPoSLoadTexture(FI, TexData, Relative.c_str());
-
-                    GuIritMdlrDllSetTextureFromImage(FI,
-                        it->first,
-                        TexData.Texture,
-                        TexData.Width,
-                        TexData.Height,
-                        TexData.Alpha,
-                        LclData -> Span);
-                }
-                else {                    
-                    GuIritMdlrDllSetTextureFromImage(FI, it->first,
-                        LclData -> DefaultTexture,
-                        4, 4, FALSE, LclData -> Span);
-
-                    IrtMdlrPoSRecolorObject(FI, it->first);
-                }
-            }
-        }
-        return;
-    }
-
     if (FI->CnstrctState == IRT_MDLR_CNSTRCT_STATE_OK) {
         map<IPObjectStruct *, IrtMdlrPoSTexDataStruct>::iterator it;
         for (it = LclData->TexDatas.begin();
@@ -455,6 +409,22 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
                 }
             }
         }
+        return;
+    }
+
+    if (FI -> CnstrctState == IRT_MDLR_CNSTRCT_STATE_CANCEL) {
+        vector<IPObjectStruct *>::iterator it;
+        for (it = LclData -> CopyList.begin(); 
+            it != LclData -> CopyList.end(); 
+            it++) {
+            GuIritMdlrDllDeleteModelingFuncObj(FI, *it);
+        }
+        for (it = LclData -> OriginalList.begin(); 
+            it != LclData -> OriginalList.end(); 
+            it++) {
+            IrtMdlrPoSSetModelVisibility(FI, *it, true);
+        }
+       
         return;
     }
 
@@ -582,12 +552,6 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
                 sprintf(Filename, "%s_%d.png", Directory.c_str(), Index++);
 
                 IrtMdlrPoSSaveTexture(FI, *it, Filename);
-
-                if (TexData.ModelSurface != NULL) {
-                    AttrIDSetStrAttrib(&TexData.ModelSurface -> Attr, 
-                        IRIT_ATTR_CREATE_ID(ptexture), 
-                        Filename);
-                }
             }
 
             if (LclData -> Selection.size() == 1) {
@@ -854,6 +818,7 @@ static void IrtMdlrPoSInitObject(IrtMdlrFuncInfoClass* FI,
     IP_SET_OBJ_NAME2(Copy, Name);
 
     GuIritMdlrDllInsertModelingNewObj(FI, Copy);
+    LclData -> CopyList.push_back(Copy);
 
     if (IP_IS_MODEL_OBJ(Object)) {
         int index = 0;
@@ -909,10 +874,12 @@ static void IrtMdlrPoSInitObject(IrtMdlrFuncInfoClass* FI,
                 MdlTSrf = MdlTSrf -> Pnext;
             }
         };
-
+        LclData -> CopyList.push_back(ObjList);
         GuIritMdlrDllInsertModelingNewObj(FI, ObjList);
-        GuIritMdlrDllSetObjectVisible(FI, Object, false);
         GuIritMdlrDllSetObjectVisible(FI, Copy, false);
+
+        LclData -> OriginalList.push_back(Object);
+        GuIritMdlrDllSetObjectVisible(FI, Object, false);
 
         LclData -> TexDatas[Object] = TexData;
     }
@@ -924,6 +891,7 @@ static void IrtMdlrPoSInitObject(IrtMdlrFuncInfoClass* FI,
         TexData.Children.push_back(Copy);
         LclData -> TexDatas[Copy].Parent = Copy;
 
+        LclData -> OriginalList.push_back(Object);
         GuIritMdlrDllSetObjectVisible(FI, Object, false);
 
         LclData -> TexDatas[Object] = TexData;
@@ -979,7 +947,7 @@ static void IrtMdlrPoSInitTexture(IrtMdlrFuncInfoClass *FI,
         (FI -> LocalFuncData());
 
     TexData.Alpha = 0;
-    TexData.Saved = true;
+    TexData.Saved = false;
     TexData.Width = IRT_MDLR_POS_DFLT_WIDTH;
     TexData.Height = IRT_MDLR_POS_DFLT_HEIGHT;
 
@@ -1125,6 +1093,11 @@ static void IrtMdlrPoSSaveTexture(IrtMdlrFuncInfoClass *FI,
             AttrIDSetObjectStrAttrib(Object, 
                 IRIT_ATTR_CREATE_ID(ptexture), 
                 Filename);
+            if (TexData.ModelSurface != NULL) {
+                AttrIDSetStrAttrib(&TexData.ModelSurface -> Attr, 
+                    IRIT_ATTR_CREATE_ID(ptexture), 
+                    Filename);
+            }
         }
     }
 }
