@@ -222,6 +222,15 @@ static void IrtMdlrPoSApplyShear(IrtMdlrFuncInfoClass *FI,
     CagdVType SuVec, 
     CagdVType SvVec);
 
+void ComputeJunctionBetweenSrfs(const TrimSrfStruct* CrntSrf,
+    const CagdUVType CrntUV,
+    const TrimSrfStruct* NextSrf,
+    const CagdUVType NextUV,
+    CagdUVType CrntBndryUV,       /* Will be updated with the UV of CrntSrf on the boundary. */
+    CagdUVType NextBndryUV,       /* Will be updated with the UV of NextSrf on the boundary. */
+    CagdRType* ScaleChange) {     /* Will be updated with change in mask scale to apply in boundary crossing. */
+}
+
 IRT_DSP_STATIC_DATA IrtMdlrFuncTableStruct SrfPainterFunctionTable[] =
 {
     {
@@ -1579,7 +1588,38 @@ static int IrtMdlrPoSMouseCallBack(IrtMdlrMouseEventStruct *MouseEvent)
 
             /* Reset texture buffers if needed */
             if (Obj != PrevObj) {
-                int x;
+                int x = 0;
+
+                if (PrevObj != NULL) {
+                    if (IP_IS_TRIMSRF_OBJ(PrevObj)) {
+                        const CagdUVType CrntUV = { PrevXOff / TexData.Width , PrefYOff / TexData.Height },
+                             NextUV = { MouseEvent->UVW[0], MouseEvent->UVW[1] };
+                        CagdUVType CrntBndryUV = { PrevXOff, PrefYOff }, 
+                            NextBndryUV = { MouseEvent->UVW[0], MouseEvent->UVW[1] };
+                        CagdRType ScaleChange[2] = { 1, 1 };
+                        ComputeJunctionBetweenSrfs(PrevObj->U.TrimSrfs,
+                            CrntUV,
+                            Obj->U.TrimSrfs,
+                            NextUV,
+                            CrntBndryUV,
+                            NextBndryUV,
+                            ScaleChange);
+
+                        IrtMdlrPoSShapeUpdate(FI, PrevObj, CrntBndryUV[0], CrntBndryUV[1]);
+                        IrtMdlrPoSRenderShape(FI, PrevObj, (int)((double)CrntBndryUV[0] * TexData.Width),
+                            (int)((double)CrntBndryUV[1] * TexData.Height));
+
+                        PrevXOff = (int)((double)TexData.Width * NextBndryUV[0]);
+                        PrefYOff = (int)((double)TexData.Height * NextBndryUV[1]);
+
+                        x = 1;
+                    }
+                }
+                
+                if (x != 1) {
+                    PrevXOff = -1;
+                    PrefYOff = -1;
+                }
 
                 if (LclData -> TextureAlpha != NULL) {
                     IritFree(LclData -> TextureAlpha);
@@ -1598,8 +1638,7 @@ static int IrtMdlrPoSMouseCallBack(IrtMdlrMouseEventStruct *MouseEvent)
                     LclData -> TextureBuffer[x] = TexData.Texture[x];
                 }
 
-                PrevXOff = -1;
-                PrefYOff = -1;
+             
             }
             PrevObj = Obj;
 
