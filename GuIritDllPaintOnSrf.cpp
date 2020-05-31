@@ -1,9 +1,9 @@
 /*****************************************************************************
-* GuiIritDllPaintOnSrf.cpp - painting textures over surfaces.		         *
+* GuiIritDllPaintOnSrf.cpp - painting textures over surfaces.		     *
 ******************************************************************************
 * (C) Gershon Elber, Technion, Israel Institute of Technology                *
 ******************************************************************************
-* Written by Ilan Coronel and Raphael Azoulay, 2019.		                 *
+* Written by Ilan Coronel and Raphael Azoulay, 2019.		             *
 *****************************************************************************/
 
 #include <ctype.h>
@@ -177,59 +177,61 @@ public:
 
 static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI);
 static void IrtMdlrPoSInitSelection(IrtMdlrFuncInfoClass* FI,
-    IPObjectStruct* Object);
+				    IPObjectStruct* Object);
 static void IrtMdlrPoSInitObject(IrtMdlrFuncInfoClass* FI,
-    IPObjectStruct* Object);
+				 IPObjectStruct* Object);
 static void IrtMdlrPoSSetModelVisibility(IrtMdlrFuncInfoClass* FI,
-    IPObjectStruct* Object,
-    bool enabled);
+					 IPObjectStruct* Object,
+					 bool enabled);
 static void IrtMdlrPoSInitTexture(IrtMdlrFuncInfoClass *FI,
-    IPObjectStruct *Object);
+				  IPObjectStruct *Object);
 static void IrtMdlrPoSLoadTexture(IrtMdlrFuncInfoClass *FI,
-    IrtMdlrPoSTexDataStruct &TexData,
-    const char *Path);
+				  IrtMdlrPoSTexDataStruct &TexData,
+				  const char *Path);
 static void IrtMdlrPoSSaveTexture(IrtMdlrFuncInfoClass *FI,
-    IPObjectStruct *Object,
-    char *Path = NULL);
+				  IPObjectStruct *Object,
+				  char *Path = NULL);
 static void IrtMdlrPoSResizeTexture(IrtMdlrFuncInfoClass *FI,
-    IrtMdlrPoSTexDataStruct &TexData,
-    int Width,
-    int Height,
-    bool Reset);
+				    IrtMdlrPoSTexDataStruct &TexData,
+				    int Width,
+				    int Height,
+				    bool Reset);
 static void IrtMdlrPoSDeriveTexture(IrtMdlrFuncInfoClass *FI,
-    IPObjectStruct *Object);
+				    IPObjectStruct *Object);
 static void IrtMdlrPoSRecolorObject(IrtMdlrFuncInfoClass *FI,
-    IPObjectStruct *Object);
+				    IPObjectStruct *Object);
 static int IrtMdlrPoSInitShapes(IrtMdlrFuncInfoClass *FI);
 static void IrtMdlrPoSLoadShape(IrtMdlrFuncInfoClass *FI,
-    const char *Filename);
+				const char *Filename);
 static void IrtMdlrPoSBresenham(const pair<int, int> &a,
-    const pair<int, int> &b,
-    vector<pair<int, int>> &Points);
+				const pair<int, int> &b,
+				vector<pair<int, int>> &Points);
 static void IrtMdlrPoSRenderShape(IrtMdlrFuncInfoClass *FI,
-    IPObjectStruct *Object,
-    int XOff,
-    int YOff);
+				  IPObjectStruct *Object,
+				  int XOff,
+				  int YOff);
 static int IrtMdlrPoSMouseCallBack(IrtMdlrMouseEventStruct *MouseEvent);
 static void IrtMdlrPoSShapeUpdate(IrtMdlrFuncInfoClass *FI,
-    IPObjectStruct *Object,
-    double u,
-    double v);
+				  IPObjectStruct *Object,
+				  double u,
+				  double v);
 static void IrtMdlrPoSApplyResize(IrtMdlrFuncInfoClass *FI, 
-    CagdVType SuVec, 
-    CagdVType SvVec);
+				  CagdVType SuVec, 
+				  CagdVType SvVec);
 static void IrtMdlrPoSApplyShear(IrtMdlrFuncInfoClass *FI, 
-    CagdVType SuVec, 
-    CagdVType SvVec);
-
-void ComputeJunctionBetweenSrfs(const TrimSrfStruct* CrntSrf,
-    const CagdUVType CrntUV,
-    const TrimSrfStruct* NextSrf,
-    const CagdUVType NextUV,
-    CagdUVType CrntBndryUV,       /* Will be updated with the UV of CrntSrf on the boundary. */
-    CagdUVType NextBndryUV,       /* Will be updated with the UV of NextSrf on the boundary. */
-    CagdRType* ScaleChange) {     /* Will be updated with change in mask scale to apply in boundary crossing. */
-}
+				 CagdVType SuVec, 
+				 CagdVType SvVec);
+static CagdRType IrtMdlrEvalTangentMagnitudeOnBndry(const CagdSrfStruct *Srf,
+						    CagdRType u,
+						    CagdRType v,
+						    const CagdVType UVUnitDir);
+static void IrtMdlrComputeJunctionBetweenSrfs(const TrimSrfStruct *CrntSrf,
+					      const CagdUVType CrntUV,
+					      const TrimSrfStruct *NextSrf,
+					      const CagdUVType NextUV,
+					      CagdUVType CrntBndryUV,
+					      CagdUVType NextBndryUV,
+					      CagdRType *ScaleChange);
 
 IRT_DSP_STATIC_DATA IrtMdlrFuncTableStruct SrfPainterFunctionTable[] =
 {
@@ -253,19 +255,19 @@ IRT_DSP_STATIC_DATA IrtMdlrFuncTableStruct SrfPainterFunctionTable[] =
             IRT_MDLR_OLST_GEOM_EXPR,
 
             /* Texture fields. */
-            IRT_MDLR_BUTTON_EXPR,			        /* Load Texture. */
-            IRT_MDLR_BUTTON_EXPR,			        /* Save Texture. */
-            IRT_MDLR_BUTTON_EXPR,	                /* Reset Texture. */
-            IRT_MDLR_INTEGER_EXPR,	                /* Texture width. */
-            IRT_MDLR_INTEGER_EXPR,			        /* Texture height. */
-            IRT_MDLR_BUTTON_EXPR,                   /* Ambient Color button. */
+            IRT_MDLR_BUTTON_EXPR,			   /* Load Texture. */
+            IRT_MDLR_BUTTON_EXPR,			   /* Save Texture. */
+            IRT_MDLR_BUTTON_EXPR,	                  /* Reset Texture. */
+            IRT_MDLR_INTEGER_EXPR,	                  /* Texture width. */
+            IRT_MDLR_INTEGER_EXPR,			 /* Texture height. */
+            IRT_MDLR_BUTTON_EXPR,                  /* Ambient Color button. */
 
             /* Brush fields. */
-            IRT_MDLR_BUTTON_EXPR,			        /* Shape Color button. */
+            IRT_MDLR_BUTTON_EXPR,		     /* Shape Color button. */
             IRT_MDLR_NUMERIC_EXPR,		    	    /* Alpha Value. */
-            IRT_MDLR_HIERARCHY_SELECTION_EXPR,	    /* Shape selection menu. */
-            IRT_MDLR_NUMERIC_EXPR,			        /* X Factor. */
-            IRT_MDLR_NUMERIC_EXPR,			        /* Y Factor. */
+            IRT_MDLR_HIERARCHY_SELECTION_EXPR,	   /* Shape selection menu. */
+            IRT_MDLR_NUMERIC_EXPR,			       /* X Factor. */
+            IRT_MDLR_NUMERIC_EXPR,			       /* Y Factor. */
         },
         {
             NULL,
@@ -337,9 +339,9 @@ enum {
 extern "C" bool _IrtMdlrDllRegister(void)
 {
     GuIritMdlrDllRegister(SrfPainterFunctionTable,
-        SRF_PAINT_FUNC_TABLE_SIZE,
-        "PaintOnSrf",
-        IconPaintOnSrf);
+			  SRF_PAINT_FUNC_TABLE_SIZE,
+			  "PaintOnSrf",
+			  IconPaintOnSrf);
     return true;
 }
 
@@ -405,11 +407,12 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
         }
     }
 
-    if (FI->CnstrctState == IRT_MDLR_CNSTRCT_STATE_OK) {
+    if (FI -> CnstrctState == IRT_MDLR_CNSTRCT_STATE_OK) {
         map<IPObjectStruct *, IrtMdlrPoSTexDataStruct>::iterator it;
-        for (it = LclData->TexDatas.begin();
-            it != LclData->TexDatas.end();
-            it++) {
+
+        for (it = LclData -> TexDatas.begin();
+	     it != LclData -> TexDatas.end();
+	     it++) {
             if (IP_IS_MODEL_OBJ(it -> first)) {
             }
             else {
@@ -423,10 +426,11 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
 
     if (FI -> CnstrctState == IRT_MDLR_CNSTRCT_STATE_CANCEL) {
         vector<IPObjectStruct *>::iterator it;
+
         for (it = LclData -> CopyList.begin(); 
-            it != LclData -> CopyList.end(); 
-            it++) {
-            GuIritMdlrDllDeleteModelingFuncObj(FI, *it);
+	     it != LclData -> CopyList.end(); 
+	     it++) {
+	    GuIritMdlrDllDeleteModelingFuncObj(FI, *it);
         }
         for (it = LclData -> OriginalList.begin(); 
             it != LclData -> OriginalList.end(); 
@@ -438,7 +442,7 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
     }
 
     GuIritMdlrDllGetInputParameter(FI, IRT_MDLR_POS_SURFACE,
-        LclData->ObjExpr.GetObjAddr());
+        LclData -> ObjExpr.GetObjAddr());
 
     if (LclData -> ObjExpr.GetIPObj() == NULL) {
         if (LastObj != NULL) {
@@ -455,7 +459,7 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
         if (LastObj != NULL &&
             LastObj != LclData -> ObjExpr.GetIPObj() &&
             strcmp(LastObjName, LclData -> ObjExpr.GetIPObj() -> ObjName)
-            == 0) {
+						                    == 0) {
             IritFree(LclData -> TexDatas[LastObj].Texture);
             LclData -> TexDatas.erase(LastObj);
         }
@@ -468,8 +472,7 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
     if (LclData -> ObjExpr.GetIPObj() != NULL &&
         GuIritMdlrDllGetObjectMatrix(FI, LclData -> ObjExpr.GetIPObj())) {
         GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_WARNING,
-            "Paint on surface not supported for objects with transformation - "
-            "\"Apply Transform\" to the object first.\n");
+            "Paint on surface not supported for objects with transformation - \"Apply Transform\" to the object first.\n");
         return;
     }
 
@@ -477,12 +480,13 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
         PanelUpdate = true;
         if (LclData -> ObjExpr.GetIPObj() != LclData -> Object) {
             LclData -> Selection.clear();
-            IrtMdlrPoSInitSelection(FI, LclData->ObjExpr.GetIPObj());
+            IrtMdlrPoSInitSelection(FI, LclData -> ObjExpr.GetIPObj());
             LclData -> Object = LclData -> ObjExpr.GetIPObj();
 
             if (LclData -> Selection.size() > 0) {
                 IrtMdlrPoSTexDataStruct
                     &TexData = LclData -> TexDatas[LclData -> Selection[0]];
+
                 GuIritMdlrDllSetInputParameter(FI, IRT_MDLR_POS_WIDTH,
                     &TexData.Width);
                 GuIritMdlrDllSetInputParameter(FI, IRT_MDLR_POS_HEIGHT,
@@ -506,8 +510,10 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
             &Path);
 
         if (Res) {
-            int Width = -1, Height = -1;
+            int Width = -1,
+	        Height = -1;
             vector<IPObjectStruct *>::iterator it;
+
             for (it = LclData -> Selection.begin(); 
                 it != LclData -> Selection.end(); 
                 it++) {
@@ -535,18 +541,18 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
 
     if (FI -> IntermediateWidgetMajor == IRT_MDLR_POS_SAVE &&
         LclData -> Object != NULL) {
-
         char *Path;
-
         bool Res = GuIritMdlrDllGetAsyncInputFileName(FI,
-            "Save Geometry from...",
-            "*.itd", 
-            &Path);
+						      "Save Geometry from...",
+						      "*.itd", 
+						      &Path);
 
         if (Res) {
             int Index = 1;
-            string Directory = string(Path);
-            IPObjectStruct *SaveList = NULL;
+            string
+	        Directory = string(Path);
+            IPObjectStruct
+	        *SaveList = NULL;
 
             Directory = Directory.substr(0, Directory.size() - 4);
             
@@ -568,11 +574,14 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
             }
             else if (LclData -> Selection.size() > 1) {
                 vector<IPObjectStruct *> Children;
+
                 SaveList = IPGenLISTObject(NULL);
                 for (it = LclData -> Selection.begin(); 
                     it != LclData -> Selection.end(); 
                     it++) {
-                    IPObjectStruct *Obj = LclData -> TexDatas[*it].Parent;
+                    IPObjectStruct
+		        *Obj = LclData -> TexDatas[*it].Parent;
+
                     if (find(Children.begin(), Children.end(), Obj) ==
                         Children.end()) {
                         if (IP_IS_MODEL_OBJ(Obj)) {
@@ -592,7 +601,9 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
                 for (it = LclData -> Selection.begin(); 
                     it != LclData -> Selection.end(); 
                     it++) {
-                    IPObjectStruct *Obj = LclData -> TexDatas[*it].Parent;
+                    IPObjectStruct
+		        *Obj = LclData -> TexDatas[*it].Parent;
+
                     if (IP_IS_MODEL_OBJ(Obj)) {
                         GuIritMdlrDllSetObjectVisible(FI, Obj, false);
                     }
@@ -605,30 +616,26 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
         !PanelUpdate &&
         LclData -> Object != NULL) {
         bool Res = GuIritMdlrDllGetAsyncInputConfirm(FI,
-            "Texture Reset",
-            "Are you sure you want to reset the texture ?");
+						     "Texture Reset",
+                              "Are you sure you want to reset the texture ?");
 
         if (Res) {
             int Width = IRT_MDLR_POS_DFLT_WIDTH,
                 Height = IRT_MDLR_POS_DFLT_HEIGHT;
             vector<IPObjectStruct *>::iterator it;
+
             for (it = LclData -> Selection.begin(); 
-                it != LclData -> Selection.end(); 
-                it++) {
+		 it != LclData -> Selection.end(); 
+		 it++) {
                 IrtMdlrPoSTexDataStruct
                     &TexData = LclData -> TexDatas[*it];
-                IrtMdlrPoSResizeTexture(FI,
-                    TexData,
-                    Width,
-                    Height,
-                    true);
-                GuIritMdlrDllSetTextureFromImage(FI, 
-                    *it,
-                    TexData.Texture,
-                    TexData.Width,
-                    TexData.Height,
-                    TexData.Alpha,
-                    LclData -> Span);
+
+                IrtMdlrPoSResizeTexture(FI, TexData, Width, Height, true);
+                GuIritMdlrDllSetTextureFromImage(FI, *it, TexData.Texture,
+						 TexData.Width,
+						 TexData.Height,
+						 TexData.Alpha,
+						 LclData -> Span);
                 TexData.Saved = false;
             }
             PanelUpdate = true;
@@ -640,8 +647,8 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
 
     if (FI -> IntermediateWidgetMajor == IRT_MDLR_POS_BG_COLOR) {
         unsigned char Red, Green, Blue;
-        IrtDspOGLWinPropsClass *
-            OGLWinProps = GuIritMdlrDllGetWindowOGLProps(FI);
+        IrtDspOGLWinPropsClass
+            *OGLWinProps = GuIritMdlrDllGetWindowOGLProps(FI);
 
         if (GuIritMdlrDllGetAsyncInputColor(FI, &Red, &Green, &Blue)) {
             IrtDspRGBAClrClass Color(Red, Green, Blue);
@@ -703,23 +710,22 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
                 }
 
                 vector<IPObjectStruct *>::iterator it;
+
                 for (it = LclData -> Selection.begin(); 
                     it != LclData -> Selection.end(); 
                     it++) {
                     IrtMdlrPoSTexDataStruct
                         &TexData = LclData -> TexDatas[*it];
-                    IrtMdlrPoSResizeTexture(FI,
-                        TexData,
-                        LclData -> TextureWidth,
-                        LclData -> TextureHeight, 
-                        true);
-                    GuIritMdlrDllSetTextureFromImage(FI, 
-                        *it,
-                        TexData.Texture,
-                        TexData.Width,
-                        TexData.Height,
-                        TexData.Alpha,
-                        LclData -> Span);
+
+                    IrtMdlrPoSResizeTexture(FI, TexData,
+					    LclData -> TextureWidth,
+					    LclData -> TextureHeight, true);
+                    GuIritMdlrDllSetTextureFromImage(FI, *it,
+						     TexData.Texture,
+						     TexData.Width,
+						     TexData.Height,
+						     TexData.Alpha,
+						     LclData -> Span);
                     TexData.Saved = false;
                 }
             }
@@ -748,11 +754,11 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
     }
 
     GuIritMdlrDllGetInputParameter(FI, 
-        IRT_MDLR_POS_X_FACTOR, 
-        &LclData -> Base.XFactor);
+				   IRT_MDLR_POS_X_FACTOR, 
+				   &LclData -> Base.XFactor);
     GuIritMdlrDllGetInputParameter(FI, 
-        IRT_MDLR_POS_Y_FACTOR, 
-        &LclData -> Base.YFactor);
+				   IRT_MDLR_POS_Y_FACTOR, 
+				   &LclData -> Base.YFactor);
 }
 
 /*****************************************************************************
@@ -772,13 +778,15 @@ static void IrtMdlrPoSInitSelection(IrtMdlrFuncInfoClass* FI,
 
     IrtMdlrPaintOnSrfLclClass
         * LclData = dynamic_cast<IrtMdlrPaintOnSrfLclClass*>
-        (FI->LocalFuncData());
+						      (FI -> LocalFuncData());
 
     if (IRT_MDLR_POS_DRAWABLE(Object)) {
         if (LclData -> TexDatas.find(Object) == LclData -> TexDatas.end()) {
             IrtMdlrPoSInitObject(FI, Object);
         }
+
         vector<IPObjectStruct *>::iterator it;
+
         for (it = LclData -> TexDatas[Object].Children.begin(); 
             it != LclData -> TexDatas[Object].Children.end(); 
             it++) {
@@ -788,6 +796,7 @@ static void IrtMdlrPoSInitSelection(IrtMdlrFuncInfoClass* FI,
     else if (IP_IS_OLST_OBJ(Object)) {
         int i;
         IPObjectStruct *Obj;
+
         for (i = 0; (Obj = IPListObjectGet(Object, i)) != NULL; i++) {
             IrtMdlrPoSInitSelection(FI, Obj);
         }
@@ -806,17 +815,17 @@ static void IrtMdlrPoSInitSelection(IrtMdlrFuncInfoClass* FI,
 *   void                                                                     *
 *****************************************************************************/
 static void IrtMdlrPoSInitObject(IrtMdlrFuncInfoClass* FI,
-    IPObjectStruct* Object) {
-
+				 IPObjectStruct* Object)
+{
     char Name[IRIT_LINE_LEN_XLONG];
-
     IrtMdlrPoSTexDataStruct TexData;
+
     TexData.Width = IRT_MDLR_POS_DFLT_WIDTH;
     TexData.Height = IRT_MDLR_POS_DFLT_HEIGHT;
 
     IrtMdlrPaintOnSrfLclClass
         * LclData = dynamic_cast<IrtMdlrPaintOnSrfLclClass*>
-        (FI->LocalFuncData());
+						      (FI -> LocalFuncData());
 
     // Dupplicate the object to leave original geometry unaltered
     IPObjectStruct *Copy = IPCopyObject(NULL, Object, false);
@@ -832,8 +841,10 @@ static void IrtMdlrPoSInitObject(IrtMdlrFuncInfoClass* FI,
     if (IP_IS_MODEL_OBJ(Object)) {
         int index = 0;
 
-        // Assign unique ID to each surface of the model
-        MdlTrimSrfStruct *MdlTSrf = Copy->U.Mdls -> TrimSrfList;
+        /* Assign unique ID to each surface of the model. */
+        MdlTrimSrfStruct
+	    *MdlTSrf = Copy -> U.Mdls -> TrimSrfList;
+
         while(MdlTSrf != NULL) {
             AttrIDSetIntAttrib(&MdlTSrf -> Srf -> Attr, 
                 IRIT_ATTR_CREATE_ID(SrfIndex), 
@@ -841,41 +852,50 @@ static void IrtMdlrPoSInitObject(IrtMdlrFuncInfoClass* FI,
             MdlTSrf = MdlTSrf -> Pnext;
         }
 
-        // Surface IDs should propagate to TSrfList
-        TrimSrfStruct *TSrfList = MdlCnvrtMdl2TrimmedSrfs(Copy->U.Mdls, 0);
-        IPObjectStruct *ObjList = IPGenLISTObject(NULL);
+        /* Surface IDs should propagate to TSrfList. */
+        TrimSrfStruct
+	    *TSrfList = MdlCnvrtMdl2TrimmedSrfs(Copy -> U.Mdls, 0);
+        IPObjectStruct
+	    *ObjList = IPGenLISTObject(NULL);
 
-        // Generate object list that will be worked on
-        sprintf(Name, "%s_TRLIST", Object->ObjName);
+        /* Generate object list that will be worked on. */
+        sprintf(Name, "%s_TRLIST", Object -> ObjName);
         GuIritMdlrDllSetObjectName(FI, ObjList, Name);
 
         while(TSrfList != NULL) {
             TrimSrfStruct *TSrf;
+
             IRIT_LIST_POP(TSrf, TSrfList);
+
             int CopyIndex = AttrIDGetIntAttrib(TSrf -> Srf -> Attr, 
-                IRIT_ATTR_CREATE_ID(SrfIndex));
-            IPObjectStruct *Obj = IPGenTRIMSRFObject(TSrf);
+					       IRIT_ATTR_CREATE_ID(SrfIndex));
+            IPObjectStruct
+	        *Obj = IPGenTRIMSRFObject(TSrf);
+
             GuIritMdlrDllSetObjectName(FI, Obj, "TRIM");
             IrtMdlrPoSInitTexture(FI, Obj);
             IrtMdlrPoSDeriveTexture(FI, Obj);
             IPListObjectAppend(ObjList, Obj);
 
-            // If original surface has ptexture, load it to the new surface
-            const char *Path = AttrIDGetStrAttrib(TSrf -> Srf -> Attr, 
-                    IRIT_ATTR_CREATE_ID(ptexture));
+            /* If original surface has ptexture, load it to the new surface. */
+            const char
+	        *Path = AttrIDGetStrAttrib(TSrf -> Srf -> Attr, 
+					   IRIT_ATTR_CREATE_ID(ptexture));
+
             if (Path != NULL) {
                 IrtMdlrPoSLoadTexture(FI, LclData -> TexDatas[Obj], Path);
             }
 
-            // Link model to child surface object
+            /* Link model to child surface object. */
             TexData.Children.push_back(Obj);
 
-            // Link surface object to parent model and original surface
+            /* Link surface object to parent model and original surface. */
             LclData -> TexDatas[Obj].Parent = Copy;
-            MdlTSrf = Copy->U.Mdls -> TrimSrfList;
+            MdlTSrf = Copy -> U.Mdls -> TrimSrfList;
             while(MdlTSrf != NULL) {
                 int OriginalIndex = AttrIDGetIntAttrib(MdlTSrf -> Srf -> Attr, 
-                    IRIT_ATTR_CREATE_ID(SrfIndex));
+					        IRIT_ATTR_CREATE_ID(SrfIndex));
+
                 if (CopyIndex == OriginalIndex) {
                     LclData -> TexDatas[Obj].ModelSurface = MdlTSrf -> Srf;
                     break;
@@ -896,7 +916,7 @@ static void IrtMdlrPoSInitObject(IrtMdlrFuncInfoClass* FI,
         IrtMdlrPoSInitTexture(FI, Copy);
         IrtMdlrPoSDeriveTexture(FI, Copy);
 
-        // Link original object to its copy
+        /* Link original object to its copy. */
         TexData.Children.push_back(Copy);
         LclData -> TexDatas[Copy].Parent = Copy;
 
@@ -920,8 +940,8 @@ static void IrtMdlrPoSInitObject(IrtMdlrFuncInfoClass* FI,
 *   void                                                                     *
 *****************************************************************************/
 static void IrtMdlrPoSSetModelVisibility(IrtMdlrFuncInfoClass* FI,
-    IPObjectStruct* Object,
-    bool enabled)
+					 IPObjectStruct* Object,
+					 bool enabled)
 {
     if (IP_IS_MODEL_OBJ(Object)) {
         GuIritMdlrDllSetObjectVisible(FI, Object, enabled);
@@ -929,6 +949,7 @@ static void IrtMdlrPoSSetModelVisibility(IrtMdlrFuncInfoClass* FI,
     else if (IP_IS_OLST_OBJ(Object)) {
         int i;
         IPObjectStruct *Obj;
+
         for (i = 0; (Obj = IPListObjectGet(Object, i)) != NULL; i++) {
             IrtMdlrPoSSetModelVisibility(FI, Obj, enabled);
         }
@@ -947,21 +968,21 @@ static void IrtMdlrPoSSetModelVisibility(IrtMdlrFuncInfoClass* FI,
 *   void                                                                     *
 *****************************************************************************/
 static void IrtMdlrPoSInitTexture(IrtMdlrFuncInfoClass *FI,
-    IPObjectStruct *Object)
+				  IPObjectStruct *Object)
 {
     int i;
     IrtMdlrPoSTexDataStruct TexData;
     IrtMdlrPaintOnSrfLclClass
         *LclData = dynamic_cast<IrtMdlrPaintOnSrfLclClass *>
-        (FI -> LocalFuncData());
+						      (FI -> LocalFuncData());
 
     TexData.Alpha = 0;
     TexData.Saved = false;
     TexData.Width = IRT_MDLR_POS_DFLT_WIDTH;
     TexData.Height = IRT_MDLR_POS_DFLT_HEIGHT;
 
-    const char *Path = 
-        AttrIDGetObjectStrAttrib(Object, IRIT_ATTR_CREATE_ID(ptexture));
+    const char
+        *Path = AttrIDGetObjectStrAttrib(Object, IRIT_ATTR_CREATE_ID(ptexture));
                 
     if (Path != NULL) {
         IrtMdlrPoSLoadTexture(FI, TexData, Path);
@@ -977,10 +998,8 @@ static void IrtMdlrPoSInitTexture(IrtMdlrFuncInfoClass *FI,
         }
 
         /* Apply dummy white texture. This ensure UV mapping is correct.*/
-        GuIritMdlrDllSetTextureFromImage(FI,
-            Object,
-            LclData -> DefaultTexture,
-            4, 4, FALSE, LclData -> Span);
+        GuIritMdlrDllSetTextureFromImage(FI, Object, LclData -> DefaultTexture,
+					 4, 4, FALSE, LclData -> Span);
     }
 
     IrtMdlrPoSRecolorObject(FI, Object);
@@ -1000,8 +1019,8 @@ static void IrtMdlrPoSInitTexture(IrtMdlrFuncInfoClass *FI,
 *   void                                                                     *
 *****************************************************************************/
 static void IrtMdlrPoSLoadTexture(IrtMdlrFuncInfoClass *FI, 
-    IrtMdlrPoSTexDataStruct &TexData, 
-    const char *Path) 
+				  IrtMdlrPoSTexDataStruct &TexData, 
+				  const char *Path) 
 {
     int Width, Height,
         Alpha = 0;
@@ -1023,12 +1042,14 @@ static void IrtMdlrPoSLoadTexture(IrtMdlrFuncInfoClass *FI,
 
     IrtMdlrPoSResizeTexture(FI, TexData, Width, Height, true);
 
-    int offsetW = 0;
+    int h, w,
+        offsetW = 0;
+
     if (Width % 4 != 0) {
         offsetW = 4 - Width % 4;
     }
-    for (int h = 0; h < Height; h++) {
-        for (int w = 0; w < Width; w++) {
+    for (h = 0; h < Height; h++) {
+        for (w = 0; w < Width; w++) {
             TexData.Texture[h * Width + w + (h * offsetW)] =
                 Image[h * Width + w];
         }
@@ -1048,8 +1069,8 @@ static void IrtMdlrPoSLoadTexture(IrtMdlrFuncInfoClass *FI,
 *   void                                                                     *
 *****************************************************************************/
 static void IrtMdlrPoSSaveTexture(IrtMdlrFuncInfoClass *FI,
-    IPObjectStruct *Object,
-    char *Path)
+				  IPObjectStruct *Object,
+				  char *Path)
 {
     bool Res = true;
     char *Filename;
@@ -1058,21 +1079,21 @@ static void IrtMdlrPoSSaveTexture(IrtMdlrFuncInfoClass *FI,
     IrtImgImageType IT;
     IrtMdlrPaintOnSrfLclClass
         *LclData = dynamic_cast<IrtMdlrPaintOnSrfLclClass *>
-        (FI -> LocalFuncData());
+						     (FI -> LocalFuncData());
     IrtMdlrPoSTexDataStruct
         &TexData = LclData -> TexDatas[Object];
 
-    sprintf(Header, "Save %s texture to...", Object->ObjName);
+    sprintf(Header, "Save %s texture to...", Object -> ObjName);
 
     if (Path != NULL) {
         Filename = Path;
     }
     else {
         Res = GuIritMdlrDllGetAsyncInputFileName(FI,
-            Header,
-            "PNG files (*.png)|*.png|JPG files (*.jpg)|*.jpg|"
-            "PPM files (*.ppm)|*.ppm|GIF files (*.gif)|*.gif", 
-            &Filename);
+		            Header,
+		            "PNG files (*.png)|*.png|JPG files (*.jpg)|*.jpg|"
+		            "PPM files (*.ppm)|*.ppm|GIF files (*.gif)|*.gif", 
+		            &Filename);
     }
 
     if (Res) {
@@ -1081,31 +1102,33 @@ static void IrtMdlrPoSSaveTexture(IrtMdlrFuncInfoClass *FI,
             return;
         }
         IT = IrtImgWriteGetType((char*)&Filename[PathLength - 3]);
+
         MiscWriteGenInfoStructPtr
             GI = IrtImgWriteOpenFile(NULL, Filename, IT,
-            TexData.Alpha, TexData.Width,
-            TexData.Height);
+				     TexData.Alpha, TexData.Width,
+				     TexData.Height);
+
         if (GI == NULL) {
             GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_ERROR,
-                "Error saving texture to \"%s\"\n",
-                Filename);
+				"Error saving texture to \"%s\"\n",
+				Filename);
         }
         else {
             int y;
+
             for (y = 0; y < TexData.Height; y++) {
                 IrtImgWritePutLine(GI, NULL,
-                    &TexData.Texture[y * TexData.Width]);
+				   &TexData.Texture[y * TexData.Width]);
             }
             IrtImgWriteCloseFile(GI);
             TexData.Saved = true;
 
-            AttrIDSetObjectStrAttrib(Object, 
-                IRIT_ATTR_CREATE_ID(ptexture), 
-                Filename);
+            AttrIDSetObjectStrAttrib(Object, IRIT_ATTR_CREATE_ID(ptexture), 
+				     Filename);
             if (TexData.ModelSurface != NULL) {
                 AttrIDSetStrAttrib(&TexData.ModelSurface -> Attr, 
-                    IRIT_ATTR_CREATE_ID(ptexture), 
-                    Filename);
+				   IRIT_ATTR_CREATE_ID(ptexture), 
+				   Filename);
             }
         }
     }
@@ -1126,20 +1149,21 @@ static void IrtMdlrPoSSaveTexture(IrtMdlrFuncInfoClass *FI,
 *   void                                                                     *
 *****************************************************************************/
 static void IrtMdlrPoSResizeTexture(IrtMdlrFuncInfoClass *FI,
-    IrtMdlrPoSTexDataStruct &TexData,
-    int Width,
-    int Height,
-    bool Reset)
+				    IrtMdlrPoSTexDataStruct &TexData,
+				    int Width,
+				    int Height,
+				    bool Reset)
 {
     IrtImgPixelStruct
         *NewTexture = (IrtImgPixelStruct *)
-        IritMalloc(sizeof(IrtImgPixelStruct) * Width * Height);
+		       IritMalloc(sizeof(IrtImgPixelStruct) * Width * Height);
     IrtMdlrPaintOnSrfLclClass
         *LclData = dynamic_cast<IrtMdlrPaintOnSrfLclClass *>
-        (FI -> LocalFuncData());
+						      (FI -> LocalFuncData());
 
     if (Reset) {
         int x, y;
+
         for (y = 0; y < Height; y++) {
             for (x = 0; x < Width; x++) {
                 NewTexture[y * Width + x].r = 255;
@@ -1171,7 +1195,7 @@ static void IrtMdlrPoSResizeTexture(IrtMdlrFuncInfoClass *FI,
 *   void                                                                     *
 *****************************************************************************/
 static void IrtMdlrPoSDeriveTexture(IrtMdlrFuncInfoClass *FI,
-    IPObjectStruct *Object)
+				    IPObjectStruct *Object)
 {
     CagdRType UMin, UMax, VMin, VMax, i, j;
     CagdVType SuVec, SvVec,
@@ -1179,13 +1203,15 @@ static void IrtMdlrPoSDeriveTexture(IrtMdlrFuncInfoClass *FI,
         SUMSvVec = {0, 0, 0};
     IrtMdlrPaintOnSrfLclClass
         *LclData = dynamic_cast<IrtMdlrPaintOnSrfLclClass *>
-        (FI -> LocalFuncData());
+						      (FI -> LocalFuncData());
     IrtMdlrPoSTexDataStruct
         &TexData = LclData -> TexDatas[Object];
 
     if (IP_IS_TRIMSRF_OBJ(Object)) {
-        TexData.Deriv.u.Srf = CagdSrfDerive(Object -> U.TrimSrfs -> Srf, CAGD_CONST_U_DIR);
-        TexData.Deriv.v.Srf = CagdSrfDerive(Object -> U.TrimSrfs -> Srf, CAGD_CONST_V_DIR);
+        TexData.Deriv.u.Srf = CagdSrfDerive(Object -> U.TrimSrfs -> Srf,
+					    CAGD_CONST_U_DIR);
+        TexData.Deriv.v.Srf = CagdSrfDerive(Object -> U.TrimSrfs -> Srf,
+					    CAGD_CONST_V_DIR);
         CagdSrfDomain(Object -> U.TrimSrfs -> Srf, &UMin, &UMax, &VMin, &VMax);
     }
     else {
@@ -1223,7 +1249,7 @@ static void IrtMdlrPoSDeriveTexture(IrtMdlrFuncInfoClass *FI,
 *   void                                                                     *
 *****************************************************************************/
 static void IrtMdlrPoSRecolorObject(IrtMdlrFuncInfoClass *FI,
-    IPObjectStruct *Object)
+				    IPObjectStruct *Object)
 {
     IrtDspOGLObjPropsClass *OGLProps;
 
@@ -1262,28 +1288,29 @@ static int IrtMdlrPoSInitShapes(IrtMdlrFuncInfoClass *FI)
         *SysFileNames = GuIritMdlrDllGetGuIritSystemProps(FI);
     IrtMdlrPaintOnSrfLclClass
         *LclData = dynamic_cast<IrtMdlrPaintOnSrfLclClass *>
-        (FI -> LocalFuncData());
+						      (FI -> LocalFuncData());
+
     sprintf(FilePath, "%s%s",
-        searchpath(SysFileNames -> AuxiliaryDataName, Base),
-        GUIRIT_DLL_PAINT_ON_SRF_FILE_RELATIVE_PATH);
+	    searchpath(SysFileNames -> AuxiliaryDataName, Base),
+	    GUIRIT_DLL_PAINT_ON_SRF_FILE_RELATIVE_PATH);
 
     if (LclData -> ShapeFiles == NULL) {
         LclData -> ShapeFiles =
             GuIritMdlrDllGetAllFilesNamesInDirectory(FI, FilePath,
-            "*.rle|*.ppm|*.gif|*.jpeg|*.png");
+					    "*.rle|*.ppm|*.gif|*.jpeg|*.png");
     }
 
     if (LclData -> ShapeFiles == NULL) {
         GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_ERROR,
-            "Masks files were not found. Check directory: \"%s\"\n",
-            FilePath);
+		      "Masks files were not found. Check directory: \"%s\"\n",
+		      FilePath);
         return FALSE;
     }
 
     strcpy(LclData -> ShapeNames, "");
     for (i = 0; LclData -> ShapeFiles[i] != NULL; ++i) {
         p = strstr(LclData -> ShapeFiles[i],
-            GUIRIT_DLL_PAINT_ON_SRF_FILE_RELATIVE_PATH);
+		   GUIRIT_DLL_PAINT_ON_SRF_FILE_RELATIVE_PATH);
         if (p != NULL) {
             p += strlen(GUIRIT_DLL_PAINT_ON_SRF_FILE_RELATIVE_PATH) + 1;
 
@@ -1297,20 +1324,22 @@ static int IrtMdlrPoSInitShapes(IrtMdlrFuncInfoClass *FI)
                 Index = i;
             }
             sprintf(LclData -> ShapeNames, "%s%s;",
-                LclData -> ShapeNames, Name);
+		    LclData -> ShapeNames, Name);
         }
     }
 
     if (LclData -> ShapeFiles[0] != NULL) {
         LclData -> Names.SetUpdateSelectionsParams(TRUE);
-        sprintf(LclData -> Names.GetStr(), "%s:%d", LclData -> Names.GetStr(), Index);
-        GuIritMdlrDllSetInputParameter(FI, IRT_MDLR_POS_SHAPE, &LclData -> Names);
+        sprintf(LclData -> Names.GetStr(), "%s:%d",
+		LclData -> Names.GetStr(), Index);
+        GuIritMdlrDllSetInputParameter(FI, IRT_MDLR_POS_SHAPE,
+				       &LclData -> Names);
         LclData -> Names.SetUpdateSelectionsParams(FALSE);
     }
     else {
         GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_ERROR,
-            "Masks files were not found. Check directory: \"%s\"\n",
-            FilePath);
+		      "Masks files were not found. Check directory: \"%s\"\n",
+		      FilePath);
         return FALSE;
     }
 
@@ -1338,10 +1367,11 @@ static void IrtMdlrPoSLoadShape(IrtMdlrFuncInfoClass *FI,
         *Image = IrtImgReadImage2(Filename, &Width, &Height, &Alpha);
     IrtMdlrPaintOnSrfLclClass
         *LclData = dynamic_cast<IrtMdlrPaintOnSrfLclClass *>
-        (FI -> LocalFuncData());
+						      (FI -> LocalFuncData());
+
     if (Image == NULL) {
         GuIritMdlrDllPrintf(FI, IRT_DSP_LOG_ERROR,
-            "Failed to load image \"%s\"\n", Filename);
+			    "Failed to load image \"%s\"\n", Filename);
         return;
     }
 
@@ -1381,8 +1411,8 @@ static void IrtMdlrPoSLoadShape(IrtMdlrFuncInfoClass *FI,
 *   void                                                                     *
 *****************************************************************************/
 static void IrtMdlrPoSBresenham(const pair<int, int> &a,
-    const pair<int, int> &b,
-    vector<pair<int, int>> &Points)
+				const pair<int, int> &b,
+				vector<pair<int, int>> &Points)
 {
     bool High;
     int A1, A2, B1, B2, Da, Db, d, u, v,
@@ -1419,8 +1449,8 @@ static void IrtMdlrPoSBresenham(const pair<int, int> &a,
     d = 2 * Db - Da;
     v = B1;
     for (u = A1; u <= A2; u++) {
-        int x = (High) ? v : u;
-        int y = (High) ? u : v;
+        int x = (High) ? v : u,
+	    y = (High) ? u : v;
         pair<int, int>
             p = pair<int, int>(x, y);
 
@@ -1446,13 +1476,13 @@ static void IrtMdlrPoSBresenham(const pair<int, int> &a,
 *   void                                                                     *
 *****************************************************************************/
 static void IrtMdlrPoSRenderShape(IrtMdlrFuncInfoClass *FI,
-    IPObjectStruct *Object,
-    int XOff,
-    int YOff)
+				  IPObjectStruct *Object,
+				  int XOff,
+				  int YOff)
 {
     IrtMdlrPaintOnSrfLclClass
         *LclData = dynamic_cast<IrtMdlrPaintOnSrfLclClass *>
-        (FI -> LocalFuncData());
+						      (FI -> LocalFuncData());
     bool UClosed, VClosed;
     int u, v,
         XMin = XOff - LclData -> Updated.Width / 2,
@@ -1471,16 +1501,16 @@ static void IrtMdlrPoSRenderShape(IrtMdlrFuncInfoClass *FI,
     YMin %= TexData.Height;
 
     if (IP_IS_TRIMSRF_OBJ(Object)) {
-        UClosed = Object->U.TrimSrfs->Srf->UPeriodic ||
-            CagdIsClosedSrf(Object->U.TrimSrfs->Srf, CAGD_CONST_U_DIR);
-        VClosed = Object->U.TrimSrfs->Srf->VPeriodic ||
-            CagdIsClosedSrf(Object->U.TrimSrfs->Srf, CAGD_CONST_V_DIR);
+        UClosed = Object -> U.TrimSrfs -> Srf -> UPeriodic ||
+               CagdIsClosedSrf(Object -> U.TrimSrfs -> Srf, CAGD_CONST_U_DIR);
+        VClosed = Object -> U.TrimSrfs -> Srf -> VPeriodic ||
+               CagdIsClosedSrf(Object -> U.TrimSrfs -> Srf, CAGD_CONST_V_DIR);
     }
     else {
-        UClosed = Object->U.Srfs->UPeriodic ||
-            CagdIsClosedSrf(Object->U.Srfs, CAGD_CONST_U_DIR);
-        VClosed = Object->U.Srfs->VPeriodic ||
-            CagdIsClosedSrf(Object->U.Srfs, CAGD_CONST_V_DIR);
+        UClosed = Object -> U.Srfs -> UPeriodic ||
+                  CagdIsClosedSrf(Object -> U.Srfs, CAGD_CONST_U_DIR);
+        VClosed = Object -> U.Srfs -> VPeriodic ||
+                  CagdIsClosedSrf(Object -> U.Srfs, CAGD_CONST_V_DIR);
     }
 
     for (v = 0; v < LclData -> Updated.Height; v++) {
@@ -1489,6 +1519,7 @@ static void IrtMdlrPoSRenderShape(IrtMdlrFuncInfoClass *FI,
                 y = (YMin + v) % TexData.Height,
                 TextureOff = x + TexData.Width * y,
                 ShapeOff = u + LclData -> Updated.Width * v;
+
             if (!UClosed) {
                 if (x != (XMin + u)) {
                     continue;
@@ -1537,7 +1568,7 @@ static void IrtMdlrPoSRenderShape(IrtMdlrFuncInfoClass *FI,
 *   Callback function for mouse events for painting .          	             *
 *                                                                            *
 * PARAMETERS:                                                                *
-*   MouseEvent:  The mouse call back event to handle.		                 *
+*   MouseEvent:  The mouse call back event to handle.		             *
 *                                                                            *
 * RETURN VALUE:                                                              *
 *   int: True if event handled, false to propagate event to next handler.    *
@@ -1559,58 +1590,66 @@ static int IrtMdlrPoSMouseCallBack(IrtMdlrMouseEventStruct *MouseEvent)
         *Obj = (IPObjectStruct *) MouseEvent -> PObj;
     IrtMdlrPaintOnSrfLclClass
         *LclData = dynamic_cast<IrtMdlrPaintOnSrfLclClass *>
-        (FI -> LocalFuncData());
+						      (FI -> LocalFuncData());
 
     if (MouseEvent -> KeyModifiers & IRT_DSP_KEY_MODIFIER_CTRL_DOWN) {
         switch (MouseEvent -> Type) {
             case IRT_DSP_MOUSE_EVENT_LEFT_DOWN:
-            GuIritMdlrDllCaptureCursorFocus(FI, MouseEvent, true);
-            Clicking = TRUE;
-            break;
+	        GuIritMdlrDllCaptureCursorFocus(FI, MouseEvent, true);
+		Clicking = TRUE;
+		break;
 
             case IRT_DSP_MOUSE_EVENT_LEFT_UP:
-            GuIritMdlrDllCaptureCursorFocus(FI, MouseEvent, false);
-            Clicking = FALSE;
-            PrevXOff = -1;
-            PrefYOff = -1;
-            break;
+	        GuIritMdlrDllCaptureCursorFocus(FI, MouseEvent, false);
+		Clicking = FALSE;
+		PrevXOff = -1;
+		PrefYOff = -1;
+		break;
 
             default:
-            break;
+	        break;
         }
 
         if (Clicking &&
             MouseEvent -> UVW != NULL &&
             Obj != NULL &&
-            find(LclData -> Selection.begin(), LclData -> Selection.end(), Obj) != LclData -> Selection.end()) {
+            find(LclData -> Selection.begin(), LclData -> Selection.end(),
+		 Obj) != LclData -> Selection.end()) {
             IrtMdlrPoSTexDataStruct
                 &TexData = LclData -> TexDatas[Obj];
 
-            /* Reset texture buffers if needed */
+            /* Reset texture buffers if needed. */
             if (Obj != PrevObj) {
                 int x = 0;
 
                 if (PrevObj != NULL) {
                     if (IP_IS_TRIMSRF_OBJ(PrevObj)) {
-                        const CagdUVType CrntUV = { PrevXOff / TexData.Width , PrefYOff / TexData.Height },
-                             NextUV = { MouseEvent->UVW[0], MouseEvent->UVW[1] };
-                        CagdUVType CrntBndryUV = { PrevXOff, PrefYOff }, 
-                            NextBndryUV = { MouseEvent->UVW[0], MouseEvent->UVW[1] };
+                        const CagdUVType
+			     CrntUV = { (CagdRType) PrevXOff / TexData.Width,
+					(CagdRType) PrefYOff / TexData.Height },
+                             NextUV = { MouseEvent -> UVW[0],
+					MouseEvent -> UVW[1] };
+                        CagdUVType
+			    CrntBndryUV = { PrevXOff, PrefYOff }, 
+                            NextBndryUV = { MouseEvent -> UVW[0],
+					    MouseEvent -> UVW[1] };
                         CagdRType ScaleChange[2] = { 1, 1 };
-                        ComputeJunctionBetweenSrfs(PrevObj->U.TrimSrfs,
-                            CrntUV,
-                            Obj->U.TrimSrfs,
-                            NextUV,
-                            CrntBndryUV,
-                            NextBndryUV,
-                            ScaleChange);
 
-                        IrtMdlrPoSShapeUpdate(FI, PrevObj, CrntBndryUV[0], CrntBndryUV[1]);
-                        IrtMdlrPoSRenderShape(FI, PrevObj, (int)((double)CrntBndryUV[0] * TexData.Width),
-                            (int)((double)CrntBndryUV[1] * TexData.Height));
+                        IrtMdlrComputeJunctionBetweenSrfs(PrevObj -> U.TrimSrfs,
+						   CrntUV, Obj -> U.TrimSrfs,
+						   NextUV, CrntBndryUV,
+						   NextBndryUV, ScaleChange);
 
-                        PrevXOff = (int)((double)TexData.Width * NextBndryUV[0]);
-                        PrefYOff = (int)((double)TexData.Height * NextBndryUV[1]);
+                        IrtMdlrPoSShapeUpdate(FI, PrevObj, CrntBndryUV[0],
+					      CrntBndryUV[1]);
+                        IrtMdlrPoSRenderShape(FI, PrevObj,
+			    (int) ((double) CrntBndryUV[0] * TexData.Width),
+			    (int) ((double) CrntBndryUV[1] * TexData.Height));
+
+                        PrevXOff = (int) ((double) TexData.Width *
+					                      NextBndryUV[0]);
+                        PrefYOff = (int) ((double) TexData.Height *
+					                      NextBndryUV[1]);
 
                         x = 1;
                     }
@@ -1629,9 +1668,11 @@ static int IrtMdlrPoSMouseCallBack(IrtMdlrMouseEventStruct *MouseEvent)
                 }
 
                 LclData -> TextureAlpha = (IrtImgPixelStruct *)
-                    IritMalloc(sizeof(IrtImgPixelStruct) * TexData.Width * TexData.Height);
+                    IritMalloc(sizeof(IrtImgPixelStruct) * TexData.Width *
+			                                   TexData.Height);
                 LclData -> TextureBuffer = (IrtImgPixelStruct *)
-                    IritMalloc(sizeof(IrtImgPixelStruct) * TexData.Width * TexData.Height);
+                    IritMalloc(sizeof(IrtImgPixelStruct) * TexData.Width *
+			                                   TexData.Height);
 
                 for (x = 0; x < TexData.Width * TexData.Height; x++) {
                     LclData -> TextureAlpha[x] = TexData.Texture[x];
@@ -1644,13 +1685,16 @@ static int IrtMdlrPoSMouseCallBack(IrtMdlrMouseEventStruct *MouseEvent)
 
             int XOff = (int) ((double) TexData.Width * MouseEvent -> UVW[0]),
                 YOff = (int) ((double) TexData.Height * MouseEvent -> UVW[1]);
+
             if (PrefYOff == -1) {
-                IrtMdlrPoSShapeUpdate(FI, Obj, MouseEvent->UVW[0], MouseEvent->UVW[1]);
+                IrtMdlrPoSShapeUpdate(FI, Obj, MouseEvent -> UVW[0],
+				      MouseEvent -> UVW[1]);
                 IrtMdlrPoSRenderShape(FI, Obj, XOff, YOff);
                 PrevXOff = XOff;
                 PrefYOff = YOff;
             }
             else {
+	        size_t i;
                 int XBackup = XOff,
                     YBackup = YOff;
                 pair<int, int> Start, End;
@@ -1672,28 +1716,22 @@ static int IrtMdlrPoSMouseCallBack(IrtMdlrMouseEventStruct *MouseEvent)
                 End = pair<int, int>(XOff, YOff);
                 IrtMdlrPoSBresenham(Start, End, Points);
 
-                for (size_t i = 0; i < Points.size(); i++) {
-                    IrtMdlrPoSShapeUpdate(FI,
-                        Obj, 
-                        (float) Points[i].first / (float) TexData.Width,
-                        (float) Points[i].second / (float) TexData.Height);
-                    IrtMdlrPoSRenderShape(FI,
-                        Obj,
-                        Points[i].first % TexData.Width,
-                        Points[i].second % TexData.Height);
+                for (i = 0; i < Points.size(); i++) {
+                    IrtMdlrPoSShapeUpdate(FI, Obj, 
+                           (float) Points[i].first / (float) TexData.Width,
+                           (float) Points[i].second / (float) TexData.Height);
+                    IrtMdlrPoSRenderShape(FI, Obj,
+					  Points[i].first % TexData.Width,
+					  Points[i].second % TexData.Height);
                 }
 
                 PrevXOff = XBackup;
                 PrefYOff = YBackup;
             }
 
-            GuIritMdlrDllSetTextureFromImage(FI,
-                Obj,
-                TexData.Texture,
-                TexData.Width,
-                TexData.Height,
-                TexData.Alpha,
-                Span);
+            GuIritMdlrDllSetTextureFromImage(FI, Obj, TexData.Texture,
+					     TexData.Width, TexData.Height,
+					     TexData.Alpha, Span);
 
             GuIritMdlrDllRequestIntermediateUpdate(FI, false);
         }
@@ -1717,57 +1755,61 @@ static int IrtMdlrPoSMouseCallBack(IrtMdlrMouseEventStruct *MouseEvent)
 *   None                                                                     *
 *****************************************************************************/
 static void IrtMdlrPoSShapeUpdate(IrtMdlrFuncInfoClass *FI, 
-    IPObjectStruct *Object, 
-    double u, 
-    double v) 
+				  IPObjectStruct *Object, 
+				  double u, 
+				  double v) 
 {
     CagdRType UMin, UMax, VMin, VMax;
     CagdVType SuVec, SvVec, SuVecAvg, SvVecAvg;
     IrtMdlrPaintOnSrfLclClass
         *LclData = dynamic_cast<IrtMdlrPaintOnSrfLclClass *> 
-        (FI->LocalFuncData());
+ 						      (FI -> LocalFuncData());
 
-    IrtMdlrPoSDerivDataStruct &Deriv = LclData -> TexDatas[Object].Deriv;
+    IrtMdlrPoSDerivDataStruct
+        &Deriv = LclData -> TexDatas[Object].Deriv;
 
-    /* Copy base shape */
+    /* Copy base shape. */
     IritFree(LclData -> Updated.Shape);
 
-    LclData->Updated.XFactor = LclData->Base.XFactor;
-    LclData->Updated.YFactor = LclData->Base.YFactor;
+    LclData -> Updated.XFactor = LclData -> Base.XFactor;
+    LclData -> Updated.YFactor = LclData -> Base.YFactor;
 
-    LclData->Updated.Width = LclData->Base.Width;
-    LclData->Updated.Height = LclData->Base.Height;
-    int Size = LclData->Updated.Height * LclData->Updated.Width;
-    LclData->Updated.Shape = (float *) IritMalloc(sizeof(float) * Size);
+    LclData -> Updated.Width = LclData -> Base.Width;
+    LclData -> Updated.Height = LclData -> Base.Height;
 
-    for (int y = 0; y < LclData->Updated.Height; y++) {
-        for (int x = 0; x < LclData->Updated.Width; x++) {
-            int Offset = y * LclData->Updated.Width + x;
-            LclData->Updated.Shape[Offset] = LclData->Base.Shape[Offset];
+    int i, x, y,
+	Size = LclData -> Updated.Height * LclData -> Updated.Width;
+
+    LclData -> Updated.Shape = (float *) IritMalloc(sizeof(float) * Size);
+
+    for (y = 0; y < LclData -> Updated.Height; y++) {
+        for (x = 0; x < LclData -> Updated.Width; x++) {
+            int Offset = y * LclData -> Updated.Width + x;
+            LclData -> Updated.Shape[Offset] = LclData -> Base.Shape[Offset];
         }
     }
 
-    /* Get the UV mapping domain of the object */
+    /* Get the UV mapping domain of the object. */
     if (IP_IS_TRIMSRF_OBJ(Object)) {
-        CagdSrfDomain(Object->U.TrimSrfs->Srf, &UMin, &UMax, &VMin, &VMax);
+        CagdSrfDomain(Object -> U.TrimSrfs -> Srf, &UMin, &UMax, &VMin, &VMax);
     }
     else {
-        CagdSrfDomain(Object->U.Srfs, &UMin, &UMax, &VMin, &VMax);
+        CagdSrfDomain(Object -> U.Srfs, &UMin, &UMax, &VMin, &VMax);
     }
 
     u = ((UMax - UMin) * u) + UMin;
     v = ((VMax - VMin) * v) + VMin;
 
-    /* Compute the partial derivatives */
+    /* Compute the partial derivatives. */
     CAGD_SRF_EVAL_E3(Deriv.u.Srf, u, v, SuVec);
     CAGD_SRF_EVAL_E3(Deriv.v.Srf, u, v, SvVec);
 
-    for (int i = 0; i < 3; i++) {
+    for (i = 0; i < 3; i++) {
         SuVecAvg[i] = SuVec[i] / Deriv.u.Avg;
         SvVecAvg[i] = SvVec[i] / Deriv.v.Avg;
     }
 
-    /* Execute the transformations */
+    /* Execute the transformations. */
     IrtMdlrPoSApplyResize(FI, SuVecAvg, SvVecAvg);
     IrtMdlrPoSApplyShear(FI, SuVec, SvVec);
 }
@@ -1785,39 +1827,45 @@ static void IrtMdlrPoSShapeUpdate(IrtMdlrFuncInfoClass *FI,
 *   None                                                                     *
 *****************************************************************************/
 static void IrtMdlrPoSApplyResize(IrtMdlrFuncInfoClass *FI, 
-    CagdVType SuVec, 
-    CagdVType SvVec) 
+				  CagdVType SuVec, 
+				  CagdVType SvVec) 
 {
-    double normU = IRIT_VEC_LENGTH(SuVec);
-    double normV = IRIT_VEC_LENGTH(SvVec);
-
+    double
+        normU = IRIT_VEC_LENGTH(SuVec),
+        normV = IRIT_VEC_LENGTH(SvVec);
     IrtMdlrPaintOnSrfLclClass
         *LclData = dynamic_cast<IrtMdlrPaintOnSrfLclClass *> 
-        (FI->LocalFuncData());
+						      (FI -> LocalFuncData());
 
-    LclData->Updated.XFactor = abs(1 / normU) * LclData->Updated.XFactor;
-    LclData->Updated.YFactor = abs(1 / normV) * LclData->Updated.YFactor;
+    LclData -> Updated.XFactor = abs(1 / normU) * LclData -> Updated.XFactor;
+    LclData -> Updated.YFactor = abs(1 / normV) * LclData -> Updated.YFactor;
 
-    int oldWidth = LclData->Updated.Width;
-    int oldHeight = LclData->Updated.Height;
-    float *oldShape = LclData->Updated.Shape;
+    int x, y, 
+        oldWidth = LclData -> Updated.Width,
+        oldHeight = LclData -> Updated.Height;
+    float
+        *oldShape = LclData -> Updated.Shape;
 
-    LclData->Updated.Width = 
-        (int) (LclData->Updated.Width * LclData->Updated.XFactor);
-    LclData->Updated.Height = 
-        (int) (LclData->Updated.Height * LclData->Updated.YFactor);
-    int Size = LclData->Updated.Height * LclData->Updated.Width;
-    LclData->Updated.Shape = (float *) IritMalloc(sizeof(float) * Size);
+    LclData -> Updated.Width = 
+	        (int) (LclData -> Updated.Width * LclData -> Updated.XFactor);
+    LclData -> Updated.Height = 
+               (int) (LclData -> Updated.Height * LclData -> Updated.YFactor);
 
-    float XRatio = (float) oldWidth / (float) LclData->Updated.Width;
-    float YRatio = (float) oldHeight / (float) LclData->Updated.Height;
+    int Size = LclData -> Updated.Height * LclData -> Updated.Width;
+
+    LclData -> Updated.Shape = (float *) IritMalloc(sizeof(float) * Size);
+
+    float
+        XRatio = (float) oldWidth / (float) LclData -> Updated.Width,
+        YRatio = (float) oldHeight / (float) LclData -> Updated.Height;
 
     /* Apply the resizing */
-    for (int y = 0; y < LclData->Updated.Height; y++) {
-        for (int x = 0; x < LclData->Updated.Width; x++) {
-            int UpdatedOff = y * LclData->Updated.Width + x;
-            int BaseOff = (int) ((int) (y * YRatio) * oldWidth + x * XRatio);
-            LclData->Updated.Shape[UpdatedOff] = oldShape[BaseOff];
+    for (y = 0; y < LclData -> Updated.Height; y++) {
+        for (x = 0; x < LclData -> Updated.Width; x++) {
+	    int UpdatedOff = y * LclData -> Updated.Width + x,
+                BaseOff = (int) ((int) (y * YRatio) * oldWidth + x * XRatio);
+
+            LclData -> Updated.Shape[UpdatedOff] = oldShape[BaseOff];
         }
     }
 
@@ -1837,31 +1885,34 @@ static void IrtMdlrPoSApplyResize(IrtMdlrFuncInfoClass *FI,
 *   None                                                                     *
 *****************************************************************************/
 static void IrtMdlrPoSApplyShear(IrtMdlrFuncInfoClass *FI, 
-    CagdVType SuVec,
-    CagdVType SvVec) 
+				 CagdVType SuVec,
+				 CagdVType SvVec) 
 {
     int x, y;
-    double normU = IRIT_VEC_LENGTH(SuVec);
-    double normV = IRIT_VEC_LENGTH(SvVec);
-    double cos = IRT_MDLR_POS_DOT(SuVec, SvVec) / (normU * normV);
+    double
+        normU = IRIT_VEC_LENGTH(SuVec),
+        normV = IRIT_VEC_LENGTH(SvVec),
+        cos = IRT_MDLR_POS_DOT(SuVec, SvVec) / (normU * normV);
 
     IrtMdlrPaintOnSrfLclClass
         *LclData = dynamic_cast<IrtMdlrPaintOnSrfLclClass *> 
-        (FI->LocalFuncData());
+						      (FI -> LocalFuncData());
 
     /* If the change is negligeable or non-existant, don't do it */
     if (abs(cos) < IRIT_EPS) {
         return;
     }
 
-    double Factor = (normV * abs(cos) * LclData -> TextureWidth) 
-        / (normU * LclData -> TextureHeight);
-    double ShearWidth = Factor * LclData -> Updated.Width;
+    double
+        Factor = (normV * abs(cos) * LclData -> TextureWidth) /
+					   (normU * LclData -> TextureHeight),
+        ShearWidth = Factor * LclData -> Updated.Width;
     int NewWidth = (int) (LclData -> Updated.Width + ShearWidth);
 
     /* Allocate and init the pointer which will contain the sheared shape */
-    float *NewShape = (float *)
-        IritMalloc(sizeof(float) * LclData -> Updated.Height * NewWidth);
+    float
+        *NewShape = (float *)
+	     IritMalloc(sizeof(float) * LclData -> Updated.Height * NewWidth);
 
     for (x = 0; x < LclData -> Updated.Height * NewWidth; x++) {
         NewShape[x] = 0;
@@ -1871,17 +1922,20 @@ static void IrtMdlrPoSApplyShear(IrtMdlrFuncInfoClass *FI,
     for (y = 0; y < LclData -> Updated.Height; y++) {
         for (x = 0; x < LclData -> Updated.Width; x++) {
             int NewX;
+
             if (cos > 0) {
-                NewX = (int) (x + ShearWidth 
-                    * (double) (LclData -> Updated.Height - y - 1) 
-                    / (double) (LclData -> Updated.Height - 1));
+                NewX = (int) (x + ShearWidth *
+                     (double) (LclData -> Updated.Height - y - 1) /
+                                  (double) (LclData -> Updated.Height - 1));
             }
             else {
-                NewX = (int) (x + ShearWidth * (double) (y) 
-                    / (double) (LclData -> Updated.Height - 1));
+                NewX = (int) (x + ShearWidth * (double) (y)  /
+                    		  (double) (LclData -> Updated.Height - 1));
             }
-            int OldOff = y * LclData -> Updated.Width + x;
-            int NewOff = y * NewWidth + NewX;
+
+            int OldOff = y * LclData -> Updated.Width + x,
+	        NewOff = y * NewWidth + NewX;
+
             NewShape[NewOff] = LclData -> Updated.Shape[OldOff];
         }
     }
@@ -1889,4 +1943,115 @@ static void IrtMdlrPoSApplyShear(IrtMdlrFuncInfoClass *FI,
     IritFree(LclData -> Updated.Shape);
     LclData -> Updated.Shape = NewShape;
     LclData -> Updated.Width = NewWidth;
+}
+
+/*****************************************************************************
+* DESCRIPTION:                                                               *
+*   Computes the magnitude of the directional derivative of Srf in (u, v)    *
+* in unit UV direction UVUnitDir.                                            *
+*                                                                            *
+*                                                                            *
+* PARAMETERS:                                                                *
+*   Srf:       Surface to compute is directional derivative magnitude.       *
+*   u, v:      Location in Srf to evaluate the directional derivate at.      *
+*   UVUnitDir: The Direction in parametric space of Srf, as a unit vector .  *
+*                                                                            *
+* RETURN VALUE:                                                              *
+*   CagdRType:   The magnitude of the directional derivative.                *
+*****************************************************************************/
+static CagdRType IrtMdlrEvalTangentMagnitudeOnBndry(const CagdSrfStruct *Srf,
+						    CagdRType u,
+						    CagdRType v,
+						    const CagdVType UVUnitDir)
+{
+    int i;
+    CagdVecStruct DSrfDu, DSrfDv;
+    CagdVType DirDeriv;
+
+    CagdSrfTangentToData(Srf, u, v, CAGD_CONST_U_DIR, FALSE, &DSrfDu);
+    CagdSrfTangentToData(Srf, u, v, CAGD_CONST_V_DIR, FALSE, &DSrfDv);
+
+    assert(UVUnitDir[2] == 0.0);
+    for (i = 0; i < 3; i++) {
+        DirDeriv[i] = UVUnitDir[0] * DSrfDu.Vec[i] +
+		      UVUnitDir[1] * DSrfDv.Vec[i];
+    }
+
+    return IRIT_VEC_LENGTH(DirDeriv);
+}
+
+/*****************************************************************************
+* DESCRIPTION:                                                               *
+*   Computes the relative scale and the UV on the border between two         *
+* surfaces, as we cross with the mouse between surfaces.                     *
+*                                                                            *
+* PARAMETERS:                                                                *
+*   CrntSrf:    The current surfaces from which we came.                     *
+*   CrntUV:     The current UV values in the current surface.                *
+*   NextSrf:    The next surface into which we moved.                        *
+*   NextUV:     The next UV coordinate in the next surface.                  *
+*   CrntBndryUV:  Computed UV on the boundary of the current surface.        *
+*   NextBndryUV:  Computed UV on the boundary in the next surface.           *
+*   ScaleChange:  Scale change to apply, moving from current to next surface.*
+*                                                                            *
+* RETURN VALUE:                                                              *
+*   void                                                                     *
+*****************************************************************************/
+static void IrtMdlrComputeJunctionBetweenSrfs(const TrimSrfStruct *CrntSrf,
+					      const CagdUVType CrntUV,
+					      const TrimSrfStruct *NextSrf,
+					      const CagdUVType NextUV,
+					      CagdUVType CrntBndryUV,
+					      CagdUVType NextBndryUV,
+					      CagdRType *ScaleChange)
+{
+    TrimCrvSegStruct *ClosestTSeg1, *ClosestTSeg2;
+    CagdRType
+	t1 = TrimFindClosestTrimCurve2UV(CrntSrf -> TrimCrvList, CrntUV,
+					 &ClosestTSeg1),
+	t2 = TrimFindClosestTrimCurve2UV(NextSrf -> TrimCrvList, NextUV,
+					 &ClosestTSeg2);
+    CagdVecStruct Tan1, Tan2;
+
+    CAGD_CRV_EVAL_E2(ClosestTSeg1 -> UVCrv, t1, CrntBndryUV);
+    CAGD_CRV_EVAL_E2(ClosestTSeg2 -> UVCrv, t2, NextBndryUV);
+
+    /* Now compute the relative scale. */
+    CagdCrvTangentToData(ClosestTSeg1 -> UVCrv, t1, TRUE, &Tan1);
+    CagdCrvTangentToData(ClosestTSeg2 -> UVCrv, t2, TRUE, &Tan2);
+
+    *ScaleChange =
+        IrtMdlrEvalTangentMagnitudeOnBndry(CrntSrf -> Srf,
+					   CrntBndryUV[0], CrntBndryUV[1],
+					   Tan1.Vec) /
+        IrtMdlrEvalTangentMagnitudeOnBndry(NextSrf -> Srf,
+					   NextBndryUV[0], NextBndryUV[1],
+					   Tan2.Vec);
+
+#   ifdef DEBUG_JUCT_EVAL_CASE
+    {
+	IRT_DSP_STATIC_DATA int
+	    i = 1;
+	CagdRType Dist, Dist0;
+	CagdPType Pt1, Pt2;
+
+	if (*ScaleChange > 1000 || *ScaleChange < 0.001)
+	    printf("GERSHON");
+
+	CAGD_SRF_EVAL_E3(CrntSrf -> Srf, CrntBndryUV[0], CrntUV[1], Pt1);
+	CAGD_SRF_EVAL_E3(NextSrf -> Srf, NextBndryUV[0], NextUV[1], Pt2);
+	Dist0 = IRIT_PT_PT_DIST(Pt1, Pt2);
+
+	CAGD_SRF_EVAL_E3(CrntSrf -> Srf, CrntBndryUV[0], CrntBndryUV[1], Pt1);
+	CAGD_SRF_EVAL_E3(NextSrf -> Srf, NextBndryUV[0], NextBndryUV[1], Pt2);
+	Dist = IRIT_PT_PT_DIST(Pt1, Pt2);
+
+	fprintf(stderr,
+	        "%d) Crossing surfaces from %.5f %.5f %.5f to %.5f %.5f %.5f [Scale = %.5f]\n\t(Dist = %.5f, Init Dist = %.5f) Srf1 = 0x%08lx, Srf2 = 0x%08lx\n",
+		i++, Pt1[0], Pt1[1], Pt1[2], Pt2[0], Pt2[1], Pt2[2], *ScaleChange,
+		Dist, Dist0, CrntSrf, NextSrf);
+    }
+#   endif /* DEBUG_JUCT_EVAL_CASE */
+
+    *ScaleChange = 1.0;                           /* Disable scalingfor now. */
 }
