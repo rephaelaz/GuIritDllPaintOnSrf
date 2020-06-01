@@ -388,6 +388,8 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
             return;
         }
 
+        GuIritMdlrDllPickGuIritObjTypeMask(FI, IRT_DSP_TYPE_OBJ_TEMP_GEOM);
+
         GuIritMdlrDllSetIntInputDomain(FI, 4, IRT_MDLR_POS_MAX_WIDTH,
             IRT_MDLR_POS_WIDTH);
         GuIritMdlrDllSetIntInputDomain(FI, 4, IRT_MDLR_POS_MAX_HEIGHT,
@@ -409,7 +411,9 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
 
     if (FI -> CnstrctState == IRT_MDLR_CNSTRCT_STATE_OK) {
         map<IPObjectStruct *, IrtMdlrPoSTexDataStruct>::iterator it;
+        vector<IPObjectStruct *>::iterator it2;
 
+        /* Save textures */
         for (it = LclData -> TexDatas.begin();
 	     it != LclData -> TexDatas.end();
 	     it++) {
@@ -421,23 +425,31 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
                 }
             }
         }
+
+        /* Insert textured geometries into DB */
+        for (it2 = LclData -> CopyList.begin(); 
+            it2 != LclData -> CopyList.end(); 
+            it2++) {
+            if (IP_IS_OLST_OBJ(*it2)) {
+
+            }
+            else {
+                //IPObjectStruct *Copy = IPCopyObject(NULL, *it2, false);
+                GuIritMdlrDllInsertModelingFuncObj(FI, *it2);
+            }
+        }
         return;
     }
 
     if (FI -> CnstrctState == IRT_MDLR_CNSTRCT_STATE_CANCEL) {
         vector<IPObjectStruct *>::iterator it;
 
-        for (it = LclData -> CopyList.begin(); 
-	     it != LclData -> CopyList.end(); 
-	     it++) {
-	    GuIritMdlrDllDeleteModelingFuncObj(FI, *it);
-        }
+        /* Display back the hidden original geometries */
         for (it = LclData -> OriginalList.begin(); 
             it != LclData -> OriginalList.end(); 
             it++) {
-            IrtMdlrPoSSetModelVisibility(FI, *it, true);
+            GuIritMdlrDllSetObjectVisible(FI, *it, true);
         }
-       
         return;
     }
 
@@ -818,6 +830,7 @@ static void IrtMdlrPoSInitObject(IrtMdlrFuncInfoClass* FI,
 				 IPObjectStruct* Object)
 {
     char Name[IRIT_LINE_LEN_XLONG];
+    const char *Path;
     IrtMdlrPoSTexDataStruct TexData;
 
     TexData.Width = IRT_MDLR_POS_DFLT_WIDTH;
@@ -835,7 +848,13 @@ static void IrtMdlrPoSInitObject(IrtMdlrFuncInfoClass* FI,
     Copy -> Attr = NULL;
     IP_SET_OBJ_NAME2(Copy, Name);
 
-    GuIritMdlrDllInsertModelingNewObj(FI, Copy);
+    Path = AttrIDGetObjectStrAttrib(Object, IRIT_ATTR_CREATE_ID(ptexture));
+                
+    if (Path != NULL) {
+        AttrIDSetObjectStrAttrib(Copy, IRIT_ATTR_CREATE_ID(ptexture), Path);
+    }
+
+    GuIritMdlrDllAddTempDisplayObject(FI, Copy, false);
     LclData -> CopyList.push_back(Copy);
 
     if (IP_IS_MODEL_OBJ(Object)) {
@@ -859,7 +878,7 @@ static void IrtMdlrPoSInitObject(IrtMdlrFuncInfoClass* FI,
 	    *ObjList = IPGenLISTObject(NULL);
 
         /* Generate object list that will be worked on. */
-        sprintf(Name, "%s_TRLIST", Object -> ObjName);
+        sprintf(Name, "TRLIST_%s", Object -> ObjName);
         GuIritMdlrDllSetObjectName(FI, ObjList, Name);
 
         while(TSrfList != NULL) {
@@ -904,7 +923,7 @@ static void IrtMdlrPoSInitObject(IrtMdlrFuncInfoClass* FI,
             }
         };
         LclData -> CopyList.push_back(ObjList);
-        GuIritMdlrDllInsertModelingNewObj(FI, ObjList);
+        GuIritMdlrDllAddTempDisplayObject(FI, ObjList, false);
         GuIritMdlrDllSetObjectVisible(FI, Copy, false);
 
         LclData -> OriginalList.push_back(Object);
@@ -1597,6 +1616,7 @@ static int IrtMdlrPoSMouseCallBack(IrtMdlrMouseEventStruct *MouseEvent)
             case IRT_DSP_MOUSE_EVENT_LEFT_DOWN:
 	        GuIritMdlrDllCaptureCursorFocus(FI, MouseEvent, true);
 		Clicking = TRUE;
+        printf("Wut");
 		break;
 
             case IRT_DSP_MOUSE_EVENT_LEFT_UP:
