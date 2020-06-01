@@ -92,6 +92,7 @@ struct IrtMdlrPoSDerivDataStruct {
 struct IrtMdlrPoSTexDataStruct {
     IrtMdlrPoSTexDataStruct(): 
         Texture(NULL),
+        Original(NULL),
         Parent(NULL),
         ModelSurface(NULL) {}
 
@@ -100,6 +101,7 @@ struct IrtMdlrPoSTexDataStruct {
     IrtImgPixelStruct *Texture;
     IrtMdlrPoSDerivDataStruct Deriv;
     vector<IPObjectStruct *> Children;
+    IPObjectStruct *Original;
     IPObjectStruct *Parent;
     CagdSrfStruct *ModelSurface;
 };
@@ -427,15 +429,40 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
         }
 
         /* Insert textured geometries into DB */
-        for (it2 = LclData -> CopyList.begin(); 
-            it2 != LclData -> CopyList.end(); 
+        for (it2 = LclData -> OriginalList.begin(); 
+            it2 != LclData -> OriginalList.end(); 
             it2++) {
-            if (IP_IS_OLST_OBJ(*it2)) {
+            if (IP_IS_MODEL_OBJ(*it2)) {
 
             }
             else {
-                //IPObjectStruct *Copy = IPCopyObject(NULL, *it2, false);
-                GuIritMdlrDllInsertModelingFuncObj(FI, *it2);
+                char Name[IRIT_LINE_LEN_XLONG];
+                const char *Path;
+                IPObjectStruct *Hidden = LclData -> TexDatas[*it2].Children[0];
+                IrtMdlrPoSTexDataStruct
+                    &TexData = LclData -> TexDatas[Hidden];
+
+                IPObjectStruct *Copy = IPCopyObject(NULL, *it2, false);
+                sprintf(Name, "COPY_%s", (*it2) -> ObjName);
+
+                AttrFreeAttributes(&Copy -> Attr);
+                Copy -> Attr = NULL;
+                IP_SET_OBJ_NAME2(Copy, Name);
+
+                Path = AttrIDGetObjectStrAttrib(Hidden, IRIT_ATTR_CREATE_ID(ptexture));
+                if (Path != NULL) {
+                    AttrIDSetObjectStrAttrib(Copy, IRIT_ATTR_CREATE_ID(ptexture), Path);
+                }
+
+                GuIritMdlrDllInsertModelingNewObj(FI, Copy);
+                IrtMdlrPoSRecolorObject(FI, Copy);
+                GuIritMdlrDllSetTextureFromImage(FI,
+                    Copy,
+                    TexData.Texture,
+                    TexData.Width,
+                    TexData.Height,
+                    TexData.Alpha,
+                    LclData -> Span);
             }
         }
         return;

@@ -1,5 +1,5 @@
 [OBJECT [ObjWrapper _REFPTR_ATTR_NOT_CNVRTED_] [transp 0] 
-    [rgb "200,0,0"] STRIM_#000048_2
+    [rgb "200,0,0"] TRIM
     [TRIMSRF
 	[SURFACE BEZIER 2 2 E3
 	    [-1. -1. 0.]
