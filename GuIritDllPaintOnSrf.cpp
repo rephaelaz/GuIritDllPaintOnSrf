@@ -413,7 +413,7 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
 
     if (FI -> CnstrctState == IRT_MDLR_CNSTRCT_STATE_OK) {
         map<IPObjectStruct *, IrtMdlrPoSTexDataStruct>::iterator it;
-        vector<IPObjectStruct *>::iterator it2;
+        vector<IPObjectStruct *>::iterator Object;
 
         /* Save textures */
         for (it = LclData -> TexDatas.begin();
@@ -429,29 +429,70 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
         }
 
         /* Insert textured geometries into DB */
-        for (it2 = LclData -> OriginalList.begin(); 
-            it2 != LclData -> OriginalList.end(); 
-            it2++) {
-            if (IP_IS_MODEL_OBJ(*it2)) {
+        for (Object = LclData -> OriginalList.begin(); 
+            Object != LclData -> OriginalList.end(); 
+            Object++) {
+            char Name[IRIT_LINE_LEN_XLONG];
+            const char *Path;
+            if (IP_IS_MODEL_OBJ(*Object)) {
+                vector<IPObjectStruct *>::iterator Srf;
+                IPObjectStruct
+	                *CopyList = IPGenLISTObject(NULL);
 
+                sprintf(Name, "TRLIST_%s", (*Object) -> ObjName);
+                GuIritMdlrDllSetObjectName(FI, CopyList, Name);
+
+                for (Srf = LclData -> TexDatas[*Object].Children.begin();
+                    Srf != LclData -> TexDatas[*Object].Children.end();
+                    Srf++) {
+                    IrtMdlrPoSTexDataStruct
+                        &TexData = LclData -> TexDatas[*Srf];
+                    IPObjectStruct *Copy = IPCopyObject(NULL, *Srf, false);
+
+                    AttrFreeAttributes(&Copy -> Attr);
+                    Copy -> Attr = NULL;
+                    IP_SET_OBJ_NAME2(Copy, "TRIM");
+
+                    Path = AttrIDGetObjectStrAttrib(*Srf, 
+                        IRIT_ATTR_CREATE_ID(ptexture));
+                    if (Path != NULL) {
+                        AttrIDSetObjectStrAttrib(Copy, 
+                            IRIT_ATTR_CREATE_ID(ptexture), 
+                            Path);
+                    }
+
+                    IrtMdlrPoSRecolorObject(FI, Copy);
+                    GuIritMdlrDllSetTextureFromImage(FI,
+                        Copy,
+                        TexData.Texture,
+                        TexData.Width,
+                        TexData.Height,
+                        TexData.Alpha,
+                        LclData -> Span);
+                    IPListObjectAppend(CopyList, Copy);
+                }
+                GuIritMdlrDllInsertModelingNewObj(FI, CopyList);
             }
             else {
-                char Name[IRIT_LINE_LEN_XLONG];
-                const char *Path;
-                IPObjectStruct *Hidden = LclData -> TexDatas[*it2].Children[0];
+                
+                IPObjectStruct 
+                    *Hidden = LclData -> TexDatas[*Object].Children[0];
                 IrtMdlrPoSTexDataStruct
                     &TexData = LclData -> TexDatas[Hidden];
 
-                IPObjectStruct *Copy = IPCopyObject(NULL, *it2, false);
-                sprintf(Name, "COPY_%s", (*it2) -> ObjName);
+                IPObjectStruct *Copy = IPCopyObject(NULL, *Object, false);
+                sprintf(Name, "COPY_%s", (*Object) -> ObjName);
 
                 AttrFreeAttributes(&Copy -> Attr);
                 Copy -> Attr = NULL;
                 IP_SET_OBJ_NAME2(Copy, Name);
 
-                Path = AttrIDGetObjectStrAttrib(Hidden, IRIT_ATTR_CREATE_ID(ptexture));
+                Path = AttrIDGetObjectStrAttrib(Hidden, 
+                    IRIT_ATTR_CREATE_ID(ptexture));
                 if (Path != NULL) {
-                    AttrIDSetObjectStrAttrib(Copy, IRIT_ATTR_CREATE_ID(ptexture), Path);
+                    AttrIDSetObjectStrAttrib(Copy, 
+                        IRIT_ATTR_CREATE_ID(ptexture), 
+                        Path);
                 }
 
                 GuIritMdlrDllInsertModelingNewObj(FI, Copy);
