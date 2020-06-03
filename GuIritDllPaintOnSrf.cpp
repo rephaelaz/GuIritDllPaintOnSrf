@@ -94,6 +94,7 @@ struct IrtMdlrPoSTexDataStruct {
         Texture(NULL),
         Original(NULL),
         Parent(NULL),
+        ModelCopy(NULL),
         ModelSurface(NULL) {}
 
     bool Saved;
@@ -103,6 +104,7 @@ struct IrtMdlrPoSTexDataStruct {
     vector<IPObjectStruct *> Children;
     IPObjectStruct *Original;
     IPObjectStruct *Parent;
+    IPObjectStruct *ModelCopy;
     CagdSrfStruct *ModelSurface;
 };
 
@@ -434,10 +436,12 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
             Object++) {
             char Name[IRIT_LINE_LEN_XLONG];
             const char *Path;
+
             if (IP_IS_MODEL_OBJ(*Object)) {
                 vector<IPObjectStruct *>::iterator Srf;
                 IPObjectStruct
-	                *CopyList = IPGenLISTObject(NULL);
+	                *CopyList = IPGenLISTObject(NULL),
+                    *ToInsert = LclData -> TexDatas[*Object].ModelCopy;
 
                 sprintf(Name, "TRLIST_%s", (*Object) -> ObjName);
                 GuIritMdlrDllSetObjectName(FI, CopyList, Name);
@@ -447,34 +451,61 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
                     Srf++) {
                     IrtMdlrPoSTexDataStruct
                         &TexData = LclData -> TexDatas[*Srf];
-                    IPObjectStruct *Copy = IPCopyObject(NULL, *Srf, false);
 
-                    AttrFreeAttributes(&Copy -> Attr);
-                    Copy -> Attr = NULL;
-                    IP_SET_OBJ_NAME2(Copy, "TRIM");
+                    /* Duplicate trimmed surface */
+                    IPObjectStruct *CopySrf = IPCopyObject(NULL, *Srf, false);
+
+                    AttrFreeAttributes(&CopySrf -> Attr);
+                    CopySrf -> Attr = NULL;
+                    IP_SET_OBJ_NAME2(CopySrf, "TRIM");
 
                     Path = AttrIDGetObjectStrAttrib(*Srf, 
                         IRIT_ATTR_CREATE_ID(ptexture));
                     if (Path != NULL) {
-                        AttrIDSetObjectStrAttrib(Copy, 
+                        AttrIDSetObjectStrAttrib(CopySrf, 
                             IRIT_ATTR_CREATE_ID(ptexture), 
                             Path);
                     }
 
-                    IrtMdlrPoSRecolorObject(FI, Copy);
+                    IrtMdlrPoSRecolorObject(FI, CopySrf);
                     GuIritMdlrDllSetTextureFromImage(FI,
-                        Copy,
+                        CopySrf,
                         TexData.Texture,
                         TexData.Width,
                         TexData.Height,
                         TexData.Alpha,
                         LclData -> Span);
-                    IPListObjectAppend(CopyList, Copy);
+                    IPListObjectAppend(CopyList, CopySrf);
+
+                    /* Assign ptexture in model copy */
+                    int CopyIndex = AttrIDGetIntAttrib(
+                        (*Srf) -> U.TrimSrfs -> Srf -> Attr,
+                        IRIT_ATTR_CREATE_ID(SrfIndex));
+
+                    MdlTrimSrfStruct 
+                        *MdlTSrf = ToInsert -> U.Mdls -> TrimSrfList;
+                    while(MdlTSrf != NULL) {
+                        int OriginalIndex = AttrIDGetIntAttrib(
+                            MdlTSrf -> Srf -> Attr, 
+					        IRIT_ATTR_CREATE_ID(SrfIndex));
+
+                        if (CopyIndex == OriginalIndex) {
+                            if (Path != NULL) {
+                                AttrIDSetStrAttrib(
+                                    &MdlTSrf -> Srf -> Attr, 
+                                    IRIT_ATTR_CREATE_ID(ptexture), 
+                                    Path);
+                            }
+                            break;
+                        }
+                        MdlTSrf = MdlTSrf -> Pnext;
+                    }
                 }
                 GuIritMdlrDllInsertModelingNewObj(FI, CopyList);
+                GuIritMdlrDllInsertModelingNewObj(FI, ToInsert);
+                GuIritMdlrDllSetObjectVisible(FI, ToInsert, false);
             }
             else {
-                
                 IPObjectStruct 
                     *Hidden = LclData -> TexDatas[*Object].Children[0];
                 IrtMdlrPoSTexDataStruct
@@ -495,7 +526,6 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
                         Path);
                 }
 
-                GuIritMdlrDllInsertModelingNewObj(FI, Copy);
                 IrtMdlrPoSRecolorObject(FI, Copy);
                 GuIritMdlrDllSetTextureFromImage(FI,
                     Copy,
@@ -504,6 +534,7 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
                     TexData.Height,
                     TexData.Alpha,
                     LclData -> Span);
+                GuIritMdlrDllInsertModelingNewObj(FI, Copy);
             }
         }
         return;
@@ -922,7 +953,6 @@ static void IrtMdlrPoSInitObject(IrtMdlrFuncInfoClass* FI,
         AttrIDSetObjectStrAttrib(Copy, IRIT_ATTR_CREATE_ID(ptexture), Path);
     }
 
-    GuIritMdlrDllAddTempDisplayObject(FI, Copy, false);
     LclData -> CopyList.push_back(Copy);
 
     if (IP_IS_MODEL_OBJ(Object)) {
@@ -938,6 +968,17 @@ static void IrtMdlrPoSInitObject(IrtMdlrFuncInfoClass* FI,
                 index++);
             MdlTSrf = MdlTSrf -> Pnext;
         }
+
+        /* Generate copy to be inserted in the db on OK, to keep track of
+           surface IDs */
+        IPObjectStruct *CopyCopy = IPCopyObject(NULL, Copy, false);
+        sprintf(Name, "COPY_%s", Object -> ObjName);
+        
+        AttrFreeAttributes(&CopyCopy -> Attr);
+        CopyCopy -> Attr = NULL;
+        IP_SET_OBJ_NAME2(CopyCopy, Name);
+
+        TexData.ModelCopy = CopyCopy;
 
         /* Surface IDs should propagate to TSrfList. */
         TrimSrfStruct
@@ -958,6 +999,10 @@ static void IrtMdlrPoSInitObject(IrtMdlrFuncInfoClass* FI,
 					       IRIT_ATTR_CREATE_ID(SrfIndex));
             IPObjectStruct
 	        *Obj = IPGenTRIMSRFObject(TSrf);
+
+            AttrIDSetObjectIntAttrib(Obj,
+                IRIT_ATTR_CREATE_ID(SrfIndex),
+                CopyIndex);
 
             GuIritMdlrDllSetObjectName(FI, Obj, "TRIM");
             IrtMdlrPoSInitTexture(FI, Obj);
@@ -992,6 +1037,7 @@ static void IrtMdlrPoSInitObject(IrtMdlrFuncInfoClass* FI,
         };
         LclData -> CopyList.push_back(ObjList);
         GuIritMdlrDllAddTempDisplayObject(FI, ObjList, false);
+        GuIritMdlrDllAddTempDisplayObject(FI, Copy, false);
         GuIritMdlrDllSetObjectVisible(FI, Copy, false);
 
         LclData -> OriginalList.push_back(Object);
@@ -1010,6 +1056,7 @@ static void IrtMdlrPoSInitObject(IrtMdlrFuncInfoClass* FI,
         LclData -> OriginalList.push_back(Object);
         GuIritMdlrDllSetObjectVisible(FI, Object, false);
 
+        GuIritMdlrDllAddTempDisplayObject(FI, Copy, false);
         LclData -> TexDatas[Object] = TexData;
     }
 }
