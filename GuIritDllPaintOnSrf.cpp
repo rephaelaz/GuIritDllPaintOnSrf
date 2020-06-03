@@ -1732,7 +1732,6 @@ static int IrtMdlrPoSMouseCallBack(IrtMdlrMouseEventStruct *MouseEvent)
             case IRT_DSP_MOUSE_EVENT_LEFT_DOWN:
 	        GuIritMdlrDllCaptureCursorFocus(FI, MouseEvent, true);
 		Clicking = TRUE;
-        printf("Wut");
 		break;
 
             case IRT_DSP_MOUSE_EVENT_LEFT_UP:
