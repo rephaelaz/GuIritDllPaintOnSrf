@@ -1740,6 +1740,7 @@ static int IrtMdlrPoSMouseCallBack(IrtMdlrMouseEventStruct *MouseEvent)
 		Clicking = FALSE;
 		PrevXOff = -1;
 		PrefYOff = -1;
+        PrevObj = NULL;
 		break;
 
             default:
