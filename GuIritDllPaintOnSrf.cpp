@@ -1624,16 +1624,6 @@ static void IrtMdlrPoSRenderShape(IrtMdlrFuncInfoClass *FI,
     IrtMdlrPoSTexDataStruct
         &TexData = LclData -> TexDatas[Object];
 
-    /* Modulo needs positive values to work as intended */
-    while (XMin < 0) {
-        XMin += TexData.Width;
-    }
-    while (YMin < 0) {
-        YMin += TexData.Height;
-    }
-    XMin %= TexData.Width;
-    YMin %= TexData.Height;
-
     if (IP_IS_TRIMSRF_OBJ(Object)) {
         UClosed = Object -> U.TrimSrfs -> Srf -> UPeriodic ||
                CagdIsClosedSrf(Object -> U.TrimSrfs -> Srf, CAGD_CONST_U_DIR);
@@ -1647,6 +1637,17 @@ static void IrtMdlrPoSRenderShape(IrtMdlrFuncInfoClass *FI,
                   CagdIsClosedSrf(Object -> U.Srfs, CAGD_CONST_V_DIR);
     }
 
+    /* Modulo needs positive values to work as intended */
+    while (XMin < 0) {
+        XMin += TexData.Width;
+    }
+    while (YMin < 0) {
+        YMin += TexData.Height;
+    }
+    XMin %= TexData.Width;
+    YMin %= TexData.Height;
+
+
     for (v = 0; v < LclData -> Updated.Height; v++) {
         for (u = 0; u < LclData -> Updated.Width; u++) {
             int x = (XMin + u) % TexData.Width,
@@ -1655,12 +1656,12 @@ static void IrtMdlrPoSRenderShape(IrtMdlrFuncInfoClass *FI,
                 ShapeOff = u + LclData -> Updated.Width * v;
 
             if (!UClosed) {
-                if (x != (XMin + u)) {
+                if (x != (XOff - LclData->Updated.Width / 2) + u) {
                     continue;
                 }
             }
             if (!VClosed) {
-                if (y != (YMin + v)) {
+                if (y != (YOff - LclData->Updated.Height / 2) + v) {
                     continue;
                 }
             }
