@@ -1857,8 +1857,8 @@ static int IrtMdlrPoSMouseCallBack(IrtMdlrMouseEventStruct *MouseEvent)
                            (float) Points[i].first / (float) TexData.Width,
                            (float) Points[i].second / (float) TexData.Height);
                     IrtMdlrPoSRenderShape(FI, Obj,
-					  Points[i].first % TexData.Width,
-					  Points[i].second % TexData.Height);
+					  Points[i].first,
+					  Points[i].second);
                 }
 
                 PrevXOff = XBackup;
