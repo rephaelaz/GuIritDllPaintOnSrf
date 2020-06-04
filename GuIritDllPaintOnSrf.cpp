@@ -218,10 +218,12 @@ static int IrtMdlrPoSMouseCallBack(IrtMdlrMouseEventStruct *MouseEvent);
 static void IrtMdlrPoSShapeUpdate(IrtMdlrFuncInfoClass *FI,
 				  IPObjectStruct *Object,
 				  double u,
-				  double v);
+				  double v,
+                  CagdRType Scale);
 static void IrtMdlrPoSApplyResize(IrtMdlrFuncInfoClass *FI, 
 				  CagdVType SuVec, 
-				  CagdVType SvVec);
+				  CagdVType SvVec,
+                  CagdRType Scale);
 static void IrtMdlrPoSApplyShear(IrtMdlrFuncInfoClass *FI, 
 				 CagdVType SuVec, 
 				 CagdVType SvVec);
@@ -1734,6 +1736,8 @@ static int IrtMdlrPoSMouseCallBack(IrtMdlrMouseEventStruct *MouseEvent)
     IRT_DSP_STATIC_DATA int
         PrevXOff = -1,
         PrefYOff = -1;
+    IRT_DSP_STATIC_DATA CagdRType
+        Scale = 1.0;
     IRT_DSP_STATIC_DATA IPObjectStruct *
         PrevObj = NULL;
     IrtRType
@@ -1759,6 +1763,7 @@ static int IrtMdlrPoSMouseCallBack(IrtMdlrMouseEventStruct *MouseEvent)
 		PrevXOff = -1;
 		PrefYOff = -1;
         PrevObj = NULL;
+        Scale = 1.0;
 		break;
 
             default:
@@ -1784,11 +1789,11 @@ static int IrtMdlrPoSMouseCallBack(IrtMdlrMouseEventStruct *MouseEvent)
                         IrtMdlrPoSTexDataStruct
                             &PrevData = LclData -> TexDatas[PrevObj];
                         CagdUVType PrevBndryUV, BndryUV,
-			                PrevUV = { (CagdRType) PrevXOff / PrevData.Width, (CagdRType) PrefYOff / PrevData.Height },
+			                PrevUV = { (CagdRType) PrevXOff / PrevData.Width, 
+                            (CagdRType) PrefYOff / PrevData.Height },
                             UV = { MouseEvent -> UVW[0], MouseEvent -> UVW[1] };
                         CagdRType PrevUMin, PrevUMax, PrevVMin, PrevVMax,
-                            UMin, UMax, VMin, VMax;
-                        CagdRType ScaleChange[2];
+                            UMin, UMax, VMin, VMax, ScaleChange, PrevScale;
 
                         /* Update UVs of current and previous surfaces */
                         CagdSrfDomain(PrevObj -> U.TrimSrfs -> Srf, 
@@ -1805,7 +1810,10 @@ static int IrtMdlrPoSMouseCallBack(IrtMdlrMouseEventStruct *MouseEvent)
                             PrevObj -> U.TrimSrfs, PrevUV, 
                             Obj -> U.TrimSrfs, UV, 
                             PrevBndryUV, BndryUV, 
-                            ScaleChange);
+                            &ScaleChange);
+
+                        PrevScale = Scale;
+                        Scale *= ScaleChange;
 
                         /* Revert UVs back to [0,1]x[0,1] space */
                         PrevBndryUV[0] = (PrevBndryUV[0] - PrevUMin) / (PrevUMax - PrevUMin);
@@ -1814,23 +1822,9 @@ static int IrtMdlrPoSMouseCallBack(IrtMdlrMouseEventStruct *MouseEvent)
                         BndryUV[0] = (BndryUV[0] - UMin) / (UMax - UMin);
                         BndryUV[1] = (BndryUV[1] - VMin) / (VMax - VMin);
 
-
                         /* Draw line from previous UV to boundary */
                         XOff = (int) (PrevBndryUV[0] * (double) PrevData.Width);
                         YOff = (int) (PrevBndryUV[1] * (double) PrevData.Height);
-
-                        /*if (IRT_MDLR_POS_DIST(PrevXOff, XOff - PrevData.Width)
-                            < IRT_MDLR_POS_DIST(PrevXOff, XOff))
-                            XOff -= PrevData.Width;
-                        if (IRT_MDLR_POS_DIST(PrevXOff, XOff + PrevData.Width)
-                            < IRT_MDLR_POS_DIST(PrevXOff, XOff))
-                            XOff += PrevData.Width;
-                        if (IRT_MDLR_POS_DIST(PrefYOff, YOff - PrevData.Height)
-                            < IRT_MDLR_POS_DIST(PrefYOff, YOff))
-                            YOff -= PrevData.Height;
-                        if (IRT_MDLR_POS_DIST(PrefYOff, YOff + PrevData.Height)
-                            < IRT_MDLR_POS_DIST(PrefYOff, YOff))
-                            YOff += PrevData.Height;*/
 
                         Start = pair<int, int>(PrevXOff, PrefYOff);
                         End = pair<int, int>(XOff, YOff);
@@ -1839,7 +1833,8 @@ static int IrtMdlrPoSMouseCallBack(IrtMdlrMouseEventStruct *MouseEvent)
                         for (i = 0; i < Points.size(); i++) {
                             IrtMdlrPoSShapeUpdate(FI, PrevObj,
                                 (float)Points[i].first / (float)PrevData.Width,
-                                (float)Points[i].second / (float)PrevData.Height);
+                                (float)Points[i].second / (float)PrevData.Height,
+                                PrevScale);
                             IrtMdlrPoSRenderShape(FI, PrevObj,
                                 Points[i].first,
                                 Points[i].second);
@@ -1893,7 +1888,8 @@ static int IrtMdlrPoSMouseCallBack(IrtMdlrMouseEventStruct *MouseEvent)
             if (PrefYOff == -1) {
                 IrtMdlrPoSShapeUpdate(FI, Obj, 
                     MouseEvent -> UVW[0],
-				    MouseEvent -> UVW[1]);
+				    MouseEvent -> UVW[1],
+                    1.0);
                 IrtMdlrPoSRenderShape(FI, Obj, XOff, YOff);
                 PrevXOff = XOff;
                 PrefYOff = YOff;
@@ -1924,7 +1920,8 @@ static int IrtMdlrPoSMouseCallBack(IrtMdlrMouseEventStruct *MouseEvent)
                 for (i = 0; i < Points.size(); i++) {
                     IrtMdlrPoSShapeUpdate(FI, Obj, 
                            (float) Points[i].first / (float) TexData.Width,
-                           (float) Points[i].second / (float) TexData.Height);
+                           (float) Points[i].second / (float) TexData.Height,
+                           Scale);
                     IrtMdlrPoSRenderShape(FI, Obj,
 					  Points[i].first,
 					  Points[i].second);
@@ -1962,7 +1959,8 @@ static int IrtMdlrPoSMouseCallBack(IrtMdlrMouseEventStruct *MouseEvent)
 static void IrtMdlrPoSShapeUpdate(IrtMdlrFuncInfoClass *FI, 
 				  IPObjectStruct *Object, 
 				  double u, 
-				  double v) 
+				  double v,
+                  CagdRType Scale) 
 {
     CagdRType UMin, UMax, VMin, VMax;
     CagdVType SuVec, SvVec, SuVecAvg, SvVecAvg;
@@ -2015,7 +2013,7 @@ static void IrtMdlrPoSShapeUpdate(IrtMdlrFuncInfoClass *FI,
     }
 
     /* Execute the transformations. */
-    IrtMdlrPoSApplyResize(FI, SuVecAvg, SvVecAvg);
+    IrtMdlrPoSApplyResize(FI, SuVecAvg, SvVecAvg, Scale);
     IrtMdlrPoSApplyShear(FI, SuVec, SvVec);
 }
 
@@ -2033,7 +2031,8 @@ static void IrtMdlrPoSShapeUpdate(IrtMdlrFuncInfoClass *FI,
 *****************************************************************************/
 static void IrtMdlrPoSApplyResize(IrtMdlrFuncInfoClass *FI, 
 				  CagdVType SuVec, 
-				  CagdVType SvVec) 
+				  CagdVType SvVec,
+                  CagdRType Scale) 
 {
     double
         normU = IRIT_VEC_LENGTH(SuVec),
@@ -2052,9 +2051,9 @@ static void IrtMdlrPoSApplyResize(IrtMdlrFuncInfoClass *FI,
         *oldShape = LclData -> Updated.Shape;
 
     LclData -> Updated.Width = 
-	        (int) (LclData -> Updated.Width * LclData -> Updated.XFactor);
+	        (int) (LclData -> Updated.Width * LclData -> Updated.XFactor * Scale);
     LclData -> Updated.Height = 
-               (int) (LclData -> Updated.Height * LclData -> Updated.YFactor);
+               (int) (LclData -> Updated.Height * LclData -> Updated.YFactor * Scale);
 
     int Size = LclData -> Updated.Height * LclData -> Updated.Width;
 
@@ -2258,5 +2257,5 @@ static void IrtMdlrComputeJunctionBetweenSrfs(const TrimSrfStruct *CrntSrf,
     }
 #   endif /* DEBUG_JUCT_EVAL_CASE */
 
-    *ScaleChange = 1.0;                           /* Disable scalingfor now. */
+    //*ScaleChange = 1.0;                           /* Disable scalingfor now. */
 }
