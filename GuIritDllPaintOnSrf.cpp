@@ -417,15 +417,34 @@ static void IrtMdlrPaintOnSrf(IrtMdlrFuncInfoClass *FI)
         map<IPObjectStruct *, IrtMdlrPoSTexDataStruct>::iterator it;
         vector<IPObjectStruct *>::iterator Object;
 
-        /* Save textures */
-        for (it = LclData -> TexDatas.begin();
-	     it != LclData -> TexDatas.end();
-	     it++) {
-            if (IP_IS_MODEL_OBJ(it -> first)) {
-            }
-            else {
-                if (!it -> second.Saved) {
-                    IrtMdlrPoSSaveTexture(FI, it -> first);
+        char *Filename;
+
+        bool Res = GuIritMdlrDllGetAsyncInputFileName(FI,
+		            "Save textures to...",
+		            "PNG files (*.png)|*.png|JPG files (*.jpg)|*.jpg|"
+		            "PPM files (*.ppm)|*.ppm|GIF files (*.gif)|*.gif", 
+		            &Filename);
+
+        if (Res) {
+            int i = 1;
+            char Path[IRIT_LINE_LEN_XLONG];
+            char Ext[IRIT_LINE_LEN];
+
+            sprintf(Ext, "%s", Filename + strlen(Filename) - 3);
+
+            Filename[strlen(Filename) - 4] = 0;
+
+            /* Save textures */
+            for (it = LclData -> TexDatas.begin();
+	         it != LclData -> TexDatas.end();
+	         it++) {
+                if (IP_IS_MODEL_OBJ(it -> first)) {
+                }
+                else {
+                    if (!it -> second.Saved) {
+                        sprintf(Path, "%s_%d.%s", Filename, i++, Ext);
+                        IrtMdlrPoSSaveTexture(FI, it -> first, Path);
+                    }
                 }
             }
         }
