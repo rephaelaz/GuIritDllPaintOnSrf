@@ -1768,71 +1768,92 @@ static int IrtMdlrPoSMouseCallBack(IrtMdlrMouseEventStruct *MouseEvent)
         if (Clicking &&
             MouseEvent -> UVW != NULL &&
             Obj != NULL &&
-            find(LclData -> Selection.begin(), LclData -> Selection.end(),
-		 Obj) != LclData -> Selection.end()) {
+            find(LclData -> Selection.begin(), LclData -> Selection.end(), Obj) != LclData -> Selection.end()) {
             IrtMdlrPoSTexDataStruct
                 &TexData = LclData -> TexDatas[Obj];
 
-            /* Reset texture buffers if needed. */
             if (Obj != PrevObj) {
                 int x = 0;
 
                 if (PrevObj != NULL) {
                     if (IP_IS_TRIMSRF_OBJ(PrevObj)) {
-                        const CagdUVType
-			     CrntUV = { (CagdRType) PrevXOff / TexData.Width,
-					(CagdRType) PrefYOff / TexData.Height },
-                             NextUV = { MouseEvent -> UVW[0],
-					MouseEvent -> UVW[1] };
-                        CagdUVType
-			    CrntBndryUV = { PrevXOff, PrefYOff }, 
-                            NextBndryUV = { MouseEvent -> UVW[0],
-					    MouseEvent -> UVW[1] };
-                        CagdRType ScaleChange[2] = { 1, 1 };
-
-                        IrtMdlrComputeJunctionBetweenSrfs(PrevObj -> U.TrimSrfs,
-						   CrntUV, Obj -> U.TrimSrfs,
-						   NextUV, CrntBndryUV,
-						   NextBndryUV, ScaleChange);
-
                         size_t i;
+                        int XOff, YOff;
                         pair<int, int> Start, End;
                         vector<pair<int, int>> Points;
-                        int XOff = CrntBndryUV[0] * LclData -> TexDatas[PrevObj].Width;
-                        int YOff = CrntBndryUV[1] * LclData -> TexDatas[PrevObj].Height;
+                        IrtMdlrPoSTexDataStruct
+                            &PrevData = LclData -> TexDatas[PrevObj];
+                        CagdUVType PrevBndryUV, BndryUV,
+			                PrevUV = { (CagdRType) PrevXOff / PrevData.Width, (CagdRType) PrefYOff / PrevData.Height },
+                            UV = { MouseEvent -> UVW[0], MouseEvent -> UVW[1] };
+                        CagdRType PrevUMin, PrevUMax, PrevVMin, PrevVMax,
+                            UMin, UMax, VMin, VMax;
+                        CagdRType ScaleChange[2];
 
-                        if (IRT_MDLR_POS_DIST(PrevXOff, XOff - LclData -> TexDatas[PrevObj].Width)
+                        /* Update UVs of current and previous surfaces */
+                        CagdSrfDomain(PrevObj -> U.TrimSrfs -> Srf, 
+                            &PrevUMin, &PrevUMax, &PrevVMin, &PrevVMax);
+                        PrevUV[0] = ((PrevUMax - PrevUMin) * PrevUV[0]) + PrevUMin;
+                        PrevUV[1] = ((PrevVMax - PrevVMin) * PrevUV[1]) + PrevVMin;
+
+                        CagdSrfDomain(Obj -> U.TrimSrfs -> Srf, 
+                            &UMin, &UMax, &VMin, &VMax);
+                        UV[0] = ((UMax - UMin) * UV[0]) + UMin;
+                        UV[1] = ((VMax - VMin) * UV[1]) + VMin;
+
+                        IrtMdlrComputeJunctionBetweenSrfs(
+                            PrevObj -> U.TrimSrfs, PrevUV, 
+                            Obj -> U.TrimSrfs, UV, 
+                            PrevBndryUV, BndryUV, 
+                            ScaleChange);
+
+                        /* Revert UVs back to [0,1]x[0,1] space */
+                        PrevBndryUV[0] = (PrevBndryUV[0] - PrevUMin) / (PrevUMax - PrevUMin);
+                        PrevBndryUV[1] = (PrevBndryUV[1] - PrevVMin) / (PrevVMax - PrevVMin);
+
+                        BndryUV[0] = (BndryUV[0] - UMin) / (UMax - UMin);
+                        BndryUV[1] = (BndryUV[1] - VMin) / (VMax - VMin);
+
+
+                        /* Draw line from previous UV to boundary */
+                        XOff = (int) (PrevBndryUV[0] * (double) PrevData.Width);
+                        YOff = (int) (PrevBndryUV[1] * (double) PrevData.Height);
+
+                        /*if (IRT_MDLR_POS_DIST(PrevXOff, XOff - PrevData.Width)
                             < IRT_MDLR_POS_DIST(PrevXOff, XOff))
-                            XOff -= LclData -> TexDatas[PrevObj].Width;
-                        if (IRT_MDLR_POS_DIST(PrevXOff, XOff + LclData -> TexDatas[PrevObj].Width)
+                            XOff -= PrevData.Width;
+                        if (IRT_MDLR_POS_DIST(PrevXOff, XOff + PrevData.Width)
                             < IRT_MDLR_POS_DIST(PrevXOff, XOff))
-                            XOff += LclData -> TexDatas[PrevObj].Width;
-                        if (IRT_MDLR_POS_DIST(PrefYOff, YOff - LclData -> TexDatas[PrevObj].Height)
+                            XOff += PrevData.Width;
+                        if (IRT_MDLR_POS_DIST(PrefYOff, YOff - PrevData.Height)
                             < IRT_MDLR_POS_DIST(PrefYOff, YOff))
-                            YOff -= LclData -> TexDatas[PrevObj].Height;
-                        if (IRT_MDLR_POS_DIST(PrefYOff, YOff + LclData -> TexDatas[PrevObj].Height)
+                            YOff -= PrevData.Height;
+                        if (IRT_MDLR_POS_DIST(PrefYOff, YOff + PrevData.Height)
                             < IRT_MDLR_POS_DIST(PrefYOff, YOff))
-                            YOff += LclData -> TexDatas[PrevObj].Height;
+                            YOff += PrevData.Height;*/
+
                         Start = pair<int, int>(PrevXOff, PrefYOff);
                         End = pair<int, int>(XOff, YOff);
                         IrtMdlrPoSBresenham(Start, End, Points);
 
                         for (i = 0; i < Points.size(); i++) {
                             IrtMdlrPoSShapeUpdate(FI, PrevObj,
-                                (float)Points[i].first / (float)LclData -> TexDatas[PrevObj].Width,
-                                (float)Points[i].second / (float)LclData -> TexDatas[PrevObj].Height);
+                                (float)Points[i].first / (float)PrevData.Width,
+                                (float)Points[i].second / (float)PrevData.Height);
                             IrtMdlrPoSRenderShape(FI, PrevObj,
                                 Points[i].first,
                                 Points[i].second);
                         }
-                        GuIritMdlrDllSetTextureFromImage(FI, PrevObj, LclData -> TexDatas[PrevObj].Texture,
-                            LclData -> TexDatas[PrevObj].Width, LclData -> TexDatas[PrevObj].Height,
-                            LclData -> TexDatas[PrevObj].Alpha, Span);
+                        GuIritMdlrDllSetTextureFromImage(FI, 
+                            PrevObj, 
+                            PrevData.Texture,
+                            PrevData.Width, 
+                            PrevData.Height,
+                            PrevData.Alpha, 
+                            Span);
 
-                        PrevXOff = (int) ((double) TexData.Width *
-					                      NextBndryUV[0]);
-                        PrefYOff = (int) ((double) TexData.Height *
-					                      NextBndryUV[1]);
+                        PrevXOff = (int) ((double) TexData.Width * BndryUV[0]);
+                        PrefYOff = (int) ((double) TexData.Height * BndryUV[1]);
 
                         x = 1;
                     }
@@ -1870,8 +1891,9 @@ static int IrtMdlrPoSMouseCallBack(IrtMdlrMouseEventStruct *MouseEvent)
                 YOff = (int) ((double) TexData.Height * MouseEvent -> UVW[1]);
 
             if (PrefYOff == -1) {
-                IrtMdlrPoSShapeUpdate(FI, Obj, MouseEvent -> UVW[0],
-				      MouseEvent -> UVW[1]);
+                IrtMdlrPoSShapeUpdate(FI, Obj, 
+                    MouseEvent -> UVW[0],
+				    MouseEvent -> UVW[1]);
                 IrtMdlrPoSRenderShape(FI, Obj, XOff, YOff);
                 PrevXOff = XOff;
                 PrefYOff = YOff;
